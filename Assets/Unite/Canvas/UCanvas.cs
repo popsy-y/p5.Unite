@@ -104,7 +104,7 @@ namespace Unite.Canvas
                 var m = _drawingContext.DrawingMode;
 
                 if (m is DrawingMode.ClipSpace or DrawingMode.ClipSpaceOverlay)
-                    return 1;
+                    return _currentCamera.pixelWidth;
 
                 if (m is DrawingMode.ScreenSpace or DrawingMode.ScreenSpaceOverlay)
                     return _currentCamera.pixelWidth;
@@ -134,7 +134,7 @@ namespace Unite.Canvas
                 var m = _drawingContext.DrawingMode;
         
                 if (m is DrawingMode.ClipSpace or DrawingMode.ClipSpaceOverlay)
-                    return 1;
+                    return _currentCamera.pixelHeight;
 
                 if (m is DrawingMode.ScreenSpace or DrawingMode.ScreenSpaceOverlay)
                     return _currentCamera.pixelHeight;
