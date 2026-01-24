@@ -6,7 +6,7 @@ using UnityEngine.Rendering;
 
 namespace Unite.Canvas
 {
-    public partial class Canvas : MonoBehaviour
+    public partial class UCanvas : MonoBehaviour
     {
         private DrawingContext _drawingContext;
 

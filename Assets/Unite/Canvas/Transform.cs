@@ -3,7 +3,7 @@ using Unite.Coordinate;
 
 namespace Unite.Canvas
 {
-    public partial class Canvas
+    public partial class UCanvas
     {
         private CanvasTransformStack _transformStack = new();
         

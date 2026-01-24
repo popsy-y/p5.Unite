@@ -1,16 +1,16 @@
+using Unite.Canvas;
 using Unite.Drawing;
 using UnityEngine;
-using Canvas = Unite.Canvas.Canvas;
 
 namespace Dev
 {
     public class CanvasTester : MonoBehaviour
     {
-        private Canvas _cnv;
+        private UCanvas _cnv;
         
         private void Start()
         {
-            _cnv = GetComponent<Canvas>();
+            _cnv = GetComponent<UCanvas>();
             _cnv.CreateCanvas(DrawingMode.ScreenSpace);
         }
 
