@@ -4,10 +4,11 @@ using Unite.Canvas;
 using UnityEngine;
 using UnityEngine.Rendering;
 using DH = Unite.Drawing.DrawingHelper;
+using Object = UnityEngine.Object;
 
 namespace Unite.Drawing
 {
-    public class DrawingContext
+    public class DrawingContext : IDisposable
     {
         private Mesh _mesh;
         private Material _material;
@@ -26,100 +27,74 @@ namespace Unite.Drawing
             _material = new Material(Shader.Find("Hidden/Unite/Drawing"));
 
             DrawingMode = mode;
-            switch (DrawingMode)
-            {
-                case DrawingMode.ScreenSpaceOverlay:
-                    RenderPipelineManager.beginCameraRendering += LayoutMeshSsO;
-                    break;
-                case DrawingMode.ScreenSpace:
-                    RenderPipelineManager.beginCameraRendering += LayoutMeshSs;
-                    break;
-                case DrawingMode.ViewSpaceOverlay:
-                    RenderPipelineManager.beginCameraRendering += LayoutMeshVsO;
-                    break;
-                case DrawingMode.ViewSpace:
-                    RenderPipelineManager.beginCameraRendering += LayoutMeshVs;
-                    break;
-                case DrawingMode.WorldSpace:
-                    RenderPipelineManager.beginCameraRendering += LayoutMeshWs;
-                    break;
-            }
         }
 
-        public void EndDrawing()
+        public void Dispose()
+        {
+            #if UNITY_EDITOR
+            Object.DestroyImmediate(_material);
+            Object.DestroyImmediate(_mesh);
+            #else
+            Object.Destroy(_material);
+            Object.Destroy(_mesh);
+            #endif
+        }
+
+        public void Draw(ScriptableRenderContext srpCtx, Camera cam)
         {
             switch (DrawingMode)
             {
                 case DrawingMode.ScreenSpaceOverlay:
-                    RenderPipelineManager.beginCameraRendering -= LayoutMeshSsO;
+                    // LayoutMeshSsO(srpCtx, cam);
+                    LayoutHomogenousShape(srpCtx, cam);
                     break;
                 case DrawingMode.ScreenSpace:
-                    RenderPipelineManager.beginCameraRendering -= LayoutMeshSs;
+                    // LayoutMeshSs(srpCtx, cam);
+                    LayoutHomogenousShape(srpCtx, cam);
                     break;
-                case DrawingMode.ViewSpaceOverlay:
-                    RenderPipelineManager.beginCameraRendering -= LayoutMeshVsO;
+                case DrawingMode.ClipSpaceOverlay:
+                    // LayoutMeshCsO(srpCtx, cam);
+                    LayoutHomogenousShape(srpCtx, cam);
                     break;
-                case DrawingMode.ViewSpace:
-                    RenderPipelineManager.beginCameraRendering -= LayoutMeshVs;
+                case DrawingMode.ClipSpace:
+                    // LayoutMeshCs(srpCtx, cam);
+                    LayoutHomogenousShape(srpCtx, cam);
                     break;
                 case DrawingMode.WorldSpace:
-                    RenderPipelineManager.beginCameraRendering -= LayoutMeshWs;
+                    LayoutMeshWs(srpCtx, cam);
                     break;
             }
         }
 
-        // UNIT VIEWPORT: (0, 0) TO (1, 1)
-
-        private void LayoutMeshSsO(ScriptableRenderContext srpCtx, Camera cam)
+        private void LayoutHomogenousShape(ScriptableRenderContext srpCtx, Camera cam)
         {
-            throw new NotImplementedException();
-        }
-
-        private void LayoutMeshSs(ScriptableRenderContext srpCtx, Camera cam)
-        {
-            // implement this with RenderMeshIndirect in the future, but something dumb but work is important for now.
-
-            var scr = cam.pixelRect;
-
             var rp = new RenderParams(_material);
-
+            
             foreach (var cmd in _commandQueue)
             {
-                // POSITION
-                // first we have pixel coordinate on screen 
-                var pos = cmd.Position;
-                // convert pixel coordinate to view space position; push z onto near clip so it renders
-                var vsPos = DH.V3DivV3(pos, new Vector3(scr.width, scr.height, 1f));
-                if (vsPos.z <= 0f) vsPos.z = cam.nearClipPlane + 0.01f;
-                Vector3 ws = DH.Vs2Ws(vsPos, cam);
+                var sPos = cmd.Position;
+                var sSize = cmd.Size;
+                var rot = cmd.Rotation;
 
-                // ROTATION
-                float zRot = cmd.Rotation;
+                var clipPos = new Vector3(
+                    sPos.x * 2f - 1f,
+                    sPos.y * 2f - 1f,
+                    DrawingMode is DrawingMode.ClipSpaceOverlay or DrawingMode.ScreenSpaceOverlay ? 1f : sPos.z
+                );
 
-                // SCALE
-                // first we have pixel coordinate size of this shape
-                var size = cmd.Size;
-                // convert pixel size to view space size
-                var vsSize = DH.V2DivV2(size, new Vector2(scr.width, scr.height));
-                var wsSize = cam.ViewportToWorldPoint(new Vector3(vsPos.x + vsSize.x, vsPos.y + vsSize.y, vsPos.z)) -
-                             cam.ViewportToWorldPoint(new Vector3(vsPos.x, vsPos.y, vsPos.z));
-
-                var model = Matrix4x4.TRS(ws, Quaternion.Euler(0f, 0f, zRot), new Vector3(wsSize.x, wsSize.y, 1f));
-
-                Graphics.RenderMesh(rp, _mesh, 0, model);
+                var clipScale = new Vector3(
+                    sSize.x * 2f,
+                    sSize.y * 2f,
+                    1f
+                );
+                
+                var clip = Matrix4x4.TRS(clipPos, Quaternion.AngleAxis(rot, Vector3.forward), clipScale);
+                
+                // objectToWorld is now OBJ -> CLIP
+                Graphics.RenderMesh(rp, _mesh, 0, clip);
             }
         }
-
-        private void LayoutMeshVsO(ScriptableRenderContext srpCtx, Camera cam)
-        {
-            throw new NotImplementedException();
-        }
-
-        private void LayoutMeshVs(ScriptableRenderContext srpCtx, Camera cam)
-        {
-            throw new NotImplementedException();
-        }
-
+        
         private void LayoutMeshWs(ScriptableRenderContext srpCtx, Camera cam)
         {
             throw new NotImplementedException();

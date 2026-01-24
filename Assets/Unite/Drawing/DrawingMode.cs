@@ -7,9 +7,9 @@ namespace Unite.Drawing
         // Use Pixel coordinate. Drawings have Z coordinate. 
         ScreenSpace,
         // Use normalized screen coordinate. Any drawings will overlay.
-        ViewSpaceOverlay,
+        ClipSpaceOverlay,
         // Use normalized screen coordinate. Drawings have Z coordinate.
-        ViewSpace,
+        ClipSpace,
         // Use World coordinate.
         WorldSpace
     }

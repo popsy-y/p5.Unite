@@ -25,6 +25,8 @@ Shader "Hidden/Unite/Drawing"
             #pragma vertex vert
             #pragma fragment frag
 
+            #pragma enable_d3d11_debug_symbols
+
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
             struct Attributes
@@ -50,7 +52,7 @@ Shader "Hidden/Unite/Drawing"
             Varyings vert(Attributes IN)
             {
                 Varyings OUT;
-                OUT.positionCS = TransformObjectToHClip(IN.positionOS);
+                OUT.positionCS = mul(GetObjectToWorldMatrix(), IN.positionOS);
                 OUT.uv = TRANSFORM_TEX(IN.uv, _BaseMap);
                 OUT.positionOS = IN.positionOS.xyz;
                 return OUT;
@@ -58,12 +60,15 @@ Shader "Hidden/Unite/Drawing"
 
             half4 frag(Varyings IN) : SV_Target
             {
-                // オブジェクト座標IN.objectPositionOSを必要に応じて利用
                 float within = length(IN.positionOS.xy) < 1.;
                 half4 baseColor = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, IN.uv);
-                // TODO: Alphaが効かない(黒くなる)
                 half4 col = half4(within, within, within, baseColor.a * within);
-                return col;
+
+                float edge = (abs(IN.positionOS.x) - .9 > 0. || abs(IN.positionOS.y) - .9 > 0.) ? 1.0 : 0.0;
+                
+                // return half4(col.r + edge, col.g, col.b, col.a + edge);
+                // return half4(IN.uv.xy, 0, 1);
+                return half4(1., 1., 1., 1.);
             }
             
             ENDHLSL

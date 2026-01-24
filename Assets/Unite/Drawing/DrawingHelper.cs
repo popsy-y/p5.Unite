@@ -21,8 +21,10 @@ namespace Unite.Drawing
                 new Vector2(1f, 1f),
                 new Vector2(0f, 1f)
             },
+            // I DO NOT TOTALLY UNDERSTAND ABOUT WINDING DIRECTION
             // Triangles winding chosen so normals face -Z
-            triangles = new[] { 0, 2, 1, 0, 3, 2 },
+            // triangles = new[] { 0, 2, 1, 0, 3, 2 },
+            triangles = new[] { 0, 1, 2, 3, 0, 2 },
             normals = new[]
             {
                 Vector3.back,
