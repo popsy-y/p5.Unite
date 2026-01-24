@@ -11,7 +11,7 @@ namespace Dev
         private void Start()
         {
             _cnv = GetComponent<UCanvas>();
-            _cnv.CreateCanvas(DrawingMode.ScreenSpace);
+            _cnv.CreateCanvas(DrawingMode.ClipSpace);
         }
 
         private void Update()
@@ -25,11 +25,12 @@ namespace Dev
                 var width = 100 + phase * 200;
                 
                 _cnv.Rect(
-                    hw,
-                    hh + i * 35f,
+                    hw / _cnv.Width,
+                    (hh + i * 35f) / _cnv.Height,
                     i % 2 == 0 ? 0f : 1f,
-                    width,
-                    3f
+                    width / _cnv.Width,
+                    // .01f
+                    3f / _cnv.Height
                 );
             }
         }
