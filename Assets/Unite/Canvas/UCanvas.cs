@@ -147,5 +147,17 @@ namespace Unite.Canvas
         }
         
         #endregion
+        
+        
+        #region Debug
+
+        private void OnDrawGizmos()
+        {
+            // var camFront = _currentCamera.transform.TransformPoint(Vector3.forward);
+            
+            // Gizmos.DrawWireCube(camFront, Vector3.one * .1f);
+        }
+
+        #endregion
     }
 }

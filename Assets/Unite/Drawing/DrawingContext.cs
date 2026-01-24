@@ -45,19 +45,15 @@ namespace Unite.Drawing
             switch (DrawingMode)
             {
                 case DrawingMode.ScreenSpaceOverlay:
-                    // LayoutMeshSsO(srpCtx, cam);
                     LayoutHomogenousShape(srpCtx, cam);
                     break;
                 case DrawingMode.ScreenSpace:
-                    // LayoutMeshSs(srpCtx, cam);
                     LayoutHomogenousShape(srpCtx, cam);
                     break;
                 case DrawingMode.ClipSpaceOverlay:
-                    // LayoutMeshCsO(srpCtx, cam);
                     LayoutHomogenousShape(srpCtx, cam);
                     break;
                 case DrawingMode.ClipSpace:
-                    // LayoutMeshCs(srpCtx, cam);
                     LayoutHomogenousShape(srpCtx, cam);
                     break;
                 case DrawingMode.WorldSpace:
@@ -69,7 +65,8 @@ namespace Unite.Drawing
         private void LayoutHomogenousShape(ScriptableRenderContext srpCtx, Camera cam)
         {
             var rp = new RenderParams(_material);
-            
+            rp.worldBounds = new Bounds(cam.transform.position, Vector3.one);
+
             foreach (var cmd in _commandQueue)
             {
                 var sPos = cmd.Position;
