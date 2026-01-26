@@ -19,14 +19,20 @@ namespace Unite.Drawing
 
         public DrawingContext(DrawingMode mode, Queue<DrawCommand> commandQueue)
         {
+            DrawingMode = mode;
+            
             _commandQueue = commandQueue;
 
             _mesh = DH.UnitQuad;
             _mesh.RecalculateBounds();
-
-            _material = new Material(Shader.Find("Hidden/Unite/Drawing"));
-
-            DrawingMode = mode;
+            
+            _material = new Material(Shader.Find((
+                DrawingMode is DrawingMode.WorldSpace ? 
+                "Hidden/Unite/WorldSpaceDrawing" :
+                "Hidden/Unite/ClipSpaceDrawing"
+            )));
+            
+            Debug.Log(_material.shader.name);
         }
 
         public void Dispose()
@@ -45,16 +51,16 @@ namespace Unite.Drawing
             switch (DrawingMode)
             {
                 case DrawingMode.ScreenSpaceOverlay:
-                    LayoutHomogenousShape(srpCtx, cam);
+                    LayoutClipSpaceShape(srpCtx, cam);
                     break;
                 case DrawingMode.ScreenSpace:
-                    LayoutHomogenousShape(srpCtx, cam);
+                    LayoutClipSpaceShape(srpCtx, cam);
                     break;
                 case DrawingMode.ClipSpaceOverlay:
-                    LayoutHomogenousShape(srpCtx, cam);
+                    LayoutClipSpaceShape(srpCtx, cam);
                     break;
                 case DrawingMode.ClipSpace:
-                    LayoutHomogenousShape(srpCtx, cam);
+                    LayoutClipSpaceShape(srpCtx, cam);
                     break;
                 case DrawingMode.WorldSpace:
                     LayoutMeshWs(srpCtx, cam);
@@ -62,7 +68,7 @@ namespace Unite.Drawing
             }
         }
 
-        private void LayoutHomogenousShape(ScriptableRenderContext srpCtx, Camera cam)
+        private void LayoutClipSpaceShape(ScriptableRenderContext srpCtx, Camera cam)
         {
             var rp = new RenderParams(_material);
             rp.worldBounds = new Bounds(cam.transform.position, Vector3.one);
@@ -85,16 +91,32 @@ namespace Unite.Drawing
                     1f
                 );
                 
-                var clip = Matrix4x4.TRS(clipPos, Quaternion.AngleAxis(rot, Vector3.forward), clipScale);
+                var obj2Clip = Matrix4x4.TRS(clipPos, Quaternion.AngleAxis(rot, Vector3.forward), clipScale);
                 
                 // objectToWorld is now OBJ -> CLIP
-                Graphics.RenderMesh(rp, _mesh, 0, clip);
+                Graphics.RenderMesh(rp, _mesh, 0, obj2Clip);
             }
         }
         
         private void LayoutMeshWs(ScriptableRenderContext srpCtx, Camera cam)
         {
-            throw new NotImplementedException();
+            var rp = new RenderParams(_material);
+
+            foreach (var cmd in _commandQueue)
+            {
+                // because we don't have 3d rotation support yet
+                var facing = Quaternion.LookRotation(-cam.transform.forward, cam.transform.up);
+                var roll = Quaternion.AngleAxis(cmd.Rotation, Vector3.forward);
+                
+                var obj2World = Matrix4x4.TRS(
+                    cmd.Position,
+                    facing * roll,
+                    new Vector3(cmd.Size.x / 2, cmd.Size.y / 2, 1f)// divide by 2, because "Size" means full width or height but unit quad is -1 to 1
+                );
+
+                rp.worldBounds = new Bounds(cmd.Position, new Vector3(cmd.Size.x, cmd.Size.y, 0.1f));
+                Graphics.RenderMesh(rp, _mesh, 0, obj2World);
+            }
         }
     }
 }

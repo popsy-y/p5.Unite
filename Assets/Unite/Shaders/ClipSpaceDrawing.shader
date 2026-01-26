@@ -1,4 +1,4 @@
-Shader "Hidden/Unite/Drawing"
+Shader "Hidden/Unite/ClipSpaceDrawing"
 {
     Properties
     {
@@ -52,6 +52,8 @@ Shader "Hidden/Unite/Drawing"
             Varyings vert(Attributes IN)
             {
                 Varyings OUT;
+
+                // Assume ObjectToWorld contains Object to Clip transformation matrix
                 OUT.positionCS = mul(GetObjectToWorldMatrix(), IN.positionOS);
                 OUT.uv = TRANSFORM_TEX(IN.uv, _BaseMap);
                 OUT.positionOS = IN.positionOS.xyz;
