@@ -21,6 +21,11 @@ namespace Dev
             
             for (int i = -5; i < 11; i++)
             {
+                _cnv.Push();
+                _cnv.Translate(hw, hh);
+                // _cnv.Scale((i + 5) / 11f, 2f, 1f);
+                _cnv.Rotate(new Vector3((Mathf.PI / 10) * i, 0f, 0f));
+                
                 var phase = Mathf.Sin(Time.time * 10f + (i * (Mathf.PI / 10f)));
                 var width = 100 + phase * 200;
                 
@@ -34,6 +39,7 @@ namespace Dev
                 // );
                 
                 // Screen Space
+                // _cnv.Rect(0f, 0f, i % 2 == 0 ? 0f : 1f, width * 2f, 3f);
                 // _cnv.Rect(
                 //     hw,
                 //     hh + i * 35f,
@@ -50,9 +56,11 @@ namespace Dev
                     width / 100f,
                     .1f
                 );
+                
+                _cnv.Pop();
             }
             
-            // _cnv.Square(0, 0, 2);
+            _cnv.Square(0, 0, 2);
         }
     }
 }

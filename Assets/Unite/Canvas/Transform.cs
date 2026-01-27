@@ -18,6 +18,7 @@ namespace Unite.Canvas
         public void Translate(float x, float y, float z = 0f) => _transformStack.Translate(x, y, z);
         
         public void Rotate(float radians) => _transformStack.Rotate(radians);
+        public void Rotate(Vector3 anglesRadians) => _transformStack.Rotate(anglesRadians);
         
         public void Scale(Vector3 scale) => _transformStack.Scale(scale);
         
@@ -25,7 +26,7 @@ namespace Unite.Canvas
         
         public Vector3 TransformPoint(Vector3 point) => _transformStack.TransformPoint(point);
         
-        public (float angleDeg, Vector2 scale) GetRotationAndScale() => _transformStack.RotationAndScale();
+        public (Vector3 angleDeg, Vector2 scale) GetRotationAndScale() => _transformStack.RotationAndScale();
         
         
     }

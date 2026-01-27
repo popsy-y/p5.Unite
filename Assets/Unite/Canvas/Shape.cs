@@ -19,7 +19,7 @@ namespace Unite.Canvas
     public partial class UCanvas
     {
         private Vector3 FinalPos(Vector3 localPos) => TransformPoint(localPos);
-        private (float rot, Vector2 scl) RotScl() => GetRotationAndScale();
+        private (Vector3 rot, Vector2 scl) RotScl() => GetRotationAndScale();
 
         private Vector2 NanToZero(Vector2 v)
         {
@@ -75,9 +75,10 @@ namespace Unite.Canvas
         {
             CheckDrawingContext();
 
-            float fRot;
+            // float fRot;
+            // TODO: also support 3d size
             Vector2 fSize;
-            Vector3 fPos;
+            Vector3 fPos, fRot;
 
             if (_drawingContext.DrawingMode == DrawingMode.WorldSpace)
             {
@@ -91,6 +92,10 @@ namespace Unite.Canvas
                 var (r, s) = RotScl();
                 var (pos, size) = EnsureNormalizedValue(new Vector3(x, y, 1f), Vector2.one * radius);
                 fPos = pos;
+                
+                // NOTE: 平面時はrx, ryを潰すこともできるが、
+                // そこからハックが生まれそうだし、ライブラリの性格を考えると暗黙的な挙動が増えるべきではないと思ったので意図的にそのまま残した。
+                // その代わりに、平面用にfloatのみを受け付けるRotateメソッドが用意してある。
                 fRot = r;
                 fSize = size * s;
             }
@@ -108,44 +113,14 @@ namespace Unite.Canvas
 
         public void Circle(Vector2 position, float radius)
         {
-            CheckDrawingContext();
-
-            float fRot;
-            Vector2 fSize;
-            Vector3 fPos;
-
-            if (_drawingContext.DrawingMode == DrawingMode.WorldSpace)
-            {
-                var (r, s) = RotScl();
-                fPos = new Vector3(position.x, position.y, 0f);
-                fRot = r;
-                fSize = Vector2.one * radius * s;
-            }
-            else
-            {
-                var (r, s) = RotScl();
-                var (pos, size) = EnsureNormalizedValue(new Vector3(position.x, position.y, 1f), Vector2.one * radius);
-                fPos = pos;
-                fRot = r;
-                fSize = size * s;
-            }
-
-            _commandQueue.Enqueue(new DrawCommand
-            {
-                Position = fPos,
-                Rotation = fRot,
-                Size = fSize,
-                ShapeType = Shape.Circle,
-                FillColor = _fillColor,
-                StrokeColor = _strokeColor
-            });
+            Circle(position.x, position.y, radius);
         }
 
         public void Circle(float x, float y, float z, float radius)
         {
             CheckDrawingContext();
 
-            float fRot;
+            Vector3 fRot;
             Vector2 fSize;
             Vector3 fPos;
 
@@ -178,37 +153,7 @@ namespace Unite.Canvas
 
         public void Circle(Vector3 position, float radius)
         {
-            CheckDrawingContext();
-
-            float fRot;
-            Vector2 fSize;
-            Vector3 fPos;
-
-            if (_drawingContext.DrawingMode == DrawingMode.WorldSpace)
-            {
-                var (r, s) = RotScl();
-                fPos = position;
-                fRot = r;
-                fSize = Vector2.one * radius * s;
-            }
-            else
-            {
-                var (r, s) = RotScl();
-                var (pos, size) = EnsureNormalizedValue(position, Vector2.one * radius);
-                fPos = pos;
-                fRot = r;
-                fSize = size * s;
-            }
-
-            _commandQueue.Enqueue(new DrawCommand
-            {
-                Position = fPos,
-                Rotation = fRot,
-                Size = fSize,
-                ShapeType = Shape.Circle,
-                FillColor = _fillColor,
-                StrokeColor = _strokeColor
-            });
+            Circle(position.x, position.y, position.z, radius);
         }
         #endregion
 
@@ -218,7 +163,7 @@ namespace Unite.Canvas
         {
             CheckDrawingContext();
 
-            float fRot;
+            Vector3 fRot;
             Vector2 fSize;
             Vector3 fPos;
 
@@ -251,44 +196,14 @@ namespace Unite.Canvas
 
         public void Rect(Vector2 position, Vector2 size)
         {
-            CheckDrawingContext();
-
-            float fRot;
-            Vector2 fSize;
-            Vector3 fPos;
-
-            if (_drawingContext.DrawingMode == DrawingMode.WorldSpace)
-            {
-                var (r, s) = RotScl();
-                fPos = new Vector3(position.x, position.y, 0f);
-                fRot = r;
-                fSize = size * s;
-            }
-            else
-            {
-                var (r, s) = RotScl();
-                var (pos, normSize) = EnsureNormalizedValue(new Vector3(position.x, position.y, 1f), size);
-                fPos = pos;
-                fRot = r;
-                fSize = normSize * s;
-            }
-
-            _commandQueue.Enqueue(new DrawCommand()
-            {
-                Position = fPos,
-                Rotation = fRot,
-                Size = fSize,
-                ShapeType = Shape.Rectangle,
-                FillColor = _fillColor,
-                StrokeColor = _strokeColor
-            });
+            Rect(position.x, position.y, size.x, size.y);
         }
 
         public void Rect(float x, float y, float z, float width, float height)
         {
             CheckDrawingContext();
 
-            float fRot;
+            Vector3 fRot;
             Vector2 fSize;
             Vector3 fPos;
 
@@ -321,37 +236,7 @@ namespace Unite.Canvas
 
         public void Rect(Vector3 position, Vector2 size)
         {
-            CheckDrawingContext();
-
-            float fRot;
-            Vector2 fSize;
-            Vector3 fPos;
-
-            if (_drawingContext.DrawingMode == DrawingMode.WorldSpace)
-            {
-                var (r, s) = RotScl();
-                fPos = position;
-                fRot = r;
-                fSize = size * s;
-            }
-            else
-            {
-                var (r, s) = RotScl();
-                var (pos, normSize) = EnsureNormalizedValue(position, size);
-                fPos = pos;
-                fRot = r;
-                fSize = normSize * s;
-            }
-
-            _commandQueue.Enqueue(new DrawCommand()
-            {
-                Position = fPos,
-                Rotation = fRot,
-                Size = fSize,
-                ShapeType = Shape.Rectangle,
-                FillColor = _fillColor,
-                StrokeColor = _strokeColor
-            });
+            Rect(position.x, position.y, position.z, size.x, size.y);
         }
         #endregion
 
@@ -361,7 +246,7 @@ namespace Unite.Canvas
         {
             CheckDrawingContext();
 
-            float fRot;
+            Vector3 fRot;
             Vector2 fSize;
             Vector3 fPos;
 
@@ -403,44 +288,14 @@ namespace Unite.Canvas
 
         public void Square(Vector2 position, float size)
         {
-            CheckDrawingContext();
-
-            float fRot;
-            Vector2 fSize;
-            Vector3 fPos;
-
-            if (_drawingContext.DrawingMode == DrawingMode.WorldSpace)
-            {
-                var (r, s) = RotScl();
-                fPos = new Vector3(position.x, position.y, 0f);
-                fRot = r;
-                fSize = Vector2.one * size * s;
-            }
-            else
-            {
-                var (r, s) = RotScl();
-                var (pos, normSize) = EnsureNormalizedValue(new Vector3(position.x, position.y, 1f), Vector2.one * size);
-                fPos = pos;
-                fRot = r;
-                fSize = normSize * s;
-            }
-
-            _commandQueue.Enqueue(new DrawCommand()
-            {
-                Position = fPos,
-                Rotation = fRot,
-                Size = fSize,
-                ShapeType = Shape.Rectangle,
-                FillColor = _fillColor,
-                StrokeColor = _strokeColor
-            });
+            Square(position.x, position.y, size);
         }
 
         public void Square(float x, float y, float z, float size)
         {
             CheckDrawingContext();
 
-            float fRot;
+            Vector3 fRot;
             Vector2 fSize;
             Vector3 fPos;
 
@@ -473,37 +328,7 @@ namespace Unite.Canvas
 
         public void Square(Vector3 position, float size)
         {
-            CheckDrawingContext();
-
-            float fRot;
-            Vector2 fSize;
-            Vector3 fPos;
-
-            if (_drawingContext.DrawingMode == DrawingMode.WorldSpace)
-            {
-                var (r, s) = RotScl();
-                fPos = position;
-                fRot = r;
-                fSize = Vector2.one * size * s;
-            }
-            else
-            {
-                var (r, s) = RotScl();
-                var (pos, normSize) = EnsureNormalizedValue(position, Vector2.one * size);
-                fPos = pos;
-                fRot = r;
-                fSize = normSize * s;
-            }
-
-            _commandQueue.Enqueue(new DrawCommand()
-            {
-                Position = fPos,
-                Rotation = fRot,
-                Size = fSize,
-                ShapeType = Shape.Rectangle,
-                FillColor = _fillColor,
-                StrokeColor = _strokeColor
-            });
+            Square(position.x, position.y, position.z, size);
         }
         #endregion
     }

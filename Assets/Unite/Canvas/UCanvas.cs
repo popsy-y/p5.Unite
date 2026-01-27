@@ -8,7 +8,7 @@ namespace Unite.Canvas
 {
     public partial class UCanvas : MonoBehaviour
     {
-        private DrawingContext _drawingContext;
+        [SerializeField] [HideInInspector] private DrawingContext _drawingContext;
 
         public DrawingContext CreateCanvas(DrawingMode mode)
         {

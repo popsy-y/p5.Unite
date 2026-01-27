@@ -91,7 +91,7 @@ namespace Unite.Drawing
                     1f
                 );
                 
-                var obj2Clip = Matrix4x4.TRS(clipPos, Quaternion.AngleAxis(rot, Vector3.forward), clipScale);
+                var obj2Clip = Matrix4x4.TRS(clipPos, Quaternion.Euler(rot), clipScale);
                 
                 // objectToWorld is now OBJ -> CLIP
                 Graphics.RenderMesh(rp, _mesh, 0, obj2Clip);
@@ -104,13 +104,9 @@ namespace Unite.Drawing
 
             foreach (var cmd in _commandQueue)
             {
-                // because we don't have 3d rotation support yet
-                var facing = Quaternion.LookRotation(-cam.transform.forward, cam.transform.up);
-                var roll = Quaternion.AngleAxis(cmd.Rotation, Vector3.forward);
-                
                 var obj2World = Matrix4x4.TRS(
                     cmd.Position,
-                    facing * roll,
+                    Quaternion.Euler(cmd.Rotation),
                     new Vector3(cmd.Size.x / 2, cmd.Size.y / 2, 1f)// divide by 2, because "Size" means full width or height but unit quad is -1 to 1
                 );
 

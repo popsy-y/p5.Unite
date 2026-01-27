@@ -5,7 +5,7 @@ namespace Unite.Canvas
     public struct DrawCommand
     {
         public Vector3 Position;
-        public float Rotation;
+        public Vector3 Rotation;
         public Vector2 Size;
 
         public Shape ShapeType;

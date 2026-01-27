@@ -14,7 +14,9 @@ Shader "Hidden/Unite/WorldSpaceDrawing"
 
         Pass
         {
-            CGPROGRAM
+            Cull Off
+            
+            HLSLPROGRAM
             #pragma vertex vert
             #pragma fragment frag
             // make fog work
@@ -55,7 +57,7 @@ Shader "Hidden/Unite/WorldSpaceDrawing"
                 UNITY_APPLY_FOG(i.fogCoord, col);
                 return col;
             }
-            ENDCG
+            ENDHLSL
         }
     }
 }
