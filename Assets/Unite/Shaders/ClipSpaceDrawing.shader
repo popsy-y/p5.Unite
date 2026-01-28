@@ -51,24 +51,24 @@ Shader "Hidden/Unite/ClipSpaceDrawing"
                 float4 _BaseMap_ST;
             CBUFFER_END
 
-            Varyings vert(Attributes IN)
+            Varyings vert(Attributes i)
             {
-                Varyings OUT;
+                Varyings o;
 
                 // Assume ObjectToWorld contains Object to Clip transformation matrix
-                OUT.positionCS = mul(GetObjectToWorldMatrix(), IN.positionOS);
-                OUT.uv = TRANSFORM_TEX(IN.uv, _BaseMap);
-                OUT.positionOS = IN.positionOS.xyz;
-                return OUT;
+                o.positionCS = mul(GetObjectToWorldMatrix(), i.positionOS);
+                o.uv = TRANSFORM_TEX(i.uv, _BaseMap);
+                o.positionOS = i.positionOS.xyz;
+                return o;
             }
 
-            half4 frag(Varyings IN) : SV_Target
+            half4 frag(Varyings i) : SV_Target
             {
-                float within = length(IN.positionOS.xy) < 1.;
-                half4 baseColor = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, IN.uv);
+                float within = length(i.positionOS.xy) < 1.;
+                half4 baseColor = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, i.uv);
                 half4 col = half4(within, within, within, baseColor.a * within);
 
-                float edge = (abs(IN.positionOS.x) - .9 > 0. || abs(IN.positionOS.y) - .9 > 0.) ? 1.0 : 0.0;
+                float edge = (abs(i.positionOS.x) - .9 > 0. || abs(i.positionOS.y) - .9 > 0.) ? 1.0 : 0.0;
                 
                 // return half4(col.r + edge, col.g, col.b, col.a + edge);
                 // return half4(IN.uv.xy, 0, 1);

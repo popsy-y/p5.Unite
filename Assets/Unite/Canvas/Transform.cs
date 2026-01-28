@@ -27,7 +27,5 @@ namespace Unite.Canvas
         public Vector3 TransformPoint(Vector3 point) => _transformStack.TransformPoint(point);
         
         public (Vector3 angleDeg, Vector2 scale) GetRotationAndScale() => _transformStack.RotationAndScale();
-        
-        
     }
 }
