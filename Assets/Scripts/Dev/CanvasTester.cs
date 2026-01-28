@@ -14,6 +14,7 @@ namespace Dev
             _cnv.CreateCanvas(DrawingMode.ClipSpace);
         }
 
+        // because i needed to make commit for testing reason
         private void Update()
         {
             var hw = _cnv.Width / 2f;
