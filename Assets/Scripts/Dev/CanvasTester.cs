@@ -11,7 +11,7 @@ namespace Dev
         private void Start()
         {
             _cnv = GetComponent<UCanvas>();
-            _cnv.CreateCanvas(DrawingMode.ClipSpace);
+            _cnv.CreateCanvas(DrawingMode.ScreenSpace);
         }
 
         // because i needed to make commit for testing reason
@@ -32,7 +32,7 @@ namespace Dev
                 var width = 100 + phase * 200;
                 
                 // Clip space
-                _cnv.Rect(0f, 0f, i % 2 == 0 ? 0f : 1f, width / _cnv.Width, 3f / _cnv.Height);
+                // _cnv.Rect(0f, 0f, i % 2 == 0 ? 0f : 1f, width / _cnv.Width, 3f / _cnv.Height);
                 // _cnv.Rect(
                 //     hw / _cnv.Width,
                 //     (hh + i * 35f) / _cnv.Height,
@@ -42,7 +42,7 @@ namespace Dev
                 // );
                 
                 // Screen Space
-                // _cnv.Rect(0f, 0f, i % 2 == 0 ? 0f : 1f, width * 2f, 3f);
+                _cnv.Rect(0f, 0f, i % 2 == 0 ? 0f : 1f, width * 2f, 3f);
                 // _cnv.Rect(
                 //     hw,
                 //     hh + i * 35f,
@@ -62,6 +62,21 @@ namespace Dev
                 
                 _cnv.Pop();
             }
+            
+            // world space depth
+            // TODO: フレームドロップする場面がある、多分極めて小さい値の計算がされている？
+            // そして今度は後ろにしか表示されない。
+            // Reverse-Zになっているが、p5.jsのWEBGLモードではnear-far 0-1のようであるため、変換をメソッド内で行う
+            
+            // depthが正しくない？一度動くとその後キューブが隠れたままになる
+            
+            var depth = _cnv.WorldToClipDepth(Mathf.Repeat(Time.time, 5f));
+            if (Time.frameCount % 10 == 0) Debug.Log(depth);
+            _cnv.Rect(
+                hw, hh,
+                depth,
+                300f, 300f
+            );
             
             // _cnv.Square(0, 0, 2);
         }

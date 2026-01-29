@@ -62,7 +62,7 @@ namespace Unite.Canvas
             }
             else
             {
-                var rPos = FinalPos(new Vector3(pos.x, pos.y, pos.z));
+                var rPos = FinalPos(pos);
                 var rSize = size;
 
                 return (rPos, rSize);
