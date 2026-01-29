@@ -39,9 +39,10 @@ Shader "Hidden/Unite/ClipSpaceDrawing"
 
             struct Varyings
             {
-                float2 uv : TEXCOORD0;
                 float4 positionCS : SV_POSITION;
-                float3 positionOS : TEXCOORD1;
+                float4 positionCSRaw : TEXCOORD0;
+                float2 uv : TEXCOORD1;
+                float3 positionOS : TEXCOORD2;
             };
 
             TEXTURE2D(_BaseMap);
@@ -57,6 +58,7 @@ Shader "Hidden/Unite/ClipSpaceDrawing"
 
                 // Assume ObjectToWorld contains Object to Clip transformation matrix
                 o.positionCS = mul(GetObjectToWorldMatrix(), i.positionOS);
+                o.positionCSRaw = o.positionCS;
                 o.uv = TRANSFORM_TEX(i.uv, _BaseMap);
                 o.positionOS = i.positionOS.xyz;
                 return o;
@@ -69,10 +71,12 @@ Shader "Hidden/Unite/ClipSpaceDrawing"
                 half4 col = half4(within, within, within, baseColor.a * within);
 
                 float edge = (abs(i.positionOS.x) - .9 > 0. || abs(i.positionOS.y) - .9 > 0.) ? 1.0 : 0.0;
-                
+
+                // return half4(edge, 0., 0., edge);
                 // return half4(col.r + edge, col.g, col.b, col.a + edge);
                 // return half4(IN.uv.xy, 0, 1);
-                return half4(1., 1., 1., 1.);
+                // return half4(clamp(1. + edge, 0., 1.), 1., 1., 1.);
+                return i.positionCSRaw;
             }
             
             ENDHLSL

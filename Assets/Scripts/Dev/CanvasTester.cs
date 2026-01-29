@@ -1,3 +1,4 @@
+using System;
 using Unite.Canvas;
 using Unite.Drawing;
 using UnityEngine;
@@ -7,6 +8,11 @@ namespace Dev
     public class CanvasTester : MonoBehaviour
     {
         private UCanvas _cnv;
+
+        private float planeWDepth;
+        private float planeDepth;
+
+        [SerializeField] [Range(-2f, 8f)] private float distance = 0f;
         
         private void Start()
         {
@@ -69,16 +75,45 @@ namespace Dev
             // Reverse-Zになっているが、p5.jsのWEBGLモードではnear-far 0-1のようであるため、変換をメソッド内で行う
             
             // depthが正しくない？一度動くとその後キューブが隠れたままになる
-            
-            var depth = _cnv.WorldToClipDepth(Mathf.Repeat(Time.time, 5f));
-            if (Time.frameCount % 10 == 0) Debug.Log(depth);
+
+            planeWDepth = Mathf.Repeat(Time.time, 5f);
+            planeDepth = _cnv.WorldToClipDepth(planeWDepth);
+            // if (Time.frameCount % 10 == 0) Debug.Log(depth);
             _cnv.Rect(
                 hw, hh,
-                depth,
+                distance,
                 300f, 300f
             );
             
             // _cnv.Square(0, 0, 2);
+        }
+
+        private void OnGUI()
+        {
+            var cam = Camera.main;
+
+            if (!cam) return;
+            
+            GUILayout.BeginVertical();
+            GUILayout.TextArea(
+                $"near: {cam.nearClipPlane}\n" +
+                $"far: {cam.farClipPlane}\n" +
+                $"WDepth: {planeWDepth}\n"+
+                $"depth: {planeDepth}",
+                200
+            );
+            GUILayout.EndVertical();
+        }
+
+        private void OnDrawGizmos()
+        {
+            var cam = Camera.main;
+
+            if (!cam) return;
+
+            var t = cam.transform;
+            
+            Gizmos.DrawWireSphere(t.position + t.forward * planeWDepth, .5f);
         }
     }
 }

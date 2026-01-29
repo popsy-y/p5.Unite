@@ -46,11 +46,12 @@ namespace Unite.Canvas
             float near = _currentCamera.nearClipPlane;
             float far = _currentCamera.farClipPlane;
             
-            Debug.Log($"near: {near}, far: {far}, dist: {worldDistance}");
+            // Debug.Log($"near: {near}, far: {far}, dist: {worldDistance}");
 
             // Unity uses Reverse-Z, but we need convert it to normal z depth value
             // (because we are following processing / p5.js)
-            return Mathf.Clamp01(1f - Mathf.InverseLerp(near, far, worldDistance));
+            // return Mathf.Clamp01(1f - Mathf.InverseLerp(near, far, worldDistance));
+            return Mathf.InverseLerp(near, far, worldDistance);
         }
     }
 }
