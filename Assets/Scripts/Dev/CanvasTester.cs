@@ -48,7 +48,7 @@ namespace Dev
                 // );
                 
                 // Screen Space
-                _cnv.Rect(0f, 0f, i % 2 == 0 ? 0f : 1f, width * 2f, 3f);
+                // _cnv.Rect(0f, 0f, i % 2 == 0 ? 0f : 1f, width * 2f, 3f);
                 // _cnv.Rect(
                 //     hw,
                 //     hh + i * 35f,
@@ -76,14 +76,16 @@ namespace Dev
             
             // depthが正しくない？一度動くとその後キューブが隠れたままになる
             // なんとかなってきた、が、突然消えるのは健在
-            // あと、デバッグで出してる玉と動きが合わないのがよく分からない   
+            // あと、デバッグで出してる玉と動きが合わないのがよく分からない
+            
+            // planeDepth, 正しい
 
             planeWDepth = Mathf.Repeat(Time.time, 5f);
-            planeDepth = _cnv.WorldToClipDepth(planeWDepth);
+            planeDepth = _cnv.WorldToLinearDepth(planeWDepth);
             // if (Time.frameCount % 10 == 0) Debug.Log(depth);
             _cnv.Rect(
                 hw, hh,
-                planeWDepth,
+                planeDepth,
                 300f, 300f
             );
             

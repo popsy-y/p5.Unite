@@ -82,6 +82,9 @@ namespace Unite.Drawing
                 var clipPos = new Vector3(
                     sPos.x * 2f - 1f,
                     sPos.y * 2f - 1f,
+                    // linearなdepthをそのまま渡す
+                    // プラットフォーム差異もここでは吸収せず、near: 0, far: 1として扱う
+                    // projection matrixを使ったnon-linearなdepthへの変換はシェーダー内で行う
                     DrawingMode is DrawingMode.ClipSpaceOverlay or DrawingMode.ScreenSpaceOverlay ? 0f : sPos.z
                 );
 

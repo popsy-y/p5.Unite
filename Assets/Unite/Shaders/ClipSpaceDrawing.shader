@@ -57,18 +57,21 @@ Shader "Hidden/Unite/ClipSpaceDrawing"
                 Varyings o;
 
                 // Assume ObjectToWorld contains Object to Clip transformation matrix
-                float4x4 hoge = GetObjectToWorldMatrix();
-                o.positionCS = mul(hoge, i.positionOS);
+                o.positionCS = mul(GetObjectToWorldMatrix(), i.positionOS);
 
+                // CONFIRMED: o.positionCS actually contains EXPECTED depth!! (normalized near-to-far 0-1)
                 // set positionCSRaw before apply platform specific adjustments
                 o.positionCSRaw = o.positionCS;
 
-                // absorb GL/DX difference. currentry, positionCS.z is 0 to 1
-                o.positionCS.z = lerp(
-                    UNITY_NEAR_CLIP_VALUE,
-                    UNITY_REVERSED_Z > 0 ? 0. : 1.,
-                    o.positionCS.z
-                );
+                // absorb Reverse-Z. currentry, positionCS.z is 0 to 1
+                float z01 = o.positionCS.z;
+                #if UNITY_REVERSED_Z
+                    z01 = 1.0 - z01;
+                #endif
+
+                o.positionCS.z = z01;
+                
+                o.positionCS.w = 1.;
                 
                 o.uv = TRANSFORM_TEX(i.uv, _BaseMap);
                 o.positionOS = i.positionOS.xyz;
@@ -83,11 +86,7 @@ Shader "Hidden/Unite/ClipSpaceDrawing"
 
                 float edge = (abs(i.positionOS.x) - .9 > 0. || abs(i.positionOS.y) - .9 > 0.) ? 1.0 : 0.0;
 
-                // return half4(edge, 0., 0., edge);
-                // return half4(col.r + edge, col.g, col.b, col.a + edge);
-                // return half4(IN.uv.xy, 0, 1);
-                // return half4(clamp(1. + edge, 0., 1.), 1., 1., 1.);
-                return i.positionCSRaw;
+                return half4(i.positionCSRaw.z, 0., 0., 1.);
             }
             
             ENDHLSL

@@ -130,7 +130,7 @@ GameObject:
   - component: {fileID: 162847523}
   - component: {fileID: 162847526}
   - component: {fileID: 162847525}
-  - component: {fileID: 162847524}
+  - component: {fileID: 162847527}
   m_Layer: 0
   m_Name: Cube (5)
   m_TagString: Untagged
@@ -153,27 +153,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1303054732}
   m_LocalEulerAnglesHint: {x: -50, y: -15, z: 0}
---- !u!65 &162847524
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 162847522}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 1, y: 1, z: 1}
-  m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &162847525
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -230,6 +209,19 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 162847522}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!114 &162847527
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 162847522}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 946d17b21e964d0280a9fd4b32be4e74, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Dev.ChangeMyColor
+  color: {r: 0.67140865, g: 1, b: 0, a: 0}
 --- !u!1 &377975946
 GameObject:
   m_ObjectHideFlags: 0
@@ -778,7 +770,7 @@ GameObject:
   - component: {fileID: 1170196346}
   - component: {fileID: 1170196349}
   - component: {fileID: 1170196348}
-  - component: {fileID: 1170196347}
+  - component: {fileID: 1170196350}
   m_Layer: 0
   m_Name: Cube (3)
   m_TagString: Untagged
@@ -796,32 +788,11 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: -0.41900265, y: -0.11829695, z: -0.05516277, w: 0.8985542}
   m_LocalPosition: {x: 0, y: 0, z: 3}
-  m_LocalScale: {x: 0.8, y: 0.8, z: 0.8}
+  m_LocalScale: {x: 0.5, y: 0.5, z: 0.5}
   m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 1303054732}
   m_LocalEulerAnglesHint: {x: -50, y: -15, z: 0}
---- !u!65 &1170196347
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1170196345}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 1, y: 1, z: 1}
-  m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &1170196348
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -878,6 +849,19 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1170196345}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!114 &1170196350
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1170196345}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 946d17b21e964d0280a9fd4b32be4e74, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Dev.ChangeMyColor
+  color: {r: 0, g: 0.14835215, b: 1, a: 0}
 --- !u!1 &1303054730
 GameObject:
   m_ObjectHideFlags: 0
@@ -940,7 +924,7 @@ GameObject:
   - component: {fileID: 1428826054}
   - component: {fileID: 1428826057}
   - component: {fileID: 1428826056}
-  - component: {fileID: 1428826055}
+  - component: {fileID: 1428826058}
   m_Layer: 0
   m_Name: Cube (1)
   m_TagString: Untagged
@@ -958,32 +942,11 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: -0.41900265, y: -0.11829695, z: -0.05516277, w: 0.8985542}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0.6, y: 0.6, z: 0.6}
+  m_LocalScale: {x: 0.1, y: 0.1, z: 0.1}
   m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 1303054732}
   m_LocalEulerAnglesHint: {x: -50, y: -15, z: 0}
---- !u!65 &1428826055
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1428826053}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 1, y: 1, z: 1}
-  m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &1428826056
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -1040,6 +1003,19 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1428826053}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!114 &1428826058
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1428826053}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 946d17b21e964d0280a9fd4b32be4e74, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Dev.ChangeMyColor
+  color: {r: 1, g: 0, b: 0, a: 0}
 --- !u!1 &1449351152
 GameObject:
   m_ObjectHideFlags: 0
@@ -1265,7 +1241,7 @@ GameObject:
   - component: {fileID: 1834633261}
   - component: {fileID: 1834633264}
   - component: {fileID: 1834633263}
-  - component: {fileID: 1834633262}
+  - component: {fileID: 1834633265}
   m_Layer: 0
   m_Name: Cube (4)
   m_TagString: Untagged
@@ -1283,32 +1259,11 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: -0.41900265, y: -0.11829695, z: -0.05516277, w: 0.8985542}
   m_LocalPosition: {x: 0, y: 0, z: 4.5}
-  m_LocalScale: {x: 0.9, y: 0.9, z: 0.9}
+  m_LocalScale: {x: 0.8, y: 0.8, z: 0.8}
   m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 1303054732}
   m_LocalEulerAnglesHint: {x: -50, y: -15, z: 0}
---- !u!65 &1834633262
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1834633260}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 1, y: 1, z: 1}
-  m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &1834633263
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -1365,6 +1320,19 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1834633260}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!114 &1834633265
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1834633260}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 946d17b21e964d0280a9fd4b32be4e74, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Dev.ChangeMyColor
+  color: {r: 0, g: 1, b: 0.28738046, a: 0}
 --- !u!1 &2062065265
 GameObject:
   m_ObjectHideFlags: 0
@@ -1376,7 +1344,7 @@ GameObject:
   - component: {fileID: 2062065266}
   - component: {fileID: 2062065269}
   - component: {fileID: 2062065268}
-  - component: {fileID: 2062065267}
+  - component: {fileID: 2062065270}
   m_Layer: 0
   m_Name: Cube (2)
   m_TagString: Untagged
@@ -1394,32 +1362,11 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: -0.41900265, y: -0.11829695, z: -0.05516277, w: 0.8985542}
   m_LocalPosition: {x: 0, y: 0, z: 1.5}
-  m_LocalScale: {x: 0.7, y: 0.7, z: 0.7}
+  m_LocalScale: {x: 0.3, y: 0.3, z: 0.3}
   m_ConstrainProportionsScale: 1
   m_Children: []
   m_Father: {fileID: 1303054732}
   m_LocalEulerAnglesHint: {x: -50, y: -15, z: 0}
---- !u!65 &2062065267
-BoxCollider:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2062065265}
-  m_Material: {fileID: 0}
-  m_IncludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_ExcludeLayers:
-    serializedVersion: 2
-    m_Bits: 0
-  m_LayerOverridePriority: 0
-  m_IsTrigger: 0
-  m_ProvidesContacts: 0
-  m_Enabled: 1
-  serializedVersion: 3
-  m_Size: {x: 1, y: 1, z: 1}
-  m_Center: {x: 0, y: 0, z: 0}
 --- !u!23 &2062065268
 MeshRenderer:
   m_ObjectHideFlags: 0
@@ -1476,6 +1423,19 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2062065265}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!114 &2062065270
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2062065265}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 946d17b21e964d0280a9fd4b32be4e74, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Dev.ChangeMyColor
+  color: {r: 1, g: 0, b: 0.837533, a: 0}
 --- !u!1 &2100550718
 GameObject:
   m_ObjectHideFlags: 0
