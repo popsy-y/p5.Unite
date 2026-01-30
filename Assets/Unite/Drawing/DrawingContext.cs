@@ -82,7 +82,7 @@ namespace Unite.Drawing
                 var clipPos = new Vector3(
                     sPos.x * 2f - 1f,
                     sPos.y * 2f - 1f,
-                    DrawingMode is DrawingMode.ClipSpaceOverlay or DrawingMode.ScreenSpaceOverlay ? 1f : sPos.z
+                    DrawingMode is DrawingMode.ClipSpaceOverlay or DrawingMode.ScreenSpaceOverlay ? 0f : sPos.z
                 );
 
                 var clipScale = new Vector3(

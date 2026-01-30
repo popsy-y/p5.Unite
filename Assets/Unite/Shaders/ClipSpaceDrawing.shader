@@ -57,8 +57,19 @@ Shader "Hidden/Unite/ClipSpaceDrawing"
                 Varyings o;
 
                 // Assume ObjectToWorld contains Object to Clip transformation matrix
-                o.positionCS = mul(GetObjectToWorldMatrix(), i.positionOS);
+                float4x4 hoge = GetObjectToWorldMatrix();
+                o.positionCS = mul(hoge, i.positionOS);
+
+                // set positionCSRaw before apply platform specific adjustments
                 o.positionCSRaw = o.positionCS;
+
+                // absorb GL/DX difference. currentry, positionCS.z is 0 to 1
+                o.positionCS.z = lerp(
+                    UNITY_NEAR_CLIP_VALUE,
+                    UNITY_REVERSED_Z > 0 ? 0. : 1.,
+                    o.positionCS.z
+                );
+                
                 o.uv = TRANSFORM_TEX(i.uv, _BaseMap);
                 o.positionOS = i.positionOS.xyz;
                 return o;
