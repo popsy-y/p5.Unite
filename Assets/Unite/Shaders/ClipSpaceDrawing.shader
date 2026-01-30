@@ -56,21 +56,34 @@ Shader "Hidden/Unite/ClipSpaceDrawing"
             {
                 Varyings o;
 
-                // Assume ObjectToWorld contains Object to Clip transformation matrix
+                // ObjectToWorld contains Object to Clip(like) transformation matrix
                 o.positionCS = mul(GetObjectToWorldMatrix(), i.positionOS);
 
-                // CONFIRMED: o.positionCS actually contains EXPECTED depth!! (normalized near-to-far 0-1)
-                // set positionCSRaw before apply platform specific adjustments
+                // set positionCSRaw before apply NDC adjustment
+                // positionCSRaw much looks like view coordinate.
+                // x and y is clip space coord, but z is normalized distance from camera, between nearClip and farClip.
+                o.positionCS.z = saturate(o.positionCS.z);
                 o.positionCSRaw = o.positionCS;
 
-                // absorb Reverse-Z. currentry, positionCS.z is 0 to 1
-                float z01 = o.positionCS.z;
-                #if UNITY_REVERSED_Z
-                    z01 = 1.0 - z01;
-                #endif
+                // ~~absorb Reverse-Z. currentry, positionCS.z is 0 to 1.~~
+                // edit: it doesn't seem to we have to fix reverse thing; everything looks fine now.
+                // edit: actually _ZBufferParams absorbed Reverse-Z
 
-                o.positionCS.z = z01;
-                
+                // currently, z01 is linear depth, 0-1, near-far.
+                // convert it into non-linear NDC depth if camera is persp
+                if (unity_OrthoParams.w < .5)
+                {
+                    float zNdc = (1.0 / max(1e-6, o.positionCS.z) - _ZBufferParams.y) / _ZBufferParams.x;
+                    o.positionCS.z = zNdc;
+                }else
+                {
+                    // TODO: I'm using this gpt-generated stuff with completely unaware of what's going on here
+                    // edit: and it doesn't seem working properly...
+                    float zNdc = o.positionCS.z * _ZBufferParams.x + _ZBufferParams.y;
+                    o.positionCS.z = zNdc;
+                }
+
+                // because we calculated non-linear NDC depth manually
                 o.positionCS.w = 1.;
                 
                 o.uv = TRANSFORM_TEX(i.uv, _BaseMap);

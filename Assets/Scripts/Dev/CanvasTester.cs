@@ -74,13 +74,7 @@ namespace Dev
             // そして今度は後ろにしか表示されない。
             // Reverse-Zになっているが、p5.jsのWEBGLモードではnear-far 0-1のようであるため、変換をメソッド内で行う
             
-            // depthが正しくない？一度動くとその後キューブが隠れたままになる
-            // なんとかなってきた、が、突然消えるのは健在
-            // あと、デバッグで出してる玉と動きが合わないのがよく分からない
-            
-            // planeDepth, 正しい
-
-            planeWDepth = Mathf.Repeat(Time.time, 5f);
+            planeWDepth = Mathf.Repeat(Time.time * 2f, 10f);
             planeDepth = _cnv.WorldToLinearDepth(planeWDepth);
             // if (Time.frameCount % 10 == 0) Debug.Log(depth);
             _cnv.Rect(
