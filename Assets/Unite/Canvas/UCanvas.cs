@@ -44,6 +44,8 @@ namespace Unite.Canvas
             
             if (!_currentCamera) return;
             _drawingContext.Draw(srpCtx, cam);
+            
+            _transformStack.Reset();
         }
 
         private void AfterCameraRendering(ScriptableRenderContext srpCtx, Camera cam)

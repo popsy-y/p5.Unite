@@ -83,7 +83,7 @@ namespace Unite.Canvas
             if (_drawingContext.DrawingMode == DrawingMode.WorldSpace)
             {
                 var (r, s) = RotScl();
-                fPos = new Vector3(x, y, 0f);
+                fPos = FinalPos(new Vector3(x, y, 0f));
                 fRot = r;
                 fSize = Vector2.one * radius * s;
             }
@@ -127,7 +127,7 @@ namespace Unite.Canvas
             if (_drawingContext.DrawingMode == DrawingMode.WorldSpace)
             {
                 var (r, s) = RotScl();
-                fPos = new Vector3(x, y, z);
+                fPos = FinalPos(new Vector3(x, y, z));
                 fRot = r;
                 fSize = Vector2.one * radius * s;
             }
@@ -170,7 +170,7 @@ namespace Unite.Canvas
             if (_drawingContext.DrawingMode == DrawingMode.WorldSpace)
             {
                 var (r, s) = RotScl();
-                fPos = new Vector3(x, y, 0f);
+                fPos = FinalPos(new Vector3(x, y, 0f));
                 fRot = r;
                 fSize = new Vector2(width, height) * s;
             }
@@ -210,7 +210,7 @@ namespace Unite.Canvas
             if (_drawingContext.DrawingMode == DrawingMode.WorldSpace)
             {
                 var (r, s) = RotScl();
-                fPos = new Vector3(x, y, z);
+                fPos = FinalPos(new Vector3(x, y, z));
                 fRot = r;
                 fSize = new Vector2(width, height) * s;
             }
@@ -257,7 +257,7 @@ namespace Unite.Canvas
 
                 var (r, s) = RotScl();
 
-                fPos = new Vector3(x, y, 0f);
+                fPos = FinalPos(new Vector3(x, y, 0f));
                 fRot = r;
                 fSize = Vector2.one * size * s;
             }
@@ -302,7 +302,7 @@ namespace Unite.Canvas
             if (_drawingContext.DrawingMode == DrawingMode.WorldSpace)
             {
                 var (r, s) = RotScl();
-                fPos = new Vector3(x, y, z);
+                fPos = FinalPos(new Vector3(x, y, z));
                 fRot = r;
                 fSize = Vector2.one * size * s;
             }

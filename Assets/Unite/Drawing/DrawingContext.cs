@@ -16,7 +16,7 @@ namespace Unite.Drawing
         private Queue<DrawCommand> _commandQueue;
 
         public DrawingMode DrawingMode { get; private set; }
-
+        
         public DrawingContext(DrawingMode mode, Queue<DrawCommand> commandQueue)
         {
             DrawingMode = mode;

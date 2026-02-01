@@ -23,10 +23,10 @@ namespace Dev
             
             for (int i = -5; i < 11; i++)
             {
-                _cnv.Push();
-                _cnv.Translate(.3f, .5f);
+                // _cnv.Push();
+                // _cnv.Translate(3f, 5f);
                 // _cnv.Scale((i + 5) / 11f, 2f, 1f);
-                _cnv.Rotate(new Vector3(0f, 0f, (Mathf.PI / 10) * i));
+                _cnv.Rotate(new Vector3(.1f, .2f, (Mathf.PI / 10) * i));
                 // _cnv.Rotate((Mathf.PI / 11) * (i + 5));
                 
                 var phase = Mathf.Sin(Time.time * 10f + (i * (Mathf.PI / 10f)));
