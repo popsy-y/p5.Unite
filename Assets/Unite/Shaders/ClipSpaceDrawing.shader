@@ -77,15 +77,16 @@ Shader "Hidden/Unite/ClipSpaceDrawing"
                     o.positionCS.z = zNdc;
                 }else
                 {
-                    // TODO: I'm using this gpt-generated stuff with completely unaware of what's going on here
-                    // edit: and it doesn't seem working properly...
-                    float zNdc = o.positionCS.z * _ZBufferParams.x + _ZBufferParams.y;
-                    o.positionCS.z = zNdc;
+                    // I think this will break in opengl and can't handle in other depth range,
+                    // but I can't find better way
+                    o.positionCS.z = UNITY_REVERSED_Z ? 1. - o.positionCS.z : o.positionCS.z;
                 }
 
                 // because we calculated non-linear NDC depth manually
                 o.positionCS.w = 1.;
-                
+
+                // TODO: maybe I should calc sdf with uv rather than object space coord
+                // because I think I will want to draw shapes on curved surfaces (not only simple quad)
                 o.uv = TRANSFORM_TEX(i.uv, _BaseMap);
                 o.positionOS = i.positionOS.xyz;
                 return o;
