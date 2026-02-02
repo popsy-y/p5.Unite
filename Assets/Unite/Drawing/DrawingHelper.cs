@@ -34,8 +34,8 @@ namespace Unite.Drawing
             }
         };
 
-        public static Vector2 V2DivV2(Vector2 v0, Vector2 v1) => new (v0.x / v1.x, v0.y / v1.y);
-        public static Vector3 V3DivV3(Vector3 v0, Vector3 v1) => new (v0.x / v1.x, v0.y / v1.y, v0.z / v1.z);
+        public static Vector2 V2DivV2(Vector2 v0, Vector2 v1) => new(v0.x / v1.x, v0.y / v1.y);
+        public static Vector3 V3DivV3(Vector3 v0, Vector3 v1) => new(v0.x / v1.x, v0.y / v1.y, v0.z / v1.z);
 
         public static Vector3 Vs2Ws(Vector3 vsPos, Camera cam) => cam.ViewportToWorldPoint(vsPos);
     }

@@ -20,7 +20,7 @@ namespace Dev
         {
             var hw = _cnv.Width / 2f;
             var hh = _cnv.Height / 2f;
-            
+
             for (int i = -5; i < 11; i++)
             {
                 // _cnv.Push();
@@ -28,10 +28,10 @@ namespace Dev
                 // _cnv.Scale((i + 5) / 11f, 2f, 1f);
                 // _cnv.Rotate(new Vector3(.1f, .2f, (Mathf.PI / 10) * i));
                 // _cnv.Rotate((Mathf.PI / 11) * (i + 5));
-                
+
                 var phase = Mathf.Sin(Time.time * 10f + (i * (Mathf.PI / 10f)));
                 var width = 100 + phase * 200;
-                
+
                 // Clip space
                 // _cnv.Rect(0f, 0f, i % 2 == 0 ? 0f : 1f, width / _cnv.Width, 3f / _cnv.Height);
                 // _cnv.Rect(
@@ -41,7 +41,7 @@ namespace Dev
                 //     width / _cnv.Width,
                 //     3f / _cnv.Height
                 // );
-                
+
                 // Screen Space
                 // _cnv.Rect(0f, 0f, i % 2 == 0 ? 0f : 1f, width * 2f, 3f);
                 // _cnv.Rect(
@@ -51,7 +51,7 @@ namespace Dev
                 //     width,
                 //     3f
                 // );
-                
+
                 // World Space
                 // _cnv.Rect(
                 //     0,
@@ -60,7 +60,7 @@ namespace Dev
                 //     width / 100f,
                 //     .1f
                 // );
-                
+
                 // _cnv.Pop();
             }
 

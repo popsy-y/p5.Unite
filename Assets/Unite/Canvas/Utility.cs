@@ -9,7 +9,7 @@ namespace Unite.Canvas
     {
         // Return 0 to 1 linear depth calculated from world space depth from camera
         // Unite only expose human friendly(0-1, near-far) depth value
-        
+
         /// <summary>
         /// Converts a world-space depth to a 0..1 linear depth value as seen by the current camera when DrawingMode is ScreenSpace or ClipSpace.
         /// </summary>

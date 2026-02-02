@@ -7,7 +7,7 @@ namespace Dev
         [SerializeField] private Color color;
 
         private static readonly int PropertyId = Shader.PropertyToID("_BaseColor");
-        
+
         private void OnEnable()
         {
             var r = GetComponent<MeshRenderer>();

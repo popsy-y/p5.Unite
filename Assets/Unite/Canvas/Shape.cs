@@ -55,9 +55,9 @@ namespace Unite.Canvas
                     fPos.y / Height,
                     pos.z
                 );
-                
+
                 var rSize = new Vector2(size.x / Width, size.y / Height);
-                
+
                 return (rPos, rSize);
             }
             else
@@ -68,7 +68,7 @@ namespace Unite.Canvas
                 return (rPos, rSize);
             }
         }
-        
+
         #region Circle
 
         public void Circle(float x, float y, float radius)
@@ -92,7 +92,7 @@ namespace Unite.Canvas
                 var (r, s) = RotScl();
                 var (nPos, nSize) = EnsureNormalizedValue(new Vector3(x, y, 1f), Vector2.one * radius);
                 fPos = nPos;
-                
+
                 // NOTE: 平面時はrx, ryを潰すこともできるが、
                 // そこからハックが生まれそうだし、ライブラリの性格を考えると暗黙的な挙動が増えるべきではないと思ったので意図的にそのまま残した。
                 // その代わりに、平面用にfloatのみを受け付けるRotateメソッドが用意してある。

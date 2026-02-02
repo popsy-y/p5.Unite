@@ -16,34 +16,36 @@ namespace Unite.Drawing
         private Queue<DrawCommand> _commandQueue;
 
         public DrawingMode DrawingMode { get; private set; }
-        
+
+        private GraphicsBuffer _shapeDataBuffer;
+
         public DrawingContext(DrawingMode mode, Queue<DrawCommand> commandQueue)
         {
             DrawingMode = mode;
-            
+
             _commandQueue = commandQueue;
 
             _mesh = DH.UnitQuad;
             _mesh.RecalculateBounds();
-            
+
             _material = new Material(Shader.Find((
-                DrawingMode is DrawingMode.WorldSpace ? 
+                DrawingMode is DrawingMode.WorldSpace ?
                 "Hidden/Unite/WorldSpaceDrawing" :
                 "Hidden/Unite/ClipSpaceDrawing"
             )));
-            
+
             Debug.Log(_material.shader.name);
         }
 
         public void Dispose()
         {
-            #if UNITY_EDITOR
+#if UNITY_EDITOR
             Object.DestroyImmediate(_material);
             Object.DestroyImmediate(_mesh);
-            #else
+#else
             Object.Destroy(_material);
             Object.Destroy(_mesh);
-            #endif
+#endif
         }
 
         public void Draw(ScriptableRenderContext srpCtx, Camera cam)
@@ -93,14 +95,14 @@ namespace Unite.Drawing
                     sSize.y * 2f,
                     1f
                 );
-                
+
                 var obj2Clip = Matrix4x4.TRS(clipPos, Quaternion.Euler(rot), clipScale);
-                
+
                 // objectToWorld is now OBJ -> CLIP
                 Graphics.RenderMesh(rp, _mesh, 0, obj2Clip);
             }
         }
-        
+
         private void LayoutMeshWs(ScriptableRenderContext srpCtx, Camera cam)
         {
             var rp = new RenderParams(_material);
