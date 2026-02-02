@@ -17,10 +17,12 @@ namespace Unite.Canvas
         /// <returns>Depth value</returns>
         public float WorldToLinearDepth(float worldDistance)
         {
-            var cam = _currentCamera;
+            return WorldToLinearDepth(worldDistance, _currentCamera);
+        }
+
+        public float WorldToLinearDepth(float worldDistance, Camera cam)
+        {
             if (!cam) return worldDistance;
-            
-            // Debug.Log($"near: {near}, far: {far}, dist: {worldDistance}");
 
             // Unity uses Reverse-Z, but we need convert it to normal z depth value
             // (because we are following processing / p5.js)
