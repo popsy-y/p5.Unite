@@ -90,14 +90,14 @@ namespace Unite.Canvas
             else
             {
                 var (r, s) = RotScl();
-                var (pos, size) = EnsureNormalizedValue(new Vector3(x, y, 1f), Vector2.one * radius);
-                fPos = pos;
+                var (nPos, nSize) = EnsureNormalizedValue(new Vector3(x, y, 1f), Vector2.one * radius);
+                fPos = nPos;
                 
                 // NOTE: 平面時はrx, ryを潰すこともできるが、
                 // そこからハックが生まれそうだし、ライブラリの性格を考えると暗黙的な挙動が増えるべきではないと思ったので意図的にそのまま残した。
                 // その代わりに、平面用にfloatのみを受け付けるRotateメソッドが用意してある。
                 fRot = r;
-                fSize = size * s;
+                fSize = nSize * s;
             }
 
             _commandQueue.Enqueue(new DrawCommand
@@ -134,10 +134,10 @@ namespace Unite.Canvas
             else
             {
                 var (r, s) = RotScl();
-                var (pos, size) = EnsureNormalizedValue(new Vector3(x, y, z), Vector2.one * radius);
-                fPos = pos;
+                var (nPos, nSize) = EnsureNormalizedValue(new Vector3(x, y, z), Vector2.one * radius);
+                fPos = nPos;
                 fRot = r;
-                fSize = size * s;
+                fSize = nSize * s;
             }
 
             _commandQueue.Enqueue(new DrawCommand
@@ -177,10 +177,10 @@ namespace Unite.Canvas
             else
             {
                 var (r, s) = RotScl();
-                var (pos, size) = EnsureNormalizedValue(new Vector3(x, y, 1f), new Vector2(width, height));
-                fPos = pos;
+                var (nPos, nSize) = EnsureNormalizedValue(new Vector3(x, y, 1f), new Vector2(width, height));
+                fPos = nPos;
                 fRot = r;
-                fSize = size * s;
+                fSize = nSize * s;
             }
 
             _commandQueue.Enqueue(new DrawCommand()
@@ -217,10 +217,10 @@ namespace Unite.Canvas
             else
             {
                 var (r, s) = RotScl();
-                var (pos, size) = EnsureNormalizedValue(new Vector3(x, y, z), new Vector2(width, height));
-                fPos = pos;
+                var (nPos, nSize) = EnsureNormalizedValue(new Vector3(x, y, z), new Vector2(width, height));
+                fPos = nPos;
                 fRot = r;
-                fSize = size * s;
+                fSize = nSize * s;
             }
 
             _commandQueue.Enqueue(new DrawCommand()
@@ -309,10 +309,10 @@ namespace Unite.Canvas
             else
             {
                 var (r, s) = RotScl();
-                var (pos, normSize) = EnsureNormalizedValue(new Vector3(x, y, z), Vector2.one * size);
-                fPos = pos;
+                var (nPos, nSize) = EnsureNormalizedValue(new Vector3(x, y, z), Vector2.one * size);
+                fPos = nPos;
                 fRot = r;
-                fSize = normSize * s;
+                fSize = nSize * s;
             }
 
             _commandQueue.Enqueue(new DrawCommand()

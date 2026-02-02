@@ -1,12 +1,20 @@
+using System.Diagnostics;
 using Unite.Drawing;
 using UnityEngine;
+using Debug = UnityEngine.Debug;
 
 namespace Unite.Canvas
 {
     public partial class UCanvas
     {
         // Return 0 to 1 linear depth calculated from world space depth from camera
-        // Unite only expose human friendly depth value
+        // Unite only expose human friendly(0-1, near-far) depth value
+        
+        /// <summary>
+        /// Converts a world-space depth to a 0..1 linear depth value as seen by the current camera when DrawingMode is ScreenSpace or ClipSpace.
+        /// </summary>
+        /// <param name="worldDistance"></param>
+        /// <returns>Depth value</returns>
         public float WorldToLinearDepth(float worldDistance)
         {
             var cam = _currentCamera;
@@ -16,9 +24,6 @@ namespace Unite.Canvas
 
             // Unity uses Reverse-Z, but we need convert it to normal z depth value
             // (because we are following processing / p5.js)
-            // return Mathf.Clamp01(1f - Mathf.InverseLerp(near, far, worldDistance));
-            // var clipDepth = NonLinearDepth(cam, worldDistance);
-
             return Mathf.InverseLerp(cam.nearClipPlane, cam.farClipPlane, worldDistance);
         }
     }

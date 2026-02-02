@@ -26,7 +26,7 @@ namespace Dev
                 // _cnv.Push();
                 // _cnv.Translate(3f, 5f);
                 // _cnv.Scale((i + 5) / 11f, 2f, 1f);
-                _cnv.Rotate(new Vector3(.1f, .2f, (Mathf.PI / 10) * i));
+                // _cnv.Rotate(new Vector3(.1f, .2f, (Mathf.PI / 10) * i));
                 // _cnv.Rotate((Mathf.PI / 11) * (i + 5));
                 
                 var phase = Mathf.Sin(Time.time * 10f + (i * (Mathf.PI / 10f)));
@@ -53,16 +53,19 @@ namespace Dev
                 // );
                 
                 // World Space
-                _cnv.Rect(
-                    0,
-                    i / 5f,
-                    i % 2 == 0 ? -1f : 1f,
-                    width / 100f,
-                    .1f
-                );
+                // _cnv.Rect(
+                //     0,
+                //     i / 5f,
+                //     _cnv.WorldToLinearDepth(Mathf.Lerp(3f, 15f, Mathf.Repeat(Time.time, 1f))),
+                //     width / 100f,
+                //     .1f
+                // );
                 
                 // _cnv.Pop();
             }
+
+            var dist = Mathf.Lerp(3f, 15f, Mathf.Repeat(Time.time, 1f));
+            _cnv.Square(0f, 0f, dist, 1f);
         }
     }
 }
