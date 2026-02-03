@@ -11,6 +11,8 @@ namespace Unite.Drawing
         // Use normalized screen coordinate. Drawings have Z coordinate.
         ClipSpace,
         // Use World coordinate.
-        WorldSpace
+        WorldSpace,
+        // Use GameObject local coordinate space.
+        ObjectSpace
     }
 }

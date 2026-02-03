@@ -8,7 +8,7 @@ using Object = UnityEngine.Object;
 
 namespace Unite.Drawing
 {
-    public class DrawingContext : IDisposable
+    public sealed class DrawingContext : IDisposable
     {
         private Mesh _mesh;
         private Material _material;
@@ -16,25 +16,30 @@ namespace Unite.Drawing
         private Queue<DrawCommand> _commandQueue;
 
         public DrawingMode DrawingMode { get; private set; }
+        private Transform _parentTransform;
 
         private GraphicsBuffer _shapeDataBuffer;
         private GraphicsBuffer _commandBuffer;
         private GraphicsBuffer.IndirectDrawIndexedArgs[] _commandData;
 
-        public DrawingContext(DrawingMode mode, Queue<DrawCommand> commandQueue)
+        public DrawingContext(DrawingMode mode, Queue<DrawCommand> commandQueue, Transform parentTransform = null)
         {
             DrawingMode = mode;
 
             _commandQueue = commandQueue;
+            _parentTransform = parentTransform;
 
             _mesh = DH.UnitQuad;
             _mesh.RecalculateBounds();
 
-            _material = new Material(Shader.Find((
-                DrawingMode is DrawingMode.WorldSpace ?
-                "Hidden/Unite/WorldSpaceDrawing" :
-                "Hidden/Unite/ClipSpaceDrawing"
-            )));
+            string shaderName = DrawingMode switch
+            {
+                DrawingMode.WorldSpace => "Hidden/Unite/WorldSpaceDrawing",
+                DrawingMode.ObjectSpace => "Hidden/Unite/ObjectSpaceDrawing",
+                _ => "Hidden/Unite/ClipSpaceDrawing"
+            };
+
+            _material = new Material(Shader.Find(shaderName));
 
             _commandData = new GraphicsBuffer.IndirectDrawIndexedArgs[1];
         }
@@ -74,7 +79,7 @@ namespace Unite.Drawing
             var shapeDataArray = new ShapeData[count];
             int index = 0;
 
-            bool isWorldSpace = DrawingMode == DrawingMode.WorldSpace;
+            bool isWorldSpace = DrawingMode is DrawingMode.WorldSpace or DrawingMode.ObjectSpace;
             bool isClipSpaceOverlay = DrawingMode is DrawingMode.ClipSpaceOverlay or DrawingMode.ScreenSpaceOverlay;
 
             foreach (var cmd in _commandQueue)
@@ -98,7 +103,7 @@ namespace Unite.Drawing
                     // Clip Space / Screen Space
                     // cmd.Position is Normalized (0-1) or similar based on previous logic.
                     // Previous logic: sPos.x * 2f - 1f
-                    
+
                     var sPos = cmd.Position;
                     pos = new Vector3(
                         sPos.x * 2f - 1f,
@@ -114,7 +119,7 @@ namespace Unite.Drawing
                     // Scale * 2 = 1.0 * 2 -> Scale = 1.0.
                     // So Scale = cmd.Size.
                     size = cmd.Size;
-                    
+
                     // Previous code used * 2f. 
                     // "var clipScale = new Vector3(sSize.x * 2f, sSize.y * 2f, 1f);"
                     // If I am wrong and previous code was correct:
@@ -139,6 +144,12 @@ namespace Unite.Drawing
             _shapeDataBuffer.SetData(shapeDataArray);
             _material.SetBuffer("_ShapeData", _shapeDataBuffer);
 
+            // For ObjectSpace mode, set the parent transform matrix
+            if (DrawingMode == DrawingMode.ObjectSpace && _parentTransform != null)
+            {
+                _material.SetMatrix("_ParentTransform", _parentTransform.localToWorldMatrix);
+            }
+
             // Indirect Args
             _commandData[0].indexCountPerInstance = _mesh.GetIndexCount(0);
             _commandData[0].instanceCount = (uint)count;
@@ -146,9 +157,9 @@ namespace Unite.Drawing
 
             RenderParams rp = new RenderParams(_material);
             // Use Camera Bounds as requested
-            rp.worldBounds = new Bounds(cam.transform.position, Vector3.one * 10000f); 
+            rp.worldBounds = new Bounds(cam.transform.position, Vector3.one * 10000f);
             rp.matProps = new MaterialPropertyBlock();
-            
+
             // NOTE: Matrix is handled in shader via StructuredBuffer, 
             // but RenderMeshIndirect might need a matrix for culling if not using worldBounds properly?
             // We set worldBounds large, so culling shouldn't be an issue.
@@ -162,7 +173,7 @@ namespace Unite.Drawing
             // ShapeData Buffer
             // Stride: Vector3(12) + Vector4(16) + Vector2(8) + int(4) + Vector4(16) + Vector4(16) = 72 bytes
             int stride = 72;
-            
+
             if (_shapeDataBuffer == null || _shapeDataBuffer.count < count)
             {
                 _shapeDataBuffer?.Dispose();

@@ -12,7 +12,7 @@ namespace Unite.Canvas
 
         public DrawingContext CreateCanvas(DrawingMode mode)
         {
-            _drawingContext = new DrawingContext(mode, _commandQueue);
+            _drawingContext = new DrawingContext(mode, _commandQueue, transform);
             return _drawingContext;
         }
 
@@ -112,8 +112,8 @@ namespace Unite.Canvas
                 if (m is DrawingMode.ScreenSpace or DrawingMode.ScreenSpaceOverlay)
                     return _currentCamera.pixelWidth;
 
-                if (m == DrawingMode.WorldSpace)
-                    return -1; // there's no width in world space
+                if (m is DrawingMode.WorldSpace or DrawingMode.ObjectSpace)
+                    return -1; // there's no width in world space or object space
 
                 return 0;
             }
@@ -143,8 +143,8 @@ namespace Unite.Canvas
                 if (m is DrawingMode.ScreenSpace or DrawingMode.ScreenSpaceOverlay)
                     return _currentCamera.pixelHeight;
 
-                if (m == DrawingMode.WorldSpace)
-                    return -1; // there's no height in world space
+                if (m is DrawingMode.WorldSpace or DrawingMode.ObjectSpace)
+                    return -1; // there's no height in world space or object space
 
                 return 0;
             }

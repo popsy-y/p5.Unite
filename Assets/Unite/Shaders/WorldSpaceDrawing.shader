@@ -32,16 +32,7 @@ Shader "Hidden/Unite/WorldSpaceDrawing"
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Assets/Unite/Shaders/SDFs.hlsl"
-
-            struct ShapeData
-            {
-                float3 Position;
-                float4 Rotation; // Quaternion
-                float2 Size;
-                int ShapeType;
-                float4 FillColor;
-                float4 StrokeColor;
-            };
+            #include "Assets/Unite/Shaders/UniteCommon.hlsl"
 
             StructuredBuffer<ShapeData> _ShapeData;
 
@@ -69,17 +60,6 @@ Shader "Hidden/Unite/WorldSpaceDrawing"
                 float4 _BaseMap_ST;
             CBUFFER_END
 
-            float4x4 QuaternionToMatrix(float4 q)
-            {
-                float x = q.x, y = q.y, z = q.z, w = q.w;
-                return float4x4(
-                    1 - 2*y*y - 2*z*z, 2*x*y - 2*z*w,     2*x*z + 2*y*w,     0,
-                    2*x*y + 2*z*w,     1 - 2*x*x - 2*z*z, 2*y*z - 2*x*w,     0,
-                    2*x*z - 2*y*w,     2*y*z + 2*x*w,     1 - 2*x*x - 2*y*y, 0,
-                    0,                 0,                 0,                 1
-                );
-            }
-
             Varyings vert(Attributes i)
             {
                 Varyings o;
@@ -90,42 +70,7 @@ Shader "Hidden/Unite/WorldSpaceDrawing"
                 float2 size = data.Size;
                 float4 rot = data.Rotation;
 
-                // Scale
-                // Mesh is -1 to 1 (width 2).
-                // If Size represents full width, we need to scale by size/2.
-                // Or if we pre-calculated the correct scale in C#, just use it.
-                // In C# LayoutWorldSpaceShape: Vector2.one * radius * s;
-                // If we pass 'size' directly, and we want 'size' to be the width.
-                // Mesh width is 2. Scale = size / 2.
-                // However, C# previously did: new Vector3(cmd.Size.x / 2, cmd.Size.y / 2, 1f)
-                // So I will assume the data.Size passed here is the "Scale Factor" already prepared by C#?
-                // No, better to pass raw Size and let Shader handle, or consistant.
-                // I will update C# to pass the "Scale Vector" that should be applied to the Unit Quad.
-                // Unit Quad is size 2.
-                // So if I want size S, Scale = S/2.
-                // But let's assume C# passes the *Model Scale*.
-                
-                float3 s = float3(size.x, size.y, 1.0);
-                
-                // Rotation
-                float4x4 rMat = QuaternionToMatrix(rot);
-                
-                // Translation
-                float4x4 tMat = float4x4(
-                    1, 0, 0, pos.x,
-                    0, 1, 0, pos.y,
-                    0, 0, 1, pos.z,
-                    0, 0, 0, 1
-                );
-                
-                float4x4 sMat = float4x4(
-                    s.x, 0, 0, 0,
-                    0, s.y, 0, 0,
-                    0, 0, 1, 0,
-                    0, 0, 0, 1
-                );
-
-                float4x4 m = mul(tMat, mul(rMat, sMat));
+                float4x4 m = BuildTRSMatrix(pos, rot, size);
 
                 float3 positionWS = mul(m, i.positionOS).xyz;
 

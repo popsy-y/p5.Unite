@@ -80,7 +80,7 @@ namespace Unite.Canvas
             Vector2 fSize;
             Vector3 fPos, fRot;
 
-            if (_drawingContext.DrawingMode == DrawingMode.WorldSpace)
+            if (_drawingContext.DrawingMode is DrawingMode.WorldSpace or DrawingMode.ObjectSpace)
             {
                 var (r, s) = RotScl();
                 fPos = FinalPos(new Vector3(x, y, 0f));
@@ -124,7 +124,7 @@ namespace Unite.Canvas
             Vector2 fSize;
             Vector3 fPos;
 
-            if (_drawingContext.DrawingMode == DrawingMode.WorldSpace)
+            if (_drawingContext.DrawingMode is DrawingMode.WorldSpace or DrawingMode.ObjectSpace)
             {
                 var (r, s) = RotScl();
                 fPos = FinalPos(new Vector3(x, y, z));
@@ -167,7 +167,7 @@ namespace Unite.Canvas
             Vector2 fSize;
             Vector3 fPos;
 
-            if (_drawingContext.DrawingMode == DrawingMode.WorldSpace)
+            if (_drawingContext.DrawingMode is DrawingMode.WorldSpace or DrawingMode.ObjectSpace)
             {
                 var (r, s) = RotScl();
                 fPos = FinalPos(new Vector3(x, y, 0f));
@@ -207,7 +207,7 @@ namespace Unite.Canvas
             Vector2 fSize;
             Vector3 fPos;
 
-            if (_drawingContext.DrawingMode == DrawingMode.WorldSpace)
+            if (_drawingContext.DrawingMode is DrawingMode.WorldSpace or DrawingMode.ObjectSpace)
             {
                 var (r, s) = RotScl();
                 fPos = FinalPos(new Vector3(x, y, z));
@@ -250,9 +250,9 @@ namespace Unite.Canvas
             Vector2 fSize;
             Vector3 fPos;
 
-            if (_drawingContext.DrawingMode == DrawingMode.WorldSpace)
+            if (_drawingContext.DrawingMode is DrawingMode.WorldSpace or DrawingMode.ObjectSpace)
             {
-                // World Space
+                // World Space / Object Space
                 // expects unity unit value in world space
 
                 var (r, s) = RotScl();
@@ -299,7 +299,7 @@ namespace Unite.Canvas
             Vector2 fSize;
             Vector3 fPos;
 
-            if (_drawingContext.DrawingMode == DrawingMode.WorldSpace)
+            if (_drawingContext.DrawingMode is DrawingMode.WorldSpace or DrawingMode.ObjectSpace)
             {
                 var (r, s) = RotScl();
                 fPos = FinalPos(new Vector3(x, y, z));
