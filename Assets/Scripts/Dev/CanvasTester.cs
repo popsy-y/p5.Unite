@@ -9,66 +9,98 @@ namespace Dev
     {
         private UCanvas _cnv;
 
+        [Header("Test Settings")]
+        [SerializeField] private DrawingMode _mode = DrawingMode.ScreenSpace;
+        [SerializeField] private bool _autoCycleModes = true;
+        [SerializeField] private float _cycleInterval = 3f;
+
+        private DrawingMode _currentMode;
+        private float _timer;
+
         private void Start()
         {
             _cnv = GetComponent<UCanvas>();
-            _cnv.CreateCanvas(DrawingMode.ScreenSpace);
+            _currentMode = _mode;
+            _cnv.CreateCanvas(_mode);
         }
 
-        // because i needed to make commit for testing reason
         private void Update()
         {
-            var hw = _cnv.Width / 2f;
-            var hh = _cnv.Height / 2f;
-
-            for (int i = -5; i < 11; i++)
+            // Auto cycle modes
+            if (_autoCycleModes)
             {
-                // _cnv.Push();
-                // _cnv.Translate(3f, 5f);
-                // _cnv.Scale((i + 5) / 11f, 2f, 1f);
-                // _cnv.Rotate(new Vector3(.1f, .2f, (Mathf.PI / 10) * i));
-                // _cnv.Rotate((Mathf.PI / 11) * (i + 5));
-
-                var phase = Mathf.Sin(Time.time * 10f + (i * (Mathf.PI / 10f)));
-                var width = 100 + phase * 200;
-
-                // Clip space
-                // _cnv.Circle(.5f, .5f, .1f);
-                
-                // _cnv.Rect(0f, 0f, i % 2 == 0 ? 0f : 1f, width / _cnv.Width, 3f / _cnv.Height);
-                // _cnv.Rect(
-                //     hw / _cnv.Width,
-                //     (hh + i * 35f) / _cnv.Height,
-                //     i % 2 == 0 ? 0f : 1f,
-                //     width / _cnv.Width,
-                //     3f / _cnv.Height
-                // );
-
-                // Screen Space
-                _cnv.Circle(hw, hh, 100);
-                // _cnv.Rect(0f, 0f, i % 2 == 0 ? 0f : 1f, width * 2f, 3f);
-                // _cnv.Rect(
-                //     hw,
-                //     hh + i * 35f,
-                //     i % 2 == 0 ? 0f : 1f,
-                //     width,
-                //     3f
-                // );
-
-                // World Space
-                // _cnv.Rect(
-                //     0,
-                //     i / 5f,
-                //     _cnv.WorldToLinearDepth(Mathf.Lerp(3f, 15f, Mathf.Repeat(Time.time, 1f))),
-                //     width / 100f,
-                //     .1f
-                // );
-
-                // _cnv.Pop();
+                _timer += Time.deltaTime;
+                if (_timer >= _cycleInterval)
+                {
+                    _timer = 0f;
+                    int nextModeIndex = ((int)_mode + 1) % System.Enum.GetValues(typeof(DrawingMode)).Length;
+                    _mode = (DrawingMode)nextModeIndex;
+                }
             }
 
-            // var dist = Mathf.Lerp(3f, 15f, Mathf.Repeat(Time.time, 1f));
-            // _cnv.Square(0f, 0f, dist, 1f);
+            // Check for mode change
+            if (_mode != _currentMode)
+            {
+                _currentMode = _mode;
+                _cnv.CreateCanvas(_mode);
+            }
+
+            // Determine layout metrics based on mode
+            float unit;
+            Vector3 center;
+
+            if (_currentMode is DrawingMode.ScreenSpace or DrawingMode.ScreenSpaceOverlay)
+            {
+                unit = 100f;
+                center = new Vector3(_cnv.Width / 2f, _cnv.Height / 2f, 0f);
+            }
+            else if (_currentMode is DrawingMode.ClipSpace or DrawingMode.ClipSpaceOverlay)
+            {
+                unit = 0.1f;
+                center = new Vector3(0.5f, 0.5f, 0f);
+            }
+            else // WorldSpace
+            {
+                unit = 2f;
+                center = Vector3.zero;
+            }
+
+            // --- 1. Position & Size & Z Test ---
+            // Draw shapes at specific positions with different sizes and Z depths
+            _cnv.Fill(Color.red);
+            _cnv.Square(center.x - 3 * unit, center.y, 10f, unit); // Base (Z=10)
+
+            _cnv.Fill(Color.blue);
+            _cnv.Square(center.x - 2.5f * unit, center.y - 0.5f * unit, 5f, unit * 0.8f); // Z=5 (Should be closer or further depending on projection)
+
+            _cnv.Fill(Color.yellow);
+            _cnv.Circle(center.x - 3 * unit, center.y + 1.2f * unit, 0f, unit * 0.5f); // Z=0
+
+            // --- 2. Canvas Transform Test (Push, Pop, Translate, Rotate, Scale) ---
+            _cnv.Push();
+            {
+                _cnv.Translate(center.x, center.y, 0f);
+                _cnv.Rotate(Time.time); // Rotate over time
+                _cnv.Scale(Mathf.Sin(Time.time * 2f) * 0.5f + 1f, 1f, 1f); // Scale x oscillating
+
+                _cnv.Fill(Color.green);
+                _cnv.Rect(0f, 0f, unit, unit * 0.5f); // Drawn at (0,0) local, which is center screen
+            }
+            _cnv.Pop();
+
+            // Verify Pop worked (draw something static nearby)
+            _cnv.Fill(Color.white);
+            _cnv.Circle(center.x, center.y - 1.5f * unit, unit * 0.2f); // Should stay static below rotating rect
+
+            // --- 3. Color Test (Fill, Stroke) ---
+            // Fill is tested above.
+            // Test Stroke API (even if not rendered yet)
+            _cnv.Stroke(Color.cyan);
+            _cnv.Fill(Color.magenta);
+            _cnv.Rect(center.x + 3 * unit, center.y, unit, unit);
+
+            // Reset stroke for next frame/draws (optional, but good practice if state persists)
+            _cnv.Stroke(Color.black);
         }
     }
 }

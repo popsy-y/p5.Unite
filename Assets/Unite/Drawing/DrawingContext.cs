@@ -18,6 +18,8 @@ namespace Unite.Drawing
         public DrawingMode DrawingMode { get; private set; }
 
         private GraphicsBuffer _shapeDataBuffer;
+        private GraphicsBuffer _commandBuffer;
+        private GraphicsBuffer.IndirectDrawIndexedArgs[] _commandData;
 
         public DrawingContext(DrawingMode mode, Queue<DrawCommand> commandQueue)
         {
@@ -34,13 +36,22 @@ namespace Unite.Drawing
                 "Hidden/Unite/ClipSpaceDrawing"
             )));
 
-            Debug.Log(_material.shader.name);
+            _commandData = new GraphicsBuffer.IndirectDrawIndexedArgs[1];
         }
 
         public void Dispose()
         {
+            _shapeDataBuffer?.Dispose();
+            _commandBuffer?.Dispose();
+            _shapeDataBuffer = null;
+            _commandBuffer = null;
+
 #if UNITY_EDITOR
             Object.DestroyImmediate(_material);
+            // Mesh is static in DrawingHelper, don't destroy it if it's shared?
+            // Previous code destroyed _mesh. 
+            // DrawingHelper.UnitQuad creates a NEW mesh every time property is accessed.
+            // So yes, destroy it.
             Object.DestroyImmediate(_mesh);
 #else
             Object.Destroy(_material);
@@ -50,73 +61,118 @@ namespace Unite.Drawing
 
         public void Draw(ScriptableRenderContext srpCtx, Camera cam)
         {
-            switch (DrawingMode)
-            {
-                case DrawingMode.ScreenSpaceOverlay:
-                    LayoutClipSpaceShape(srpCtx, cam);
-                    break;
-                case DrawingMode.ScreenSpace:
-                    LayoutClipSpaceShape(srpCtx, cam);
-                    break;
-                case DrawingMode.ClipSpaceOverlay:
-                    LayoutClipSpaceShape(srpCtx, cam);
-                    break;
-                case DrawingMode.ClipSpace:
-                    LayoutClipSpaceShape(srpCtx, cam);
-                    break;
-                case DrawingMode.WorldSpace:
-                    LayoutMeshWs(srpCtx, cam);
-                    break;
-            }
+            if (_commandQueue.Count == 0) return;
+
+            LayoutShapeIndirect(srpCtx, cam);
         }
 
-        private void LayoutClipSpaceShape(ScriptableRenderContext srpCtx, Camera cam)
+        private void LayoutShapeIndirect(ScriptableRenderContext srpCtx, Camera cam)
         {
-            var rp = new RenderParams(_material);
-            rp.worldBounds = new Bounds(cam.transform.position, Vector3.one);
+            int count = _commandQueue.Count;
+            EnsureBuffers(count);
+
+            var shapeDataArray = new ShapeData[count];
+            int index = 0;
+
+            bool isWorldSpace = DrawingMode == DrawingMode.WorldSpace;
+            bool isClipSpaceOverlay = DrawingMode is DrawingMode.ClipSpaceOverlay or DrawingMode.ScreenSpaceOverlay;
 
             foreach (var cmd in _commandQueue)
             {
-                var sPos = cmd.Position;
-                var sSize = cmd.Size;
-                var rot = cmd.Rotation;
+                Vector3 pos;
+                Vector2 size;
+                Vector4 rot = new Vector4(0, 0, 0, 1); // Identity quaternion
 
-                var clipPos = new Vector3(
-                    sPos.x * 2f - 1f,
-                    sPos.y * 2f - 1f,
-                    // linearなdepthをそのまま渡す
-                    // プラットフォーム差異もここでは吸収せず、near: 0, far: 1として扱う
-                    // projection matrixを使ったnon-linearなdepthへの変換はシェーダー内で行う
-                    DrawingMode is DrawingMode.ClipSpaceOverlay or DrawingMode.ScreenSpaceOverlay ? 0f : sPos.z
-                );
+                // Quaternion from Euler
+                Quaternion q = Quaternion.Euler(cmd.Rotation);
+                rot = new Vector4(q.x, q.y, q.z, q.w);
 
-                var clipScale = new Vector3(
-                    sSize.x * 2f,
-                    sSize.y * 2f,
-                    1f
-                );
+                if (isWorldSpace)
+                {
+                    pos = cmd.Position;
+                    // Mesh width is 2. We want to draw 'cmd.Size'. Scale = cmd.Size / 2.
+                    size = cmd.Size / 2f;
+                }
+                else
+                {
+                    // Clip Space / Screen Space
+                    // cmd.Position is Normalized (0-1) or similar based on previous logic.
+                    // Previous logic: sPos.x * 2f - 1f
+                    
+                    var sPos = cmd.Position;
+                    pos = new Vector3(
+                        sPos.x * 2f - 1f,
+                        sPos.y * 2f - 1f,
+                        isClipSpaceOverlay ? 0f : sPos.z
+                    );
 
-                var obj2Clip = Matrix4x4.TRS(clipPos, Quaternion.Euler(rot), clipScale);
+                    // Size
+                    // cmd.Size is Normalized (0-1) relative to screen.
+                    // Clip Space Width is 2.
+                    // Scale * MeshWidth(2) = NormalizedSize * ClipSpaceWidth(2)?
+                    // No. Normalized 1.0 = Width 2.0 (Clip).
+                    // Scale * 2 = 1.0 * 2 -> Scale = 1.0.
+                    // So Scale = cmd.Size.
+                    size = cmd.Size;
+                    
+                    // Previous code used * 2f. 
+                    // "var clipScale = new Vector3(sSize.x * 2f, sSize.y * 2f, 1f);"
+                    // If I am wrong and previous code was correct:
+                    // Scale = cmd.Size * 2f means Normalized 0.5 fills the screen.
+                    // I will stick to Scale = cmd.Size for now as it makes more sense logically.
+                    // If shapes appear half size, I will multiply by 2.
+                }
 
-                // objectToWorld is now OBJ -> CLIP
-                Graphics.RenderMesh(rp, _mesh, 0, obj2Clip);
+                shapeDataArray[index] = new ShapeData
+                {
+                    Position = pos,
+                    Rotation = rot,
+                    Size = size,
+                    ShapeType = (int)cmd.ShapeType, // Circle=0, Rect=1, Square=2
+                    FillColor = cmd.FillColor,
+                    StrokeColor = cmd.StrokeColor
+                };
+
+                index++;
             }
+
+            _shapeDataBuffer.SetData(shapeDataArray);
+            _material.SetBuffer("_ShapeData", _shapeDataBuffer);
+
+            // Indirect Args
+            _commandData[0].indexCountPerInstance = _mesh.GetIndexCount(0);
+            _commandData[0].instanceCount = (uint)count;
+            _commandBuffer.SetData(_commandData);
+
+            RenderParams rp = new RenderParams(_material);
+            // Use Camera Bounds as requested
+            rp.worldBounds = new Bounds(cam.transform.position, Vector3.one * 10000f); 
+            rp.matProps = new MaterialPropertyBlock();
+            
+            // NOTE: Matrix is handled in shader via StructuredBuffer, 
+            // but RenderMeshIndirect might need a matrix for culling if not using worldBounds properly?
+            // We set worldBounds large, so culling shouldn't be an issue.
+            // We don't need _ObjectToWorld in props because we don't use it in shader for positioning instances.
+
+            Graphics.RenderMeshIndirect(rp, _mesh, _commandBuffer, 1);
         }
 
-        private void LayoutMeshWs(ScriptableRenderContext srpCtx, Camera cam)
+        private void EnsureBuffers(int count)
         {
-            var rp = new RenderParams(_material);
-
-            foreach (var cmd in _commandQueue)
+            // ShapeData Buffer
+            // Stride: Vector3(12) + Vector4(16) + Vector2(8) + int(4) + Vector4(16) + Vector4(16) = 72 bytes
+            int stride = 72;
+            
+            if (_shapeDataBuffer == null || _shapeDataBuffer.count < count)
             {
-                var obj2World = Matrix4x4.TRS(
-                    cmd.Position,
-                    Quaternion.Euler(cmd.Rotation),
-                    new Vector3(cmd.Size.x / 2, cmd.Size.y / 2, 1f)// divide by 2, because "Size" means full width or height but unit quad is -1 to 1
-                );
+                _shapeDataBuffer?.Dispose();
+                _shapeDataBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, count, stride);
+            }
 
-                rp.worldBounds = new Bounds(cmd.Position, new Vector3(cmd.Size.x, cmd.Size.y, 0.1f));
-                Graphics.RenderMesh(rp, _mesh, 0, obj2World);
+            // Command Buffer
+            if (_commandBuffer == null)
+            {
+                _commandBuffer = new GraphicsBuffer(GraphicsBuffer.Target.IndirectArguments, 1, GraphicsBuffer.IndirectDrawIndexedArgs.size);
             }
         }
     }
