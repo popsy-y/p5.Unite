@@ -12,7 +12,7 @@ namespace Dev
         private void Start()
         {
             _cnv = GetComponent<UCanvas>();
-            _cnv.CreateCanvas(DrawingMode.WorldSpace);
+            _cnv.CreateCanvas(DrawingMode.ScreenSpace);
         }
 
         // because i needed to make commit for testing reason
@@ -33,6 +33,8 @@ namespace Dev
                 var width = 100 + phase * 200;
 
                 // Clip space
+                // _cnv.Circle(.5f, .5f, .1f);
+                
                 // _cnv.Rect(0f, 0f, i % 2 == 0 ? 0f : 1f, width / _cnv.Width, 3f / _cnv.Height);
                 // _cnv.Rect(
                 //     hw / _cnv.Width,
@@ -43,6 +45,7 @@ namespace Dev
                 // );
 
                 // Screen Space
+                _cnv.Circle(hw, hh, 100);
                 // _cnv.Rect(0f, 0f, i % 2 == 0 ? 0f : 1f, width * 2f, 3f);
                 // _cnv.Rect(
                 //     hw,
@@ -64,8 +67,8 @@ namespace Dev
                 // _cnv.Pop();
             }
 
-            var dist = Mathf.Lerp(3f, 15f, Mathf.Repeat(Time.time, 1f));
-            _cnv.Square(0f, 0f, dist, 1f);
+            // var dist = Mathf.Lerp(3f, 15f, Mathf.Repeat(Time.time, 1f));
+            // _cnv.Square(0f, 0f, dist, 1f);
         }
     }
 }

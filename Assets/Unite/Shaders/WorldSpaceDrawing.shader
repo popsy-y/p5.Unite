@@ -30,6 +30,7 @@ Shader "Hidden/Unite/WorldSpaceDrawing"
             #pragma enable_d3d11_debug_symbols
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "Assets/Unite/Shaders/SDFs.hlsl"
 
             struct Attributes
             {
@@ -63,7 +64,10 @@ Shader "Hidden/Unite/WorldSpaceDrawing"
 
             half4 frag(Varyings i) : SV_Target
             {
-                return half4(1., 1., 1., 1.);
+                float d = Square(i.uv);
+                float alpha = SDF_FillAlpha(d);
+                half4 baseColor = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, i.uv);
+                return half4(baseColor.rgb, baseColor.a * alpha);
             }
 
             ENDHLSL

@@ -30,6 +30,7 @@ Shader "Hidden/Unite/ClipSpaceDrawing"
             #pragma enable_d3d11_debug_symbols
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "Assets/Unite/Shaders/SDFs.hlsl"
 
             struct Attributes
             {
@@ -85,8 +86,6 @@ Shader "Hidden/Unite/ClipSpaceDrawing"
                 // because we calculated non-linear NDC depth manually
                 o.positionCS.w = 1.;
 
-                // TODO: maybe I should calc sdf with uv rather than object space coord
-                // because I think I will want to draw shapes on curved surfaces (not only simple quad)
                 o.uv = TRANSFORM_TEX(i.uv, _BaseMap);
                 o.positionOS = i.positionOS.xyz;
                 return o;
@@ -94,13 +93,11 @@ Shader "Hidden/Unite/ClipSpaceDrawing"
 
             half4 frag(Varyings i) : SV_Target
             {
-                float within = length(i.positionOS.xy) < 1.;
+                // float d = Circle(i.uv);
+                float d = Square(i.uv);
+                float alpha = SDF_FillAlpha(d);
                 half4 baseColor = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, i.uv);
-                half4 col = half4(within, within, within, baseColor.a * within);
-
-                float edge = (abs(i.positionOS.x) - .9 > 0. || abs(i.positionOS.y) - .9 > 0.) ? 1.0 : 0.0;
-
-                return half4(i.positionCSRaw.z, 0., 0., 1.);
+                return half4(baseColor.rgb, baseColor.a * alpha);
             }
             
             ENDHLSL
