@@ -129,7 +129,8 @@ Shader "Hidden/Unite/ClipSpaceDrawing"
                 // Using FillColor for now.
                 half4 color = i.fillColor * baseColor;
                 
-                return half4(color.rgb, color.a * alpha);
+                // return half4(color.rgb, color.a * alpha);
+                return half4(i.positionCSRaw.z, 0., 0., 1.);
             }
             
             ENDHLSL

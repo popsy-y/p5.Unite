@@ -68,13 +68,13 @@ namespace Dev
             // --- 1. Position & Size & Z Test ---
             // Draw shapes at specific positions with different sizes and Z depths
             _cnv.Fill(Color.red);
-            _cnv.Square(center.x - 3 * unit, center.y, 10f, unit); // Base (Z=10)
+            _cnv.Square(center.x - 3 * unit, center.y, CorrectDepth(10f), unit); // Base (Z=10)
 
             _cnv.Fill(Color.blue);
-            _cnv.Square(center.x - 2.5f * unit, center.y - 0.5f * unit, 5f, unit * 0.8f); // Z=5 (Should be closer or further depending on projection)
+            _cnv.Square(center.x - 2.5f * unit, center.y - 0.5f * unit, CorrectDepth(5f), unit * 0.8f); // Z=5 (Should be closer or further depending on projection)
 
             _cnv.Fill(Color.yellow);
-            _cnv.Circle(center.x - 3 * unit, center.y + 1.2f * unit, 0f, unit * 0.5f); // Z=0
+            _cnv.Circle(center.x - 3 * unit, center.y + 1.2f * unit, CorrectDepth(0f), unit * 0.5f); // Z=0
 
             // --- 2. Canvas Transform Test (Push, Pop, Translate, Rotate, Scale) ---
             _cnv.Push();
@@ -101,6 +101,20 @@ namespace Dev
 
             // Reset stroke for next frame/draws (optional, but good practice if state persists)
             _cnv.Stroke(Color.black);
+        }
+        
+        private float CorrectDepth(float depth)
+        {
+            if (_cnv.DrawingMode is
+                DrawingMode.ClipSpace or DrawingMode.ClipSpaceOverlay or
+                DrawingMode.ScreenSpace or DrawingMode.ScreenSpaceOverlay)
+            {
+                return _cnv.WorldToLinearDepth(depth);
+            }
+            else
+            {
+                return depth;
+            }
         }
     }
 }

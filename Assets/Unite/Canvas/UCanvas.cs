@@ -10,6 +10,8 @@ namespace Unite.Canvas
     {
         [SerializeField][HideInInspector] private DrawingContext _drawingContext;
 
+        public DrawingMode DrawingMode => _drawingContext.DrawingMode;
+
         public DrawingContext CreateCanvas(DrawingMode mode)
         {
             _drawingContext = new DrawingContext(mode, _commandQueue, transform);
