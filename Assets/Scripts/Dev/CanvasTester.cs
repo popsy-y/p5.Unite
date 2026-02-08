@@ -84,7 +84,9 @@ namespace Dev
                 _cnv.Scale(Mathf.Sin(Time.time * 2f) * 0.5f + 1f, 1f, 1f); // Scale x oscillating
 
                 _cnv.Fill(Color.green);
-                _cnv.Rect(0f, 0f, _cnv.WorldToLinearDepth(Mathf.Repeat(Time.time, 1f) * 3f), unit, unit * 0.5f); // Drawn at (0,0) local, which is center screen
+                var hoge = _cnv.WorldToLinearDepth(Mathf.Repeat(Time.time, 1f) * 3f);
+                _cnv.Rect(0f, 0f, hoge, unit, unit * 0.5f); // Drawn at (0,0) local, which is center screen
+                Debug.Log(hoge);
             }
             _cnv.Pop();
 
@@ -97,12 +99,12 @@ namespace Dev
             // Test Stroke API (even if not rendered yet)
             _cnv.Stroke(Color.cyan);
             _cnv.Fill(Color.magenta);
-            _cnv.Rect(center.x + 3 * unit, center.y, unit, unit);
+            _cnv.Rect(center.x + 3 * unit, center.y, 0f, unit, unit);
 
             // Reset stroke for next frame/draws (optional, but good practice if state persists)
             _cnv.Stroke(Color.black);
         }
-        
+
         private float CorrectDepth(float depth)
         {
             if (_cnv.DrawingMode is
@@ -111,10 +113,8 @@ namespace Dev
             {
                 return _cnv.WorldToLinearDepth(depth);
             }
-            else
-            {
-                return depth;
-            }
+
+            return depth;
         }
     }
 }

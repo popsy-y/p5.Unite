@@ -74,23 +74,21 @@ Shader "Hidden/Unite/ClipSpaceDrawing"
                 o.positionCS = mul(m, i.positionOS);
                 
                 // set positionCSRaw before apply NDC adjustment
-                o.positionCS.z = saturate(o.positionCS.z);
                 o.positionCSRaw = o.positionCS;
 
                 // currently, z01 is linear depth, 0-1, near-far.
                 // convert it into non-linear NDC depth if camera is persp
                 if (unity_OrthoParams.w < .5)
                 {
-                    // 1 / .000001 (100000)
-                    // (1000000 - 1) / (-1+(1000/0.3))
-                    // 999999 / 3332.3333...
-
-                    // 1. / z01でWorldSpace単位のDepthになる、ほんでそこに0が入ってるとnearの値を割り込んで見えなくなるんですね(1敗)
-                    // Clampしたら安易に解決するんだけど、なんでそうなるの？挙動を誘発してしまう(zに負の値を代入しても見えるとか)のでやめたい
-                    // 根本解決するには…
-                    // float zNdc = (1.0 / max(1e-6, o.positionCS.z) - _ZBufferParams.y) / _ZBufferParams.x;
-                    float zNdc = (100 - _ZBufferParams.y) / _ZBufferParams.x;
+                    // clamp to avoid precision issues around near plane
+                    float nearOverFar = _ProjectionParams.y / _ProjectionParams.z;
+                    float z01 = max(o.positionCS.z, nearOverFar + 1e-5);
+                    float zNdc = (1.0 / z01 - _ZBufferParams.y) / _ZBufferParams.x;
                     o.positionCS.z = zNdc;
+
+                    // discard vertices with negative depth (z < 0 should not be rendered)
+                    if (o.positionCSRaw.z < 0.0)
+                        o.positionCS = float4(0, 0, 2, 1);  // behind far plane, invisible
                 }
                 else
                 {

@@ -89,7 +89,7 @@ namespace Unite.Canvas
             else
             {
                 var (r, s) = RotScl();
-                var (nPos, nSize) = EnsureNormalizedValue(new Vector3(x, y, 1f), Vector2.one * radius);
+                var (nPos, nSize) = EnsureNormalizedValue(new Vector3(x, y, 0f), Vector2.one * radius);
                 fPos = nPos;
 
                 // NOTE: 平面時はrx, ryを潰すこともできるが、
@@ -176,7 +176,7 @@ namespace Unite.Canvas
             else
             {
                 var (r, s) = RotScl();
-                var (nPos, nSize) = EnsureNormalizedValue(new Vector3(x, y, 1f), new Vector2(width, height));
+                var (nPos, nSize) = EnsureNormalizedValue(new Vector3(x, y, 0f), new Vector2(width, height));
                 fPos = nPos;
                 fRot = r;
                 fSize = nSize * s;
@@ -266,7 +266,7 @@ namespace Unite.Canvas
                 // expects normalized value in clip space
 
                 var (r, s) = RotScl();
-                var (nPos, nSize) = EnsureNormalizedValue(new Vector3(x, y, 1f), Vector2.one * size);
+                var (nPos, nSize) = EnsureNormalizedValue(new Vector3(x, y, 0f), Vector2.one * size);
 
                 // apply canvas transformation scale
                 fPos = nPos;

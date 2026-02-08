@@ -17,7 +17,7 @@ namespace Dev
 
             _cnv.CreateCanvas(DrawingMode.ScreenSpace);
         }
-        
-        
+
+
     }
 }
