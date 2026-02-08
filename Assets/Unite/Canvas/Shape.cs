@@ -70,6 +70,12 @@ namespace Unite.Canvas
 
         #region Circle
 
+        /// <summary>
+        /// Draws a circle at the specified 2D position with the given radius.
+        /// </summary>
+        /// <param name="x">X-coordinate.</param>
+        /// <param name="y">Y-coordinate.</param>
+        /// <param name="radius">Radius of the circle.</param>
         public void Circle(float x, float y, float radius)
         {
             CheckDrawingContext();
@@ -110,11 +116,23 @@ namespace Unite.Canvas
             });
         }
 
+        /// <summary>
+        /// Draws a circle at the specified 2D position with the given radius.
+        /// </summary>
+        /// <param name="position">2D position.</param>
+        /// <param name="radius">Radius of the circle.</param>
         public void Circle(Vector2 position, float radius)
         {
             Circle(position.x, position.y, radius);
         }
 
+        /// <summary>
+        /// Draws a circle at the specified 3D position with the given radius.
+        /// </summary>
+        /// <param name="x">X-coordinate.</param>
+        /// <param name="y">Y-coordinate.</param>
+        /// <param name="z">Z-coordinate (depth).</param>
+        /// <param name="radius">Radius of the circle.</param>
         public void Circle(float x, float y, float z, float radius)
         {
             CheckDrawingContext();
@@ -150,6 +168,11 @@ namespace Unite.Canvas
             });
         }
 
+        /// <summary>
+        /// Draws a circle at the specified 3D position with the given radius.
+        /// </summary>
+        /// <param name="position">3D position.</param>
+        /// <param name="radius">Radius of the circle.</param>
         public void Circle(Vector3 position, float radius)
         {
             Circle(position.x, position.y, position.z, radius);
@@ -158,6 +181,13 @@ namespace Unite.Canvas
 
         #region Rectangle
 
+        /// <summary>
+        /// Draws a rectangle at the specified 2D position with the given dimensions.
+        /// </summary>
+        /// <param name="x">X-coordinate.</param>
+        /// <param name="y">Y-coordinate.</param>
+        /// <param name="width">Width of the rectangle.</param>
+        /// <param name="height">Height of the rectangle.</param>
         public void Rect(float x, float y, float width, float height)
         {
             CheckDrawingContext();
@@ -193,11 +223,24 @@ namespace Unite.Canvas
             });
         }
 
+        /// <summary>
+        /// Draws a rectangle at the specified 2D position with the given dimensions.
+        /// </summary>
+        /// <param name="position">2D position.</param>
+        /// <param name="size">Width and height of the rectangle.</param>
         public void Rect(Vector2 position, Vector2 size)
         {
             Rect(position.x, position.y, size.x, size.y);
         }
 
+        /// <summary>
+        /// Draws a rectangle at the specified 3D position with the given dimensions.
+        /// </summary>
+        /// <param name="x">X-coordinate.</param>
+        /// <param name="y">Y-coordinate.</param>
+        /// <param name="z">Z-coordinate (depth).</param>
+        /// <param name="width">Width of the rectangle.</param>
+        /// <param name="height">Height of the rectangle.</param>
         public void Rect(float x, float y, float z, float width, float height)
         {
             CheckDrawingContext();
@@ -233,6 +276,11 @@ namespace Unite.Canvas
             });
         }
 
+        /// <summary>
+        /// Draws a rectangle at the specified 3D position with the given dimensions.
+        /// </summary>
+        /// <param name="position">3D position.</param>
+        /// <param name="size">Width and height of the rectangle.</param>
         public void Rect(Vector3 position, Vector2 size)
         {
             Rect(position.x, position.y, position.z, size.x, size.y);
@@ -241,6 +289,12 @@ namespace Unite.Canvas
 
         #region Square
 
+        /// <summary>
+        /// Draws a square at the specified 2D position with the given size.
+        /// </summary>
+        /// <param name="x">X-coordinate.</param>
+        /// <param name="y">Y-coordinate.</param>
+        /// <param name="size">Size of the square (width and height).</param>
         public void Square(float x, float y, float size)
         {
             CheckDrawingContext();
@@ -285,11 +339,23 @@ namespace Unite.Canvas
             });
         }
 
+        /// <summary>
+        /// Draws a square at the specified 2D position with the given size.
+        /// </summary>
+        /// <param name="position">2D position.</param>
+        /// <param name="size">Size of the square (width and height).</param>
         public void Square(Vector2 position, float size)
         {
             Square(position.x, position.y, size);
         }
 
+        /// <summary>
+        /// Draws a square at the specified 3D position with the given size.
+        /// </summary>
+        /// <param name="x">X-coordinate.</param>
+        /// <param name="y">Y-coordinate.</param>
+        /// <param name="z">Z-coordinate (depth).</param>
+        /// <param name="size">Size of the square (width and height).</param>
         public void Square(float x, float y, float z, float size)
         {
             CheckDrawingContext();
@@ -325,6 +391,11 @@ namespace Unite.Canvas
             });
         }
 
+        /// <summary>
+        /// Draws a square at the specified 3D position with the given size.
+        /// </summary>
+        /// <param name="position">3D position.</param>
+        /// <param name="size">Size of the square (width and height).</param>
         public void Square(Vector3 position, float size)
         {
             Square(position.x, position.y, position.z, size);
