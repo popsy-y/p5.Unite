@@ -84,7 +84,7 @@ namespace Dev
                 _cnv.Scale(Mathf.Sin(Time.time * 2f) * 0.5f + 1f, 1f, 1f); // Scale x oscillating
 
                 _cnv.Fill(Color.green);
-                _cnv.Rect(0f, 0f, unit, unit * 0.5f); // Drawn at (0,0) local, which is center screen
+                _cnv.Rect(0f, 0f, _cnv.WorldToLinearDepth(Mathf.Repeat(Time.time, 1f) * 3f), unit, unit * 0.5f); // Drawn at (0,0) local, which is center screen
             }
             _cnv.Pop();
 

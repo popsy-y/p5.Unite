@@ -73,8 +73,6 @@ Shader "Hidden/Unite/ClipSpaceDrawing"
                 // Apply transformation
                 o.positionCS = mul(m, i.positionOS);
                 
-                // --- Clip Space Logic from previous shader ---
-
                 // set positionCSRaw before apply NDC adjustment
                 o.positionCS.z = saturate(o.positionCS.z);
                 o.positionCSRaw = o.positionCS;
@@ -83,7 +81,15 @@ Shader "Hidden/Unite/ClipSpaceDrawing"
                 // convert it into non-linear NDC depth if camera is persp
                 if (unity_OrthoParams.w < .5)
                 {
-                    float zNdc = (1.0 / max(1e-6, o.positionCS.z) - _ZBufferParams.y) / _ZBufferParams.x;
+                    // 1 / .000001 (100000)
+                    // (1000000 - 1) / (-1+(1000/0.3))
+                    // 999999 / 3332.3333...
+
+                    // 1. / z01でWorldSpace単位のDepthになる、ほんでそこに0が入ってるとnearの値を割り込んで見えなくなるんですね(1敗)
+                    // Clampしたら安易に解決するんだけど、なんでそうなるの？挙動を誘発してしまう(zに負の値を代入しても見えるとか)のでやめたい
+                    // 根本解決するには…
+                    // float zNdc = (1.0 / max(1e-6, o.positionCS.z) - _ZBufferParams.y) / _ZBufferParams.x;
+                    float zNdc = (100 - _ZBufferParams.y) / _ZBufferParams.x;
                     o.positionCS.z = zNdc;
                 }
                 else
@@ -129,8 +135,8 @@ Shader "Hidden/Unite/ClipSpaceDrawing"
                 // Using FillColor for now.
                 half4 color = i.fillColor * baseColor;
                 
-                // return half4(color.rgb, color.a * alpha);
-                return half4(i.positionCSRaw.z, 0., 0., 1.);
+                return half4(color.rgb, color.a * alpha);
+                // return half4(i.positionCS.z, 0., 0., 1.);
             }
             
             ENDHLSL

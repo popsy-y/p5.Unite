@@ -5,6 +5,7 @@ using UnityEngine;
 using UnityEngine.Rendering;
 using DH = Unite.Drawing.DrawingHelper;
 using Object = UnityEngine.Object;
+using PID = Unite.Drawing.ShaderPropertyIds;
 
 namespace Unite.Drawing
 {
@@ -53,10 +54,6 @@ namespace Unite.Drawing
 
 #if UNITY_EDITOR
             Object.DestroyImmediate(_material);
-            // Mesh is static in DrawingHelper, don't destroy it if it's shared?
-            // Previous code destroyed _mesh. 
-            // DrawingHelper.UnitQuad creates a NEW mesh every time property is accessed.
-            // So yes, destroy it.
             Object.DestroyImmediate(_mesh);
 #else
             Object.Destroy(_material);
@@ -79,8 +76,8 @@ namespace Unite.Drawing
             var shapeDataArray = new ShapeData[count];
             int index = 0;
 
-            bool isWorldSpace = DrawingMode is DrawingMode.WorldSpace or DrawingMode.ObjectSpace;
-            bool isClipSpaceOverlay = DrawingMode is DrawingMode.ClipSpaceOverlay or DrawingMode.ScreenSpaceOverlay;
+            bool isWorldOrObjectSpace = DrawingMode is DrawingMode.WorldSpace or DrawingMode.ObjectSpace;
+            bool isOverlay = DrawingMode is DrawingMode.ClipSpaceOverlay or DrawingMode.ScreenSpaceOverlay;
 
             foreach (var cmd in _commandQueue)
             {
@@ -92,7 +89,7 @@ namespace Unite.Drawing
                 Quaternion q = Quaternion.Euler(cmd.Rotation);
                 rot = new Vector4(q.x, q.y, q.z, q.w);
 
-                if (isWorldSpace)
+                if (isWorldOrObjectSpace)
                 {
                     pos = cmd.Position;
                     // Mesh width is 2. We want to draw 'cmd.Size'. Scale = cmd.Size / 2.
@@ -101,14 +98,12 @@ namespace Unite.Drawing
                 else
                 {
                     // Clip Space / Screen Space
-                    // cmd.Position is Normalized (0-1) or similar based on previous logic.
-                    // Previous logic: sPos.x * 2f - 1f
 
                     var sPos = cmd.Position;
                     pos = new Vector3(
                         sPos.x * 2f - 1f,
                         sPos.y * 2f - 1f,
-                        isClipSpaceOverlay ? 0f : sPos.z
+                        isOverlay ? 0f : sPos.z
                     );
 
                     // Size
@@ -142,12 +137,12 @@ namespace Unite.Drawing
             }
 
             _shapeDataBuffer.SetData(shapeDataArray);
-            _material.SetBuffer("_ShapeData", _shapeDataBuffer);
+            _material.SetBuffer(PID.ShapeDataBuffer, _shapeDataBuffer);
 
             // For ObjectSpace mode, set the parent transform matrix
             if (DrawingMode == DrawingMode.ObjectSpace && _parentTransform != null)
             {
-                _material.SetMatrix("_ParentTransform", _parentTransform.localToWorldMatrix);
+                _material.SetMatrix(PID.ParentTransform, _parentTransform.localToWorldMatrix);
             }
 
             // Indirect Args

@@ -9,7 +9,6 @@ namespace Unite.Canvas
         Circle,
         // Ellipse,
         // Line,
-        // Point,
         // Quad,
         Rectangle,
         Square,
