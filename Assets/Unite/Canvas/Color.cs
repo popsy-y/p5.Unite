@@ -7,5 +7,7 @@ namespace Unite.Canvas
         public void Fill(Color color) => _fillColor = color;
 
         public void Stroke(Color color) => _strokeColor = color;
+
+        public void StrokeWeight(float weight) => _strokeWeight = weight;
     }
 }

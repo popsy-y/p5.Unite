@@ -51,6 +51,7 @@ Shader "Hidden/Unite/ObjectSpaceDrawing"
                 nointerpolation int shapeType : TEXCOORD3;
                 nointerpolation float4 fillColor : TEXCOORD4;
                 nointerpolation float4 strokeColor : TEXCOORD5;
+                nointerpolation float strokeWeight : TEXCOORD6;
             };
 
             TEXTURE2D(_BaseMap);
@@ -87,6 +88,7 @@ Shader "Hidden/Unite/ObjectSpaceDrawing"
                 o.shapeType = data.ShapeType;
                 o.fillColor = data.FillColor;
                 o.strokeColor = data.StrokeColor;
+                o.strokeWeight = data.StrokeWeight;
                 
                 return o;
             }
@@ -107,9 +109,28 @@ Shader "Hidden/Unite/ObjectSpaceDrawing"
                 float alpha = SDF_FillAlpha(d);
                 half4 baseColor = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, i.uv);
                 
-                half4 color = i.fillColor * baseColor;
+                // Fill color with alpha
+                half4 fillColor = i.fillColor * baseColor;
+                fillColor.a *= alpha;
                 
-                return half4(color.rgb, color.a * alpha);
+                // Stroke: d is in [0, 0.5] range in UV space
+                // StrokeWeight is already converted to appropriate coordinate space
+                float strokeThreshold = i.strokeWeight;
+                float strokeAlpha = 0.0;
+                if (d > 0.0 && d < strokeThreshold)
+                {
+                    strokeAlpha = 1.0;
+                }
+                
+                half4 strokeColor = i.strokeColor * baseColor;
+                strokeColor.a *= strokeAlpha;
+                
+                // Composite: stroke behind fill
+                half4 result;
+                result.rgb = lerp(strokeColor.rgb, fillColor.rgb, fillColor.a);
+                result.a = saturate(fillColor.a + strokeColor.a * (1.0 - fillColor.a));
+                
+                return result;
             }
 
             ENDHLSL

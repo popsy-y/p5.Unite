@@ -130,7 +130,8 @@ namespace Unite.Drawing
                     Size = size,
                     ShapeType = (int)cmd.ShapeType, // Circle=0, Rect=1, Square=2
                     FillColor = cmd.FillColor,
-                    StrokeColor = cmd.StrokeColor
+                    StrokeColor = cmd.StrokeColor,
+                    StrokeWeight = cmd.StrokeWeight
                 };
 
                 index++;
@@ -166,8 +167,8 @@ namespace Unite.Drawing
         private void EnsureBuffers(int count)
         {
             // ShapeData Buffer
-            // Stride: Vector3(12) + Vector4(16) + Vector2(8) + int(4) + Vector4(16) + Vector4(16) = 72 bytes
-            int stride = 72;
+            // Stride: Vector3(12) + Vector4(16) + Vector2(8) + int(4) + Vector4(16) + Vector4(16) + float(4) = 76 bytes
+            int stride = 76;
 
             if (_shapeDataBuffer == null || _shapeDataBuffer.count < count)
             {

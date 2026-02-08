@@ -12,5 +12,6 @@ namespace Unite.Canvas
 
         public Color FillColor;
         public Color StrokeColor;
+        public float StrokeWeight;
     }
 }

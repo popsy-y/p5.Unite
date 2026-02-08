@@ -11,6 +11,7 @@ struct ShapeData
     int ShapeType;
     float4 FillColor;
     float4 StrokeColor;
+    float StrokeWeight;
 };
 
 float4x4 QuaternionToMatrix(float4 q)

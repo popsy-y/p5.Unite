@@ -68,6 +68,36 @@ namespace Unite.Canvas
             }
         }
 
+        /// <summary>
+        /// Convert stroke weight from user space to UV space.
+        /// In UV space, shapes have a maximum extent of 0.5 from center.
+        /// </summary>
+        private float GetStrokeWeightInUVSpace(Vector2 shapeSize)
+        {
+            if (_strokeWeight <= 0f)
+                return 0f;
+
+            if (_drawingContext.DrawingMode is DrawingMode.WorldSpace or DrawingMode.ObjectSpace)
+            {
+                // For world/object space: stroke weight is in Unity units
+                // Convert to UV space: UV range is 0-0.5 from center to edge
+                // Shape size is the full size, so half is the radius/extent
+                float maxExtent = Mathf.Max(shapeSize.x, shapeSize.y) * 0.5f;
+                if (maxExtent > 0f)
+                    return _strokeWeight / maxExtent * 0.5f;
+                return 0f;
+            }
+            else
+            {
+                // For clip/screen space: stroke weight is already in normalized/pixel space
+                // Convert to UV space based on shape size in normalized coordinates
+                float maxExtent = Mathf.Max(shapeSize.x, shapeSize.y) * 0.5f;
+                if (maxExtent > 0f)
+                    return _strokeWeight / maxExtent * 0.5f;
+                return 0f;
+            }
+        }
+
         #region Circle
 
         /// <summary>
@@ -112,7 +142,8 @@ namespace Unite.Canvas
                 Size = fSize,
                 ShapeType = Shape.Circle,
                 FillColor = _fillColor,
-                StrokeColor = _strokeColor
+                StrokeColor = _strokeColor,
+                StrokeWeight = GetStrokeWeightInUVSpace(fSize)
             });
         }
 
@@ -164,7 +195,8 @@ namespace Unite.Canvas
                 Size = fSize,
                 ShapeType = Shape.Circle,
                 FillColor = _fillColor,
-                StrokeColor = _strokeColor
+                StrokeColor = _strokeColor,
+                StrokeWeight = GetStrokeWeightInUVSpace(fSize)
             });
         }
 
@@ -219,7 +251,8 @@ namespace Unite.Canvas
                 Size = fSize,
                 ShapeType = Shape.Rectangle,
                 FillColor = _fillColor,
-                StrokeColor = _strokeColor
+                StrokeColor = _strokeColor,
+                StrokeWeight = GetStrokeWeightInUVSpace(fSize)
             });
         }
 
@@ -272,7 +305,8 @@ namespace Unite.Canvas
                 Size = fSize,
                 ShapeType = Shape.Rectangle,
                 FillColor = _fillColor,
-                StrokeColor = _strokeColor
+                StrokeColor = _strokeColor,
+                StrokeWeight = GetStrokeWeightInUVSpace(fSize)
             });
         }
 
@@ -335,7 +369,8 @@ namespace Unite.Canvas
                 Size = fSize,
                 ShapeType = Shape.Rectangle,
                 FillColor = _fillColor,
-                StrokeColor = _strokeColor
+                StrokeColor = _strokeColor,
+                StrokeWeight = GetStrokeWeightInUVSpace(fSize)
             });
         }
 
@@ -387,7 +422,8 @@ namespace Unite.Canvas
                 Size = fSize,
                 ShapeType = Shape.Rectangle,
                 FillColor = _fillColor,
-                StrokeColor = _strokeColor
+                StrokeColor = _strokeColor,
+                StrokeWeight = GetStrokeWeightInUVSpace(fSize)
             });
         }
 

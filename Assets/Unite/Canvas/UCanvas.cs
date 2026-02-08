@@ -84,6 +84,7 @@ namespace Unite.Canvas
 
         private Color _fillColor = Color.white;
         private Color _strokeColor = Color.black;
+        private float _strokeWeight = 1f;
 
         #endregion
 

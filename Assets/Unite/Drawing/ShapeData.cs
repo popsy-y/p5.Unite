@@ -12,5 +12,6 @@ namespace Unite.Drawing
         public int ShapeType;
         public Vector4 FillColor;
         public Vector4 StrokeColor;
+        public float StrokeWeight;
     }
 }
