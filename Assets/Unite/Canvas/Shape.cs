@@ -69,33 +69,26 @@ namespace Unite.Canvas
         }
 
         /// <summary>
-        /// Convert stroke weight from user space to UV space.
-        /// In UV space, shapes have a maximum extent of 0.5 from center.
+        /// Returns the stroke weight in the same coordinate space as shape size.
+        /// ScreenSpace: pixels, ClipSpace: normalized, World/ObjectSpace: Unity units.
+        /// The value is normalized to the same space used for shape sizes,
+        /// so DrawingContext can use it directly to expand the mesh.
         /// </summary>
-        private float GetStrokeWeightInUVSpace(Vector2 shapeSize)
+        private float GetNormalizedStrokeWeight()
         {
             if (_strokeWeight <= 0f)
                 return 0f;
 
-            if (_drawingContext.DrawingMode is DrawingMode.WorldSpace or DrawingMode.ObjectSpace)
+            if (_drawingContext.DrawingMode is DrawingMode.ScreenSpace or DrawingMode.ScreenSpaceOverlay)
             {
-                // For world/object space: stroke weight is in Unity units
-                // Convert to UV space: UV range is 0-0.5 from center to edge
-                // Shape size is the full size, so half is the radius/extent
-                float maxExtent = Mathf.Max(shapeSize.x, shapeSize.y) * 0.5f;
-                if (maxExtent > 0f)
-                    return _strokeWeight / maxExtent * 0.5f;
-                return 0f;
+                // ScreenSpace: stroke weight is in pixels, normalize to screen
+                // Shape sizes are already normalized in EnsureNormalizedValue
+                float screenMax = Mathf.Max(Width, Height);
+                return screenMax > 0f ? _strokeWeight / screenMax : 0f;
             }
-            else
-            {
-                // For clip/screen space: stroke weight is already in normalized/pixel space
-                // Convert to UV space based on shape size in normalized coordinates
-                float maxExtent = Mathf.Max(shapeSize.x, shapeSize.y) * 0.5f;
-                if (maxExtent > 0f)
-                    return _strokeWeight / maxExtent * 0.5f;
-                return 0f;
-            }
+
+            // ClipSpace, WorldSpace, ObjectSpace: stroke weight is already in the correct unit
+            return _strokeWeight;
         }
 
         #region Circle
@@ -143,7 +136,7 @@ namespace Unite.Canvas
                 ShapeType = Shape.Circle,
                 FillColor = _fillColor,
                 StrokeColor = _strokeColor,
-                StrokeWeight = GetStrokeWeightInUVSpace(fSize)
+                StrokeWeight = GetNormalizedStrokeWeight()
             });
         }
 
@@ -196,7 +189,7 @@ namespace Unite.Canvas
                 ShapeType = Shape.Circle,
                 FillColor = _fillColor,
                 StrokeColor = _strokeColor,
-                StrokeWeight = GetStrokeWeightInUVSpace(fSize)
+                StrokeWeight = GetNormalizedStrokeWeight()
             });
         }
 
@@ -252,7 +245,7 @@ namespace Unite.Canvas
                 ShapeType = Shape.Rectangle,
                 FillColor = _fillColor,
                 StrokeColor = _strokeColor,
-                StrokeWeight = GetStrokeWeightInUVSpace(fSize)
+                StrokeWeight = GetNormalizedStrokeWeight()
             });
         }
 
@@ -306,7 +299,7 @@ namespace Unite.Canvas
                 ShapeType = Shape.Rectangle,
                 FillColor = _fillColor,
                 StrokeColor = _strokeColor,
-                StrokeWeight = GetStrokeWeightInUVSpace(fSize)
+                StrokeWeight = GetNormalizedStrokeWeight()
             });
         }
 
@@ -370,7 +363,7 @@ namespace Unite.Canvas
                 ShapeType = Shape.Rectangle,
                 FillColor = _fillColor,
                 StrokeColor = _strokeColor,
-                StrokeWeight = GetStrokeWeightInUVSpace(fSize)
+                StrokeWeight = GetNormalizedStrokeWeight()
             });
         }
 
@@ -423,7 +416,7 @@ namespace Unite.Canvas
                 ShapeType = Shape.Rectangle,
                 FillColor = _fillColor,
                 StrokeColor = _strokeColor,
-                StrokeWeight = GetStrokeWeightInUVSpace(fSize)
+                StrokeWeight = GetNormalizedStrokeWeight()
             });
         }
 

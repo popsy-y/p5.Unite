@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace Dev
 {
-    public class StrokeTester : MonoBehaviour
+    public sealed class StrokeTester : MonoBehaviour
     {
         private UCanvas _cnv;
 
@@ -81,35 +81,35 @@ namespace Dev
             _cnv.Fill(Color.red);
             _cnv.Stroke(Color.black);
             _cnv.StrokeWeight(0f);
-            DrawShapeRow(startPos.x, y, unit, "No Stroke");
+            DrawShapeRow(startPos.x, y, unit);
 
             // Row 2: Default Stroke (1)
             y -= spacing;
             _cnv.Fill(Color.green);
             _cnv.Stroke(Color.black);
             _cnv.StrokeWeight(1f);
-            DrawShapeRow(startPos.x, y, unit, "Stroke: 1");
+            DrawShapeRow(startPos.x, y, unit);
 
             // Row 3: Medium Stroke (3)
             y -= spacing;
             _cnv.Fill(Color.blue);
             _cnv.Stroke(Color.yellow);
             _cnv.StrokeWeight(3f);
-            DrawShapeRow(startPos.x, y, unit, "Stroke: 3");
+            DrawShapeRow(startPos.x, y, unit);
 
             // Row 4: Thick Stroke (5)
             y -= spacing;
             _cnv.Fill(Color.magenta);
             _cnv.Stroke(Color.cyan);
             _cnv.StrokeWeight(5f);
-            DrawShapeRow(startPos.x, y, unit, "Stroke: 5");
+            DrawShapeRow(startPos.x, y, unit);
 
             // Row 5: Very Thick Stroke (10)
             y -= spacing;
             _cnv.Fill(Color.white);
             _cnv.Stroke(Color.red);
             _cnv.StrokeWeight(10f);
-            DrawShapeRow(startPos.x, y, unit, "Stroke: 10");
+            DrawShapeRow(startPos.x, y, unit);
 
             // Row 6: Different stroke colors comparison
             y -= spacing * 1.2f;
@@ -120,7 +120,7 @@ namespace Dev
             DrawTransparentFillRow(startPos.x, y, unit);
         }
 
-        private void DrawShapeRow(float startX, float y, float unit, string label)
+        private void DrawShapeRow(float startX, float y, float unit)
         {
             float x = startX;
             float spacing = unit * 3f;

@@ -89,11 +89,14 @@ namespace Unite.Drawing
                 Quaternion q = Quaternion.Euler(cmd.Rotation);
                 rot = new Vector4(q.x, q.y, q.z, q.w);
 
+                // Original shape size (before stroke expansion)
+                Vector2 shapeSize;
+
                 if (isWorldOrObjectSpace)
                 {
                     pos = cmd.Position;
                     // Mesh width is 2. We want to draw 'cmd.Size'. Scale = cmd.Size / 2.
-                    size = cmd.Size / 2f;
+                    shapeSize = cmd.Size / 2f;
                 }
                 else
                 {
@@ -106,21 +109,40 @@ namespace Unite.Drawing
                         isOverlay ? 0f : sPos.z
                     );
 
-                    // Size
-                    // cmd.Size is Normalized (0-1) relative to screen.
-                    // Clip Space Width is 2.
-                    // Scale * MeshWidth(2) = NormalizedSize * ClipSpaceWidth(2)?
-                    // No. Normalized 1.0 = Width 2.0 (Clip).
-                    // Scale * 2 = 1.0 * 2 -> Scale = 1.0.
-                    // So Scale = cmd.Size.
-                    size = cmd.Size;
+                    shapeSize = cmd.Size;
+                }
 
-                    // Previous code used * 2f. 
-                    // "var clipScale = new Vector3(sSize.x * 2f, sSize.y * 2f, 1f);"
-                    // If I am wrong and previous code was correct:
-                    // Scale = cmd.Size * 2f means Normalized 0.5 fills the screen.
-                    // I will stick to Scale = cmd.Size for now as it makes more sense logically.
-                    // If shapes appear half size, I will multiply by 2.
+                // Expand mesh size by stroke weight so stroke is visible outside the shape.
+                // cmd.StrokeWeight is in the same coordinate space as shapeSize.
+                // Mesh vertices span [-1, 1], so scale = half-size.
+                // We need to add strokeWeight to each side, so add strokeWeight to the scale.
+                float sw = cmd.StrokeWeight;
+                if (isWorldOrObjectSpace)
+                {
+                    // shapeSize is already cmd.Size / 2. StrokeWeight is in world units (full).
+                    // We need to add sw/2 to each half-extent (sw to diameter -> sw/2 to radius).
+                    size = shapeSize + Vector2.one * (sw / 2f);
+                }
+                else
+                {
+                    // shapeSize = cmd.Size (normalized). StrokeWeight is normalized.
+                    // Add sw to each side of the shape (sw is full width, half per side).
+                    size = shapeSize + Vector2.one * (sw / 2f);
+                }
+
+                // Compute stroke weight in UV space for the expanded mesh.
+                // strokeWeightUV = portion of UV [0, 0.5] that the stroke occupies on each side.
+                // Shape edge in UV from center = (shapeSize / expandedSize) * 0.5
+                // strokeWeightUV = 0.5 - shapeEdge = 0.5 * (1 - shapeSize / expandedSize)
+                float strokeWeightUV = 0f;
+                if (sw > 0f)
+                {
+                    float maxExpandedSize = Mathf.Max(size.x, size.y);
+                    if (maxExpandedSize > 0f)
+                    {
+                        float maxShapeSize = Mathf.Max(shapeSize.x, shapeSize.y);
+                        strokeWeightUV = 0.5f * (1f - maxShapeSize / maxExpandedSize);
+                    }
                 }
 
                 shapeDataArray[index] = new ShapeData
@@ -131,7 +153,7 @@ namespace Unite.Drawing
                     ShapeType = (int)cmd.ShapeType, // Circle=0, Rect=1, Square=2
                     FillColor = cmd.FillColor,
                     StrokeColor = cmd.StrokeColor,
-                    StrokeWeight = cmd.StrokeWeight
+                    StrokeWeight = strokeWeightUV
                 };
 
                 index++;

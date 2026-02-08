@@ -111,42 +111,9 @@ Shader "Hidden/Unite/ClipSpaceDrawing"
 
             half4 frag(Varyings i) : SV_Target
             {
-                float d = 0;
-                
-                if (i.shapeType == 0) // Circle
-                {
-                    d = Circle(i.uv);
-                }
-                else // Rectangle or Square
-                {
-                    d = Square(i.uv);
-                }
-
-                float alpha = SDF_FillAlpha(d);
                 half4 baseColor = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, i.uv);
-                
-                // Fill color with alpha
-                half4 fillColor = i.fillColor * baseColor;
-                fillColor.a *= alpha;
-                
-                // Stroke: d is in [0, 0.5] range in UV space
-                // StrokeWeight is already converted to appropriate coordinate space
-                float strokeThreshold = i.strokeWeight;
-                float strokeAlpha = 0.0;
-                if (d > 0.0 && d < strokeThreshold)
-                {
-                    strokeAlpha = 1.0;
-                }
-                
-                half4 strokeColor = i.strokeColor * baseColor;
-                strokeColor.a *= strokeAlpha;
-                
-                // Composite: stroke behind fill
-                half4 result;
-                result.rgb = lerp(strokeColor.rgb, fillColor.rgb, fillColor.a);
-                result.a = saturate(fillColor.a + strokeColor.a * (1.0 - fillColor.a));
-                
-                return result;
+                return ComputeShapeColor(i.uv, i.shapeType, i.strokeWeight,
+                                          i.fillColor, i.strokeColor, baseColor);
             }
             
             ENDHLSL
