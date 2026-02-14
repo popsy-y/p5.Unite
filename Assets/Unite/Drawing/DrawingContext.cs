@@ -62,14 +62,14 @@ namespace Unite.Drawing
 #endif
         }
 
-        public void Draw(ScriptableRenderContext srpCtx, Camera cam)
+        public void Draw(Camera cam)
         {
             if (_commandQueue.Count == 0) return;
 
-            LayoutShapeIndirect(srpCtx, cam);
+            LayoutShapeIndirect(cam);
         }
 
-        private void LayoutShapeIndirect(ScriptableRenderContext srpCtx, Camera cam)
+        private void LayoutShapeIndirect(Camera cam)
         {
             int count = _commandQueue.Count;
             EnsureBuffers(count);

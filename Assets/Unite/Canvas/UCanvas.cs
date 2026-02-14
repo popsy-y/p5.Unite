@@ -42,10 +42,10 @@ namespace Unite.Canvas
 
         private void OnCameraRendering(ScriptableRenderContext srpCtx, Camera cam)
         {
-            CheckCurrentCamera(srpCtx, cam);
+            CheckCurrentCamera(cam);
 
             if (!_currentCamera) return;
-            _drawingContext.Draw(srpCtx, cam);
+            _drawingContext.Draw(cam);
 
             _transformStack.Reset();
         }
@@ -61,7 +61,7 @@ namespace Unite.Canvas
         #region Camera Management
 
         private Camera _currentCamera;
-        private void CheckCurrentCamera(ScriptableRenderContext srpCtx, Camera cam)
+        private void CheckCurrentCamera(Camera cam)
         {
             if (!Equals(_currentCamera, cam))
             {
