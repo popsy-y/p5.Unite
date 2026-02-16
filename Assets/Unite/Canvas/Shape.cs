@@ -15,26 +15,22 @@ namespace Unite.Canvas
         // Triangle // beginShape, vertex, endShape対応まで保留
     }
 
+    public enum ShapeMode
+    {
+        Corner,
+        Center,
+        Corners,
+        Radius
+    }
+
     public partial class UCanvas
     {
+        // TODO: Support a different ShapeMode. Not yet.
+        public ShapeMode RectMode { get; set; } = ShapeMode.Corner;
+        public ShapeMode EllipseMode { get; set; } = ShapeMode.Center;
+        
         private Vector3 FinalPos(Vector3 localPos) => TransformPoint(localPos);
         private (Vector3 rot, Vector2 scl) RotScl() => GetRotationAndScale();
-
-        private Vector2 NanToZero(Vector2 v)
-        {
-            return new Vector2(
-                float.IsNaN(v.x) ? 0f : v.x,
-                float.IsNaN(v.y) ? 0f : v.y
-            );
-        }
-        private Vector3 NanToZero(Vector3 v)
-        {
-            return new Vector3(
-                float.IsNaN(v.x) ? 0f : v.x,
-                float.IsNaN(v.y) ? 0f : v.y,
-                float.IsNaN(v.z) ? 0f : v.z
-            );
-        }
 
         /// <summary>
         /// Store values in normalized value. 
@@ -108,6 +104,8 @@ namespace Unite.Canvas
             Vector2 fSize;
             Vector3 fPos, fRot;
 
+            
+            // ADJUST TO EllipseMode(CENTER) EQUIVALENT
             if (_drawingContext.DrawingMode is DrawingMode.WorldSpace or DrawingMode.ObjectSpace)
             {
                 var (r, s) = RotScl();
@@ -120,12 +118,15 @@ namespace Unite.Canvas
                 var (r, s) = RotScl();
                 var (nPos, nSize) = EnsureNormalizedValue(new Vector3(x, y, 0f), Vector2.one * radius);
                 fPos = nPos;
+                
+                fPos = new Vector3(x, y, 0f);
 
                 // NOTE: 平面時はrx, ryを潰すこともできるが、
                 // そこからハックが生まれそうだし、ライブラリの性格を考えると暗黙的な挙動が増えるべきではないと思ったので意図的にそのまま残した。
                 // その代わりに、平面用にfloatのみを受け付けるRotateメソッドが用意してある。
                 fRot = r;
                 fSize = nSize * s;
+                fSize = Vector2.one * radius;
             }
 
             _commandQueue.Enqueue(new DrawCommand
@@ -165,6 +166,8 @@ namespace Unite.Canvas
             Vector2 fSize;
             Vector3 fPos;
 
+            
+            // ADJUST TO EllipseMode(CENTER) EQUIVALENT
             if (_drawingContext.DrawingMode is DrawingMode.WorldSpace or DrawingMode.ObjectSpace)
             {
                 var (r, s) = RotScl();
@@ -221,6 +224,8 @@ namespace Unite.Canvas
             Vector2 fSize;
             Vector3 fPos;
 
+            
+            // ADJUST TO RectMode(CENTER) EQUIVALENT
             if (_drawingContext.DrawingMode is DrawingMode.WorldSpace or DrawingMode.ObjectSpace)
             {
                 var (r, s) = RotScl();
@@ -275,6 +280,8 @@ namespace Unite.Canvas
             Vector2 fSize;
             Vector3 fPos;
 
+            
+            // ADJUST TO RectMode(CENTER) EQUIVALENT
             if (_drawingContext.DrawingMode is DrawingMode.WorldSpace or DrawingMode.ObjectSpace)
             {
                 var (r, s) = RotScl();
@@ -330,6 +337,8 @@ namespace Unite.Canvas
             Vector2 fSize;
             Vector3 fPos;
 
+            
+            // ADJUST TO RectMode(CENTER) EQUIVALENT
             if (_drawingContext.DrawingMode is DrawingMode.WorldSpace or DrawingMode.ObjectSpace)
             {
                 // World Space / Object Space
@@ -392,6 +401,8 @@ namespace Unite.Canvas
             Vector2 fSize;
             Vector3 fPos;
 
+            
+            // ADJUST TO RectMode(CENTER) EQUIVALENT
             if (_drawingContext.DrawingMode is DrawingMode.WorldSpace or DrawingMode.ObjectSpace)
             {
                 var (r, s) = RotScl();

@@ -149,6 +149,8 @@ namespace Unite.Drawing
 
             _shapeDataBuffer.SetData(shapeDataArray);
             _material.SetBuffer(PID.ShapeDataBuffer, _shapeDataBuffer);
+            
+            _material.SetInt(PID.DrawingMode, (int) DrawingMode);
 
             if (DrawingMode == DrawingMode.ObjectSpace && _parentTransform != null)
             {
