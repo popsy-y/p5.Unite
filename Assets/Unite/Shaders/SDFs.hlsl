@@ -17,6 +17,33 @@ float SdBox(float2 position, float2 halfSize)
     return length(max(delta, 0.0)) + min(max(delta.x, delta.y), 0.0);
 }
 
+float2 CornerRadius(float2 position, ShapeData data, float2 halfSize)
+{
+    int cornerIndex;
+    if (position.y >= 0.0)
+        cornerIndex = position.x < 0.0 ? 0 : 1;
+    else
+        cornerIndex = position.x >= 0.0 ? 2 : 3;
+
+    float2 radius = float2(data.CornerRadiiX[cornerIndex], data.CornerRadiiY[cornerIndex]);
+    return min(abs(radius), halfSize);
+}
+
+float SdRoundedBox(float2 position, float2 halfSize, ShapeData data)
+{
+    float2 radius = CornerRadius(position, data, halfSize);
+    float2 absolutePosition = abs(position);
+    float2 cornerCenter = halfSize - radius;
+
+    if (radius.x > 1e-6 && radius.y > 1e-6 &&
+        absolutePosition.x > cornerCenter.x && absolutePosition.y > cornerCenter.y)
+    {
+        return SdEllipse(absolutePosition - cornerCenter, radius);
+    }
+
+    return SdBox(position, halfSize);
+}
+
 float SdfAlpha(float distance)
 {
     float antialiasing = max(fwidth(distance), 1e-6);
@@ -47,7 +74,7 @@ half4 ComputeShapeColor(float2 shapePosition, ShapeData data)
     float2 halfSize = data.ShapeParameters.xy * 0.5;
     float distance = (int)data.Style.x == 0
         ? SdEllipse(shapePosition, halfSize)
-        : SdBox(shapePosition, halfSize);
+        : SdRoundedBox(shapePosition, halfSize, data);
 
     return CompositeShape(distance, data);
 }

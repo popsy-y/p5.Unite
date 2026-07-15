@@ -68,10 +68,13 @@ namespace Dev
             // --- 1. Position & Size & Z Test ---
             // Draw shapes at specific positions with different sizes and Z depths
             _cnv.Fill(Color.red);
-            _cnv.Square(center.x - 3 * unit, center.y, CorrectDepth(10f), unit); // Base (Z=10)
+            _cnv.Square(new Vector3(center.x - 3 * unit, center.y, CorrectDepth(10f)), unit); // Base (Z=10)
 
             _cnv.Fill(Color.blue);
-            _cnv.Square(center.x - 2.5f * unit, center.y - 0.5f * unit, CorrectDepth(5f), unit * 0.8f); // Z=5 (Should be closer or further depending on projection)
+            _cnv.Square(
+                new Vector3(center.x - 2.5f * unit, center.y - 0.5f * unit, CorrectDepth(5f)),
+                unit * 0.8f
+            ); // Z=5 (Should be closer or further depending on projection)
 
             _cnv.Fill(Color.yellow);
             _cnv.Circle(center.x - 3 * unit, center.y + 1.2f * unit, CorrectDepth(0f), unit * 0.5f); // Z=0
@@ -85,7 +88,7 @@ namespace Dev
 
                 _cnv.Fill(Color.green);
                 var hoge = _cnv.WorldToLinearDepth(Mathf.Repeat(Time.time, 1f) * 3f);
-                _cnv.Rect(0f, 0f, hoge, unit, unit * 0.5f); // Drawn at (0,0) local, which is center screen
+                _cnv.Rect(new Vector3(0f, 0f, hoge), new Vector2(unit, unit * 0.5f)); // Drawn at (0,0) local, which is center screen
                 Debug.Log(hoge);
             }
             _cnv.Pop();
@@ -99,7 +102,7 @@ namespace Dev
             // Test Stroke API (even if not rendered yet)
             _cnv.Stroke(Color.cyan);
             _cnv.Fill(Color.magenta);
-            _cnv.Rect(center.x + 3 * unit, center.y, 0f, unit, unit);
+            _cnv.Rect(new Vector3(center.x + 3 * unit, center.y, 0f), Vector2.one * unit);
 
             // Reset stroke for next frame/draws (optional, but good practice if state persists)
             _cnv.Stroke(Color.black);

@@ -83,9 +83,11 @@ namespace Unite.Drawing
                 var rot = new Vector4(q.x, q.y, q.z, q.w);
                 var shapeSize = new Vector2(Mathf.Abs(cmd.Size.x), Mathf.Abs(cmd.Size.y));
                 var halfSize = shapeSize * 0.5f;
-                float strokeWeight = Mathf.Max(0f, cmd.StrokeWeight);
+                float strokeWeight = cmd.StrokeEnabled ? Mathf.Max(0f, cmd.StrokeWeight) : 0f;
                 float padding = strokeWeight * 0.5f + AntiAliasPadding(cam);
                 var padding2 = Vector2.one * padding;
+                int styleFlags = (cmd.FillEnabled ? 1 : 0) |
+                                 (cmd.StrokeEnabled && strokeWeight > 0f ? 2 : 0);
 
                 shapeDataArray[index] = new ShapeData
                 {
@@ -98,11 +100,19 @@ namespace Unite.Drawing
                         halfSize.y + padding2.y
                     ),
                     ShapeParameters = new Vector4(shapeSize.x, shapeSize.y, 0f, 0f),
+                    Point0 = cmd.Point0,
+                    Point1 = cmd.Point1,
+                    Point2 = cmd.Point2,
+                    Point3 = cmd.Point3,
+                    Parameters0 = cmd.Parameters0,
+                    Parameters1 = cmd.Parameters1,
+                    CornerRadiiX = cmd.CornerRadiiX,
+                    CornerRadiiY = cmd.CornerRadiiY,
                     Style = new Vector4(
-                        cmd.ShapeType == Shape.Circle ? 0f : 1f,
-                        0f,
+                        cmd.ShapeType is Shape.Circle or Shape.Ellipse ? 0f : 1f,
+                        (float)cmd.ArcMode,
                         strokeWeight,
-                        strokeWeight > 0f ? 3f : 1f
+                        styleFlags
                     ),
                     FillColor = cmd.FillColor,
                     StrokeColor = cmd.StrokeColor

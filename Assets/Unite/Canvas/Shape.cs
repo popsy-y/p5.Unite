@@ -1,18 +1,18 @@
-using Unite.Drawing;
 using UnityEngine;
 
 namespace Unite.Canvas
 {
     public enum Shape
     {
-        // Arc,
+        Arc,
         Circle,
-        // Ellipse,
-        // Line,
-        // Quad,
+        Ellipse,
+        Line,
+        Point,
+        Quad,
         Rectangle,
         Square,
-        // Triangle // beginShape, vertex, endShape対応まで保留
+        Triangle
     }
 
     public enum ShapeMode
@@ -23,393 +23,83 @@ namespace Unite.Canvas
         Radius
     }
 
+    public enum ArcMode
+    {
+        Open,
+        Chord,
+        Pie
+    }
+
     public partial class UCanvas
     {
-        // TODO: Support a different ShapeMode. Not yet.
         public ShapeMode RectMode { get; set; } = ShapeMode.Corner;
         public ShapeMode EllipseMode { get; set; } = ShapeMode.Center;
 
-        private Vector3 FinalPos(Vector3 localPos) => TransformPoint(localPos);
-        private (Vector3 rot, Vector2 scl) RotScl() => GetRotationAndScale();
-
-        /// <summary>
-        /// Store values in normalized value. 
-        /// We often have to deal with multiple camera with different resolutions later.
-        /// Pass values before apply canvas transformation.
-        /// </summary>
-        /// <param name="pos">raw position value.</param>
-        /// <param name="size">raw size value.</param>
-        /// <returns></returns>
-        private (Vector3 pos, Vector2 size) EnsureNormalizedValue(Vector3 pos, Vector2 size)
-        {
-            return (FinalPos(pos), size);
-        }
-
-        /// <summary>
-        /// Returns the stroke weight in the same coordinate space as shape size.
-        /// ScreenSpace: pixels, ClipSpace: normalized, World/ObjectSpace: Unity units.
-        /// The value is normalized to the same space used for shape sizes,
-        /// so DrawingContext can use it directly to expand the mesh.
-        /// </summary>
-        private float GetNormalizedStrokeWeight()
-        {
-            if (_strokeWeight <= 0f)
-                return 0f;
-
-            return _strokeWeight;
-        }
-
-        #region Circle
-
-        /// <summary>
-        /// Draws a circle at the specified 2D position with the given radius.
-        /// </summary>
-        /// <param name="x">X-coordinate.</param>
-        /// <param name="y">Y-coordinate.</param>
-        /// <param name="radius">Radius of the circle.</param>
-        public void Circle(float x, float y, float radius)
+        private void EnqueueCenteredShape(
+            Shape shape,
+            Vector3 center,
+            Vector2 size,
+            Vector4 cornerRadii = default
+        )
         {
             CheckDrawingContext();
+            if (!_fillEnabled && !_strokeEnabled)
+                return;
 
-            // float fRot;
-            // TODO: also support 3d size
-            Vector2 fSize;
-            Vector3 fPos, fRot;
-
-
-            // ADJUST TO EllipseMode(CENTER) EQUIVALENT
-            if (_drawingContext.DrawingMode is DrawingMode.WorldSpace or DrawingMode.ObjectSpace)
-            {
-                var (r, s) = RotScl();
-                fPos = FinalPos(new Vector3(x, y, 0f));
-                fRot = r;
-                fSize = Vector2.one * radius * s;
-            }
-            else
-            {
-                var (r, s) = RotScl();
-                var (nPos, nSize) = EnsureNormalizedValue(new Vector3(x, y, 0f), Vector2.one * radius);
-                fPos = nPos;
-
-                // NOTE: 平面時はrx, ryを潰すこともできるが、
-                // そこからハックが生まれそうだし、ライブラリの性格を考えると暗黙的な挙動が増えるべきではないと思ったので意図的にそのまま残した。
-                // その代わりに、平面用にfloatのみを受け付けるRotateメソッドが用意してある。
-                fRot = r;
-                fSize = nSize * s;
-            }
+            var (rotation, scale) = GetRotationAndScale();
+            var absoluteScale = new Vector2(Mathf.Abs(scale.x), Mathf.Abs(scale.y));
+            var scaledSize = Vector2.Scale(Abs(size), absoluteScale);
 
             _commandQueue.Enqueue(new DrawCommand
             {
-                Position = fPos,
-                Rotation = fRot,
-                Size = fSize,
-                ShapeType = Shape.Circle,
+                Position = TransformPoint(center),
+                Rotation = rotation,
+                Size = scaledSize,
+                ShapeType = shape,
+                CornerRadiiX = Abs(cornerRadii) * absoluteScale.x,
+                CornerRadiiY = Abs(cornerRadii) * absoluteScale.y,
                 FillColor = _fillColor,
                 StrokeColor = _strokeColor,
-                StrokeWeight = GetNormalizedStrokeWeight()
+                StrokeWeight = Mathf.Max(0f, _strokeWeight),
+                FillEnabled = _fillEnabled,
+                StrokeEnabled = _strokeEnabled
             });
         }
 
-        /// <summary>
-        /// Draws a circle at the specified 2D position with the given radius.
-        /// </summary>
-        /// <param name="position">2D position.</param>
-        /// <param name="radius">Radius of the circle.</param>
-        public void Circle(Vector2 position, float radius)
+        private static (Vector3 center, Vector2 size) ResolveShapeMode(
+            Vector3 position,
+            Vector2 size,
+            ShapeMode mode
+        )
         {
-            Circle(position.x, position.y, radius);
+            return mode switch
+            {
+                ShapeMode.Center => (position, Abs(size)),
+                ShapeMode.Radius => (position, Abs(size) * 2f),
+                ShapeMode.Corners => (
+                    new Vector3(
+                        (position.x + size.x) * 0.5f,
+                        (position.y + size.y) * 0.5f,
+                        position.z
+                    ),
+                    new Vector2(Mathf.Abs(size.x - position.x), Mathf.Abs(size.y - position.y))
+                ),
+                _ => (
+                    new Vector3(position.x + size.x * 0.5f, position.y + size.y * 0.5f, position.z),
+                    Abs(size)
+                )
+            };
         }
 
-        /// <summary>
-        /// Draws a circle at the specified 3D position with the given radius.
-        /// </summary>
-        /// <param name="x">X-coordinate.</param>
-        /// <param name="y">Y-coordinate.</param>
-        /// <param name="z">Z-coordinate (depth).</param>
-        /// <param name="radius">Radius of the circle.</param>
-        public void Circle(float x, float y, float z, float radius)
-        {
-            CheckDrawingContext();
+        private static Vector2 Abs(Vector2 value)
+            => new(Mathf.Abs(value.x), Mathf.Abs(value.y));
 
-            Vector3 fRot;
-            Vector2 fSize;
-            Vector3 fPos;
-
-
-            // ADJUST TO EllipseMode(CENTER) EQUIVALENT
-            if (_drawingContext.DrawingMode is DrawingMode.WorldSpace or DrawingMode.ObjectSpace)
-            {
-                var (r, s) = RotScl();
-                fPos = FinalPos(new Vector3(x, y, z));
-                fRot = r;
-                fSize = Vector2.one * radius * s;
-            }
-            else
-            {
-                var (r, s) = RotScl();
-                var (nPos, nSize) = EnsureNormalizedValue(new Vector3(x, y, z), Vector2.one * radius);
-                fPos = nPos;
-                fRot = r;
-                fSize = nSize * s;
-            }
-
-            _commandQueue.Enqueue(new DrawCommand
-            {
-                Position = fPos,
-                Rotation = fRot,
-                Size = fSize,
-                ShapeType = Shape.Circle,
-                FillColor = _fillColor,
-                StrokeColor = _strokeColor,
-                StrokeWeight = GetNormalizedStrokeWeight()
-            });
-        }
-
-        /// <summary>
-        /// Draws a circle at the specified 3D position with the given radius.
-        /// </summary>
-        /// <param name="position">3D position.</param>
-        /// <param name="radius">Radius of the circle.</param>
-        public void Circle(Vector3 position, float radius)
-        {
-            Circle(position.x, position.y, position.z, radius);
-        }
-        #endregion
-
-        #region Rectangle
-
-        /// <summary>
-        /// Draws a rectangle at the specified 2D position with the given dimensions.
-        /// </summary>
-        /// <param name="x">X-coordinate.</param>
-        /// <param name="y">Y-coordinate.</param>
-        /// <param name="width">Width of the rectangle.</param>
-        /// <param name="height">Height of the rectangle.</param>
-        public void Rect(float x, float y, float width, float height)
-        {
-            CheckDrawingContext();
-
-            Vector3 fRot;
-            Vector2 fSize;
-            Vector3 fPos;
-
-
-            // ADJUST TO RectMode(CENTER) EQUIVALENT
-            if (_drawingContext.DrawingMode is DrawingMode.WorldSpace or DrawingMode.ObjectSpace)
-            {
-                var (r, s) = RotScl();
-                fPos = FinalPos(new Vector3(x, y, 0f));
-                fRot = r;
-                fSize = new Vector2(width, height) * s;
-            }
-            else
-            {
-                var (r, s) = RotScl();
-                var (nPos, nSize) = EnsureNormalizedValue(new Vector3(x, y, 0f), new Vector2(width, height));
-                fPos = nPos;
-                fRot = r;
-                fSize = nSize * s;
-            }
-
-            _commandQueue.Enqueue(new DrawCommand()
-            {
-                Position = fPos,
-                Rotation = fRot,
-                Size = fSize,
-                ShapeType = Shape.Rectangle,
-                FillColor = _fillColor,
-                StrokeColor = _strokeColor,
-                StrokeWeight = GetNormalizedStrokeWeight()
-            });
-        }
-
-        /// <summary>
-        /// Draws a rectangle at the specified 2D position with the given dimensions.
-        /// </summary>
-        /// <param name="position">2D position.</param>
-        /// <param name="size">Width and height of the rectangle.</param>
-        public void Rect(Vector2 position, Vector2 size)
-        {
-            Rect(position.x, position.y, size.x, size.y);
-        }
-
-        /// <summary>
-        /// Draws a rectangle at the specified 3D position with the given dimensions.
-        /// </summary>
-        /// <param name="x">X-coordinate.</param>
-        /// <param name="y">Y-coordinate.</param>
-        /// <param name="z">Z-coordinate (depth).</param>
-        /// <param name="width">Width of the rectangle.</param>
-        /// <param name="height">Height of the rectangle.</param>
-        public void Rect(float x, float y, float z, float width, float height)
-        {
-            CheckDrawingContext();
-
-            Vector3 fRot;
-            Vector2 fSize;
-            Vector3 fPos;
-
-
-            // ADJUST TO RectMode(CENTER) EQUIVALENT
-            if (_drawingContext.DrawingMode is DrawingMode.WorldSpace or DrawingMode.ObjectSpace)
-            {
-                var (r, s) = RotScl();
-                fPos = FinalPos(new Vector3(x, y, z));
-                fRot = r;
-                fSize = new Vector2(width, height) * s;
-            }
-            else
-            {
-                var (r, s) = RotScl();
-                var (nPos, nSize) = EnsureNormalizedValue(new Vector3(x, y, z), new Vector2(width, height));
-                fPos = nPos;
-                fRot = r;
-                fSize = nSize * s;
-            }
-
-            _commandQueue.Enqueue(new DrawCommand()
-            {
-                Position = fPos,
-                Rotation = fRot,
-                Size = fSize,
-                ShapeType = Shape.Rectangle,
-                FillColor = _fillColor,
-                StrokeColor = _strokeColor,
-                StrokeWeight = GetNormalizedStrokeWeight()
-            });
-        }
-
-        /// <summary>
-        /// Draws a rectangle at the specified 3D position with the given dimensions.
-        /// </summary>
-        /// <param name="position">3D position.</param>
-        /// <param name="size">Width and height of the rectangle.</param>
-        public void Rect(Vector3 position, Vector2 size)
-        {
-            Rect(position.x, position.y, position.z, size.x, size.y);
-        }
-        #endregion
-
-        #region Square
-
-        /// <summary>
-        /// Draws a square at the specified 2D position with the given size.
-        /// </summary>
-        /// <param name="x">X-coordinate.</param>
-        /// <param name="y">Y-coordinate.</param>
-        /// <param name="size">Size of the square (width and height).</param>
-        public void Square(float x, float y, float size)
-        {
-            CheckDrawingContext();
-
-            Vector3 fRot;
-            Vector2 fSize;
-            Vector3 fPos;
-
-
-            // ADJUST TO RectMode(CENTER) EQUIVALENT
-            if (_drawingContext.DrawingMode is DrawingMode.WorldSpace or DrawingMode.ObjectSpace)
-            {
-                // World Space / Object Space
-                // expects unity unit value in world space
-
-                var (r, s) = RotScl();
-
-                fPos = FinalPos(new Vector3(x, y, 0f));
-                fRot = r;
-                fSize = Vector2.one * size * s;
-            }
-            else
-            {
-                // Clip Space
-                // expects normalized value in clip space
-
-                var (r, s) = RotScl();
-                var (nPos, nSize) = EnsureNormalizedValue(new Vector3(x, y, 0f), Vector2.one * size);
-
-                // apply canvas transformation scale
-                fPos = nPos;
-                fRot = r;
-                fSize = nSize * s;
-            }
-
-            _commandQueue.Enqueue(new DrawCommand()
-            {
-                Position = fPos,
-                Rotation = fRot,
-                Size = fSize,
-                ShapeType = Shape.Rectangle,
-                FillColor = _fillColor,
-                StrokeColor = _strokeColor,
-                StrokeWeight = GetNormalizedStrokeWeight()
-            });
-        }
-
-        /// <summary>
-        /// Draws a square at the specified 2D position with the given size.
-        /// </summary>
-        /// <param name="position">2D position.</param>
-        /// <param name="size">Size of the square (width and height).</param>
-        public void Square(Vector2 position, float size)
-        {
-            Square(position.x, position.y, size);
-        }
-
-        /// <summary>
-        /// Draws a square at the specified 3D position with the given size.
-        /// </summary>
-        /// <param name="x">X-coordinate.</param>
-        /// <param name="y">Y-coordinate.</param>
-        /// <param name="z">Z-coordinate (depth).</param>
-        /// <param name="size">Size of the square (width and height).</param>
-        public void Square(float x, float y, float z, float size)
-        {
-            CheckDrawingContext();
-
-            Vector3 fRot;
-            Vector2 fSize;
-            Vector3 fPos;
-
-
-            // ADJUST TO RectMode(CENTER) EQUIVALENT
-            if (_drawingContext.DrawingMode is DrawingMode.WorldSpace or DrawingMode.ObjectSpace)
-            {
-                var (r, s) = RotScl();
-                fPos = FinalPos(new Vector3(x, y, z));
-                fRot = r;
-                fSize = Vector2.one * size * s;
-            }
-            else
-            {
-                var (r, s) = RotScl();
-                var (nPos, nSize) = EnsureNormalizedValue(new Vector3(x, y, z), Vector2.one * size);
-                fPos = nPos;
-                fRot = r;
-                fSize = nSize * s;
-            }
-
-            _commandQueue.Enqueue(new DrawCommand()
-            {
-                Position = fPos,
-                Rotation = fRot,
-                Size = fSize,
-                ShapeType = Shape.Rectangle,
-                FillColor = _fillColor,
-                StrokeColor = _strokeColor,
-                StrokeWeight = GetNormalizedStrokeWeight()
-            });
-        }
-
-        /// <summary>
-        /// Draws a square at the specified 3D position with the given size.
-        /// </summary>
-        /// <param name="position">3D position.</param>
-        /// <param name="size">Size of the square (width and height).</param>
-        public void Square(Vector3 position, float size)
-        {
-            Square(position.x, position.y, position.z, size);
-        }
-        #endregion
+        private static Vector4 Abs(Vector4 value)
+            => new(
+                Mathf.Abs(value.x),
+                Mathf.Abs(value.y),
+                Mathf.Abs(value.z),
+                Mathf.Abs(value.w)
+            );
     }
 }
-
