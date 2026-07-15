@@ -33,6 +33,9 @@ Shader "Hidden/Unite/ClipSpaceDrawing"
 
             StructuredBuffer<ShapeData> _ShapeData;
             int _DrawingMode;
+            int _ShapeIndex;
+            int _UseShapeIndex;
+            int _DebugShapeBounds;
 
             struct Attributes
             {
@@ -51,7 +54,10 @@ Shader "Hidden/Unite/ClipSpaceDrawing"
             Varyings vert(Attributes input)
             {
                 Varyings output;
-                ShapeData data = _ShapeData[input.instanceID];
+                uint dataIndex = _UseShapeIndex != 0
+                    ? (uint)_ShapeIndex
+                    : input.instanceID;
+                ShapeData data = _ShapeData[dataIndex];
 
                 float2 shapePosition = ShapePosition(input.uv, data);
                 float3 drawingPosition = DrawingPosition(shapePosition, data);
@@ -83,13 +89,15 @@ Shader "Hidden/Unite/ClipSpaceDrawing"
                 }
 
                 output.shapePosition = shapePosition;
-                output.instanceID = input.instanceID;
+                output.instanceID = dataIndex;
                 return output;
             }
 
             half4 frag(Varyings input) : SV_Target
             {
                 ShapeData data = _ShapeData[input.instanceID];
+                if (_DebugShapeBounds != 0)
+                    return half4(data.FillColor.rgb, max(data.FillColor.a, 0.35));
                 return ComputeShapeColor(input.shapePosition, data);
             }
 

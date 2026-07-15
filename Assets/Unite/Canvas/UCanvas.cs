@@ -12,9 +12,31 @@ namespace Unite.Canvas
 
         public DrawingMode DrawingMode => _drawingContext.DrawingMode;
 
-        public DrawingContext CreateCanvas(DrawingMode mode)
+        /// <summary>
+        /// Selects indirect rendering or the diagnostic sequential rendering path.
+        /// </summary>
+        public DrawingExecutionMode ExecutionMode
         {
-            _drawingContext = new DrawingContext(mode, _commandQueue, transform);
+            get => _drawingContext.ExecutionMode;
+            set => _drawingContext.ExecutionMode = value;
+        }
+
+        /// <summary>
+        /// Displays the expanded quad bounds instead of evaluating the shape SDF.
+        /// </summary>
+        public bool DebugShapeBounds
+        {
+            get => _drawingContext.DebugShapeBounds;
+            set => _drawingContext.DebugShapeBounds = value;
+        }
+
+        public DrawingContext CreateCanvas(
+            DrawingMode mode,
+            DrawingExecutionMode executionMode = DrawingExecutionMode.Indirect
+        )
+        {
+            _drawingContext?.Dispose();
+            _drawingContext = new DrawingContext(mode, _commandQueue, transform, executionMode);
             return _drawingContext;
         }
 
@@ -29,15 +51,27 @@ namespace Unite.Canvas
         private void Start()
         {
             RenderPipelineManager.beginCameraRendering += OnCameraRendering;
-            RenderPipelineManager.endCameraRendering += AfterCameraRendering;
         }
 
         private void OnDestroy()
         {
             RenderPipelineManager.beginCameraRendering -= OnCameraRendering;
-            RenderPipelineManager.endCameraRendering -= AfterCameraRendering;
 
-            _drawingContext.Dispose();
+            _drawingContext?.Dispose();
+        }
+
+        private void LateUpdate()
+        {
+            _drawingContext?.CaptureCommands();
+
+            if (_drawingContext?.ExecutionMode != DrawingExecutionMode.Sequential)
+                return;
+
+            foreach (var cam in Camera.allCameras)
+            {
+                if (cam && cam.isActiveAndEnabled)
+                    _drawingContext.Draw(cam);
+            }
         }
 
         private void OnCameraRendering(ScriptableRenderContext srpCtx, Camera cam)
@@ -45,14 +79,10 @@ namespace Unite.Canvas
             CheckCurrentCamera(cam);
 
             if (!_currentCamera) return;
-            _drawingContext.Draw(cam);
+            if (_drawingContext.ExecutionMode == DrawingExecutionMode.Indirect)
+                _drawingContext.Draw(cam);
 
             _transformStack.Reset();
-        }
-
-        private void AfterCameraRendering(ScriptableRenderContext srpCtx, Camera cam)
-        {
-            ClearCommandQueue(srpCtx, cam);
         }
 
         #endregion
@@ -75,7 +105,6 @@ namespace Unite.Canvas
         #region Draw Command
 
         private Queue<DrawCommand> _commandQueue = new();
-        private void ClearCommandQueue(ScriptableRenderContext srpCtx, Camera cam) => _commandQueue.Clear();
 
         #endregion
 

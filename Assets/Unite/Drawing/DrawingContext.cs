@@ -16,17 +16,26 @@ namespace Unite.Drawing
         private Material _material;
 
         private Queue<DrawCommand> _commandQueue;
+        private DrawCommand[] _frameCommands = Array.Empty<DrawCommand>();
 
         public DrawingMode DrawingMode { get; private set; }
+        public DrawingExecutionMode ExecutionMode { get; set; }
+        public bool DebugShapeBounds { get; set; }
         private Transform _parentTransform;
 
         private GraphicsBuffer _shapeDataBuffer;
         private GraphicsBuffer _commandBuffer;
         private GraphicsBuffer.IndirectDrawIndexedArgs[] _commandData;
 
-        public DrawingContext(DrawingMode mode, Queue<DrawCommand> commandQueue, Transform parentTransform = null)
+        public DrawingContext(
+            DrawingMode mode,
+            Queue<DrawCommand> commandQueue,
+            Transform parentTransform = null,
+            DrawingExecutionMode executionMode = DrawingExecutionMode.Indirect
+        )
         {
             DrawingMode = mode;
+            ExecutionMode = executionMode;
 
             _commandQueue = commandQueue;
             _parentTransform = parentTransform;
@@ -64,20 +73,32 @@ namespace Unite.Drawing
 
         public void Draw(Camera cam)
         {
-            if (_commandQueue.Count == 0) return;
+            if (_frameCommands.Length == 0) return;
 
-            LayoutShapeIndirect(cam);
+            LayoutShapes(cam, _frameCommands);
         }
 
-        private void LayoutShapeIndirect(Camera cam)
+        public void CaptureCommands()
         {
-            int count = _commandQueue.Count;
+            if (_commandQueue.Count == 0)
+            {
+                _frameCommands = Array.Empty<DrawCommand>();
+                return;
+            }
+
+            _frameCommands = _commandQueue.ToArray();
+            _commandQueue.Clear();
+        }
+
+        private void LayoutShapes(Camera cam, IReadOnlyList<DrawCommand> commands)
+        {
+            int count = commands.Count;
             EnsureBuffers(count);
 
             var shapeDataArray = new ShapeData[count];
             int index = 0;
 
-            foreach (var cmd in _commandQueue)
+            foreach (var cmd in commands)
             {
                 var q = Quaternion.Euler(cmd.Rotation);
                 var rot = new Vector4(q.x, q.y, q.z, q.w);
@@ -124,26 +145,58 @@ namespace Unite.Drawing
             }
 
             _shapeDataBuffer.SetData(shapeDataArray);
-            _material.SetBuffer(PID.ShapeDataBuffer, _shapeDataBuffer);
-
-            _material.SetInt(PID.DrawingMode, (int)DrawingMode);
-
-            if (DrawingMode == DrawingMode.ObjectSpace && _parentTransform != null)
+            if (ExecutionMode == DrawingExecutionMode.Sequential)
             {
-                _material.SetMatrix(PID.ParentTransform, _parentTransform.localToWorldMatrix);
+                RenderSequential(cam, count);
+                return;
             }
+
+            RenderIndirect(cam, count);
+        }
+
+        private void RenderIndirect(Camera cam, int count)
+        {
+            var rp = CreateRenderParams(cam, 0);
 
             _commandData[0].indexCountPerInstance = _mesh.GetIndexCount(0);
             _commandData[0].instanceCount = (uint)count;
             _commandBuffer.SetData(_commandData);
 
-            var rp = new RenderParams(_material)
+            Graphics.RenderMeshIndirect(rp, _mesh, _commandBuffer, 1);
+        }
+
+        private void RenderSequential(Camera cam, int count)
+        {
+            for (int index = 0; index < count; index++)
+            {
+                var rp = CreateRenderParams(cam, index);
+                Graphics.RenderMesh(rp, _mesh, 0, Matrix4x4.identity);
+            }
+        }
+
+        private RenderParams CreateRenderParams(Camera cam, int shapeIndex)
+        {
+            var properties = new MaterialPropertyBlock();
+            properties.SetBuffer(PID.ShapeDataBuffer, _shapeDataBuffer);
+            properties.SetInt(PID.DrawingMode, (int)DrawingMode);
+            properties.SetInt(PID.ShapeIndex, shapeIndex);
+            properties.SetInt(
+                PID.UseShapeIndex,
+                ExecutionMode == DrawingExecutionMode.Sequential ? 1 : 0
+            );
+            properties.SetInt(PID.DebugShapeBounds, DebugShapeBounds ? 1 : 0);
+
+            if (DrawingMode == DrawingMode.ObjectSpace && _parentTransform != null)
+            {
+                properties.SetMatrix(PID.ParentTransform, _parentTransform.localToWorldMatrix);
+            }
+
+            return new RenderParams(_material)
             {
                 worldBounds = new Bounds(cam.transform.position, Vector3.one * 10000f),
-                matProps = new MaterialPropertyBlock()
+                camera = cam,
+                matProps = properties
             };
-
-            Graphics.RenderMeshIndirect(rp, _mesh, _commandBuffer, 1);
         }
 
         private float AntiAliasPadding(Camera cam)

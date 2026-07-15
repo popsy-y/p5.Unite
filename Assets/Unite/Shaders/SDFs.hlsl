@@ -129,6 +129,12 @@ float2 EllipsePoint(float2 radius, float angle)
     return float2(radius.x * cos(angle), -radius.y * sin(angle));
 }
 
+float SdfAlpha(float distance)
+{
+    float antialiasing = max(fwidth(distance), 1e-6);
+    return smoothstep(antialiasing, -antialiasing, distance);
+}
+
 void ComputeArcAlphas(float2 position, ShapeData data, out float fillAlpha, out float strokeAlpha)
 {
     int styleFlags = (int)data.Style.w;
@@ -197,12 +203,6 @@ void ComputeArcAlphas(float2 position, ShapeData data, out float fillAlpha, out 
     fillAlpha = (styleFlags & 1) != 0 ? SdfAlpha(fillDistance) : 0.0;
     float strokeDistance = pathDistance - data.Style.z * 0.5;
     strokeAlpha = (styleFlags & 2) != 0 ? SdfAlpha(strokeDistance) : 0.0;
-}
-
-float SdfAlpha(float distance)
-{
-    float antialiasing = max(fwidth(distance), 1e-6);
-    return smoothstep(antialiasing, -antialiasing, distance);
 }
 
 half4 CompositeShapeAlphas(float fillAlpha, float strokeAlpha, ShapeData data)
