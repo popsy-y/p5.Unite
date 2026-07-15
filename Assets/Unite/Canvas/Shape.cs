@@ -28,7 +28,7 @@ namespace Unite.Canvas
         // TODO: Support a different ShapeMode. Not yet.
         public ShapeMode RectMode { get; set; } = ShapeMode.Corner;
         public ShapeMode EllipseMode { get; set; } = ShapeMode.Center;
-        
+
         private Vector3 FinalPos(Vector3 localPos) => TransformPoint(localPos);
         private (Vector3 rot, Vector2 scl) RotScl() => GetRotationAndScale();
 
@@ -42,26 +42,7 @@ namespace Unite.Canvas
         /// <returns></returns>
         private (Vector3 pos, Vector2 size) EnsureNormalizedValue(Vector3 pos, Vector2 size)
         {
-            if (_drawingContext.DrawingMode is DrawingMode.ScreenSpace or DrawingMode.ScreenSpaceOverlay)
-            {
-                var fPos = FinalPos(new Vector3(pos.x, pos.y, 1));
-                var rPos = new Vector3(
-                    fPos.x / Width,
-                    fPos.y / Height,
-                    pos.z
-                );
-
-                var rSize = new Vector2(size.x / Width, size.y / Height);
-
-                return (rPos, rSize);
-            }
-            else
-            {
-                var rPos = FinalPos(pos);
-                var rSize = size;
-
-                return (rPos, rSize);
-            }
+            return (FinalPos(pos), size);
         }
 
         /// <summary>
@@ -75,15 +56,6 @@ namespace Unite.Canvas
             if (_strokeWeight <= 0f)
                 return 0f;
 
-            if (_drawingContext.DrawingMode is DrawingMode.ScreenSpace or DrawingMode.ScreenSpaceOverlay)
-            {
-                // ScreenSpace: stroke weight is in pixels, normalize to screen
-                // Shape sizes are already normalized in EnsureNormalizedValue
-                float screenMax = Mathf.Max(Width, Height);
-                return screenMax > 0f ? _strokeWeight / screenMax : 0f;
-            }
-
-            // ClipSpace, WorldSpace, ObjectSpace: stroke weight is already in the correct unit
             return _strokeWeight;
         }
 
@@ -104,7 +76,7 @@ namespace Unite.Canvas
             Vector2 fSize;
             Vector3 fPos, fRot;
 
-            
+
             // ADJUST TO EllipseMode(CENTER) EQUIVALENT
             if (_drawingContext.DrawingMode is DrawingMode.WorldSpace or DrawingMode.ObjectSpace)
             {
@@ -118,15 +90,12 @@ namespace Unite.Canvas
                 var (r, s) = RotScl();
                 var (nPos, nSize) = EnsureNormalizedValue(new Vector3(x, y, 0f), Vector2.one * radius);
                 fPos = nPos;
-                
-                fPos = new Vector3(x, y, 0f);
 
                 // NOTE: 平面時はrx, ryを潰すこともできるが、
                 // そこからハックが生まれそうだし、ライブラリの性格を考えると暗黙的な挙動が増えるべきではないと思ったので意図的にそのまま残した。
                 // その代わりに、平面用にfloatのみを受け付けるRotateメソッドが用意してある。
                 fRot = r;
                 fSize = nSize * s;
-                fSize = Vector2.one * radius;
             }
 
             _commandQueue.Enqueue(new DrawCommand
@@ -166,7 +135,7 @@ namespace Unite.Canvas
             Vector2 fSize;
             Vector3 fPos;
 
-            
+
             // ADJUST TO EllipseMode(CENTER) EQUIVALENT
             if (_drawingContext.DrawingMode is DrawingMode.WorldSpace or DrawingMode.ObjectSpace)
             {
@@ -224,7 +193,7 @@ namespace Unite.Canvas
             Vector2 fSize;
             Vector3 fPos;
 
-            
+
             // ADJUST TO RectMode(CENTER) EQUIVALENT
             if (_drawingContext.DrawingMode is DrawingMode.WorldSpace or DrawingMode.ObjectSpace)
             {
@@ -280,7 +249,7 @@ namespace Unite.Canvas
             Vector2 fSize;
             Vector3 fPos;
 
-            
+
             // ADJUST TO RectMode(CENTER) EQUIVALENT
             if (_drawingContext.DrawingMode is DrawingMode.WorldSpace or DrawingMode.ObjectSpace)
             {
@@ -337,7 +306,7 @@ namespace Unite.Canvas
             Vector2 fSize;
             Vector3 fPos;
 
-            
+
             // ADJUST TO RectMode(CENTER) EQUIVALENT
             if (_drawingContext.DrawingMode is DrawingMode.WorldSpace or DrawingMode.ObjectSpace)
             {
@@ -401,7 +370,7 @@ namespace Unite.Canvas
             Vector2 fSize;
             Vector3 fPos;
 
-            
+
             // ADJUST TO RectMode(CENTER) EQUIVALENT
             if (_drawingContext.DrawingMode is DrawingMode.WorldSpace or DrawingMode.ObjectSpace)
             {

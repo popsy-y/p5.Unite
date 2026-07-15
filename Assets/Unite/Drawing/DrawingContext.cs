@@ -77,76 +77,35 @@ namespace Unite.Drawing
             var shapeDataArray = new ShapeData[count];
             int index = 0;
 
-            bool isWorldOrObjectSpace = DrawingMode is DrawingMode.WorldSpace or DrawingMode.ObjectSpace;
-            bool isOverlay = DrawingMode is DrawingMode.ClipSpaceOverlay or DrawingMode.ScreenSpaceOverlay;
-
             foreach (var cmd in _commandQueue)
             {
-                Vector3 pos;
-                Vector2 shapeSize;
-
                 var q = Quaternion.Euler(cmd.Rotation);
                 var rot = new Vector4(q.x, q.y, q.z, q.w);
-
-                if (isWorldOrObjectSpace)
-                {
-                    pos = cmd.Position;
-                    // Mesh spans [-1,1], so half-size = cmd.Size / 2
-                    shapeSize = cmd.Size / 2f;
-                }
-                else
-                {
-                    // Clip/Screen space: remap [0,1] position to NDC [-1,1]
-                    var sPos = cmd.Position;
-                    pos = new Vector3(
-                        sPos.x * 2f - 1f,
-                        sPos.y * 2f - 1f,
-                        isOverlay ? 0f : sPos.z
-                    );
-                    shapeSize = cmd.Size;
-                }
-
-                // Expand mesh to accommodate stroke outside the shape boundary
-                // float sw = cmd.StrokeWeight;
-                
-                Vector2 sw;// stroke width in drawing mode unit
-
-                if (DrawingMode is DrawingMode.WorldSpace or DrawingMode.ObjectSpace)
-                {
-                    sw = Vector2.one * cmd.StrokeWeight;
-                }
-                else if (DrawingMode is DrawingMode.ScreenSpace or DrawingMode.ScreenSpaceOverlay)
-                {
-                    // convert strokeWeight, pixel space -> mesh uv space
-                    // uv空間で指定したstrokeWeightが欲しい
-                    // strokeWeight is in pixel space...
-
-                    sw = Vector2.one * cmd.StrokeWeight;// stub
-                }
-                else
-                {
-                    sw = Vector2.one * cmd.StrokeWeight;// stub
-                }
-                
-                var size = shapeSize + Vector2.one * (sw * 2f);
-
-                // Per-axis stroke weight in UV space: ratio of stroke to expanded mesh
-                var strokeWeightUV = Vector2.zero;
-                if (sw.magnitude > Mathf.Epsilon)
-                {
-                    if (size.x > 0f) strokeWeightUV.x = 0.5f * (1f - shapeSize.x / size.x);
-                    if (size.y > 0f) strokeWeightUV.y = 0.5f * (1f - shapeSize.y / size.y);
-                }
+                var shapeSize = new Vector2(Mathf.Abs(cmd.Size.x), Mathf.Abs(cmd.Size.y));
+                var halfSize = shapeSize * 0.5f;
+                float strokeWeight = Mathf.Max(0f, cmd.StrokeWeight);
+                float padding = strokeWeight * 0.5f + AntiAliasPadding(cam);
+                var padding2 = Vector2.one * padding;
 
                 shapeDataArray[index] = new ShapeData
                 {
-                    Position = pos,
+                    Position = new Vector4(cmd.Position.x, cmd.Position.y, cmd.Position.z, 0f),
                     Rotation = rot,
-                    Size = size,
-                    ShapeType = (int)cmd.ShapeType,
+                    Bounds = new Vector4(
+                        -halfSize.x - padding2.x,
+                        -halfSize.y - padding2.y,
+                        halfSize.x + padding2.x,
+                        halfSize.y + padding2.y
+                    ),
+                    ShapeParameters = new Vector4(shapeSize.x, shapeSize.y, 0f, 0f),
+                    Style = new Vector4(
+                        cmd.ShapeType == Shape.Circle ? 0f : 1f,
+                        0f,
+                        strokeWeight,
+                        strokeWeight > 0f ? 3f : 1f
+                    ),
                     FillColor = cmd.FillColor,
-                    StrokeColor = cmd.StrokeColor,
-                    StrokeWeight = strokeWeightUV
+                    StrokeColor = cmd.StrokeColor
                 };
 
                 index++;
@@ -154,8 +113,8 @@ namespace Unite.Drawing
 
             _shapeDataBuffer.SetData(shapeDataArray);
             _material.SetBuffer(PID.ShapeDataBuffer, _shapeDataBuffer);
-            
-            _material.SetInt(PID.DrawingMode, (int) DrawingMode);
+
+            _material.SetInt(PID.DrawingMode, (int)DrawingMode);
 
             if (DrawingMode == DrawingMode.ObjectSpace && _parentTransform != null)
             {
@@ -173,6 +132,17 @@ namespace Unite.Drawing
             };
 
             Graphics.RenderMeshIndirect(rp, _mesh, _commandBuffer, 1);
+        }
+
+        private float AntiAliasPadding(Camera cam)
+        {
+            if (DrawingMode is DrawingMode.ScreenSpace or DrawingMode.ScreenSpaceOverlay)
+                return 1.5f;
+
+            if (DrawingMode is DrawingMode.ClipSpace or DrawingMode.ClipSpaceOverlay)
+                return 1.5f / Mathf.Max(1f, Mathf.Min(cam.pixelWidth, cam.pixelHeight));
+
+            return 0.001f;
         }
 
         private void EnsureBuffers(int count)
