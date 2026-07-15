@@ -120,14 +120,19 @@ namespace Unite.Drawing
                     // convert strokeWeight, pixel space -> mesh uv space
                     // uv空間で指定したstrokeWeightが欲しい
                     // strokeWeight is in pixel space...
-                    
+
+                    sw = Vector2.one * cmd.StrokeWeight;// stub
+                }
+                else
+                {
+                    sw = Vector2.one * cmd.StrokeWeight;// stub
                 }
                 
                 var size = shapeSize + Vector2.one * (sw * 2f);
 
                 // Per-axis stroke weight in UV space: ratio of stroke to expanded mesh
                 var strokeWeightUV = Vector2.zero;
-                if (sw > 0f)
+                if (sw.magnitude > Mathf.Epsilon)
                 {
                     if (size.x > 0f) strokeWeightUV.x = 0.5f * (1f - shapeSize.x / size.x);
                     if (size.y > 0f) strokeWeightUV.y = 0.5f * (1f - shapeSize.y / size.y);
