@@ -17,6 +17,9 @@ namespace Unite.Canvas
         public Vector4 Parameters1;
         public Vector4 CornerRadiiX;
         public Vector4 CornerRadiiY;
+        public Vector2 BoundsMin;
+        public Vector2 BoundsMax;
+        public bool HasCustomBounds;
 
         public Shape ShapeType;
         public ArcMode ArcMode;

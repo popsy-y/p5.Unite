@@ -88,16 +88,18 @@ namespace Unite.Drawing
                 var padding2 = Vector2.one * padding;
                 int styleFlags = (cmd.FillEnabled ? 1 : 0) |
                                  (cmd.StrokeEnabled && strokeWeight > 0f ? 2 : 0);
+                Vector2 boundsMin = cmd.HasCustomBounds ? cmd.BoundsMin : -halfSize;
+                Vector2 boundsMax = cmd.HasCustomBounds ? cmd.BoundsMax : halfSize;
 
                 shapeDataArray[index] = new ShapeData
                 {
                     Position = new Vector4(cmd.Position.x, cmd.Position.y, cmd.Position.z, 0f),
                     Rotation = rot,
                     Bounds = new Vector4(
-                        -halfSize.x - padding2.x,
-                        -halfSize.y - padding2.y,
-                        halfSize.x + padding2.x,
-                        halfSize.y + padding2.y
+                        boundsMin.x - padding2.x,
+                        boundsMin.y - padding2.y,
+                        boundsMax.x + padding2.x,
+                        boundsMax.y + padding2.y
                     ),
                     ShapeParameters = new Vector4(shapeSize.x, shapeSize.y, 0f, 0f),
                     Point0 = cmd.Point0,
@@ -109,7 +111,7 @@ namespace Unite.Drawing
                     CornerRadiiX = cmd.CornerRadiiX,
                     CornerRadiiY = cmd.CornerRadiiY,
                     Style = new Vector4(
-                        cmd.ShapeType is Shape.Circle or Shape.Ellipse ? 0f : 1f,
+                        GpuShapeType(cmd.ShapeType),
                         (float)cmd.ArcMode,
                         strokeWeight,
                         styleFlags
@@ -153,6 +155,21 @@ namespace Unite.Drawing
                 return 1.5f / Mathf.Max(1f, Mathf.Min(cam.pixelWidth, cam.pixelHeight));
 
             return 0.001f;
+        }
+
+        private static float GpuShapeType(Shape shape)
+        {
+            return shape switch
+            {
+                Shape.Circle or Shape.Ellipse => 0f,
+                Shape.Rectangle or Shape.Square => 1f,
+                Shape.Line => 2f,
+                Shape.Point => 3f,
+                Shape.Triangle => 4f,
+                Shape.Quad => 5f,
+                Shape.Arc => 6f,
+                _ => 0f
+            };
         }
 
         private void EnsureBuffers(int count)
