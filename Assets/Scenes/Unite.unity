@@ -346,6 +346,7 @@ GameObject:
   - component: {fileID: 605906602}
   - component: {fileID: 605906605}
   - component: {fileID: 605906606}
+  - component: {fileID: 605906607}
   m_Layer: 0
   m_Name: Canvas
   m_TagString: Untagged
@@ -360,7 +361,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 605906601}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 61842b5b430b4d898943fdba109e6136, type: 3}
   m_Name: 
@@ -409,7 +410,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Dev.MassiveShapeTester
   _mode: 1
   _testMode: 1
-  _shapeCount: 500
+  _shapeCount: 1500
   _minSize: 10
   _maxSize: 50
   _minSizeClip: 0.01
@@ -423,7 +424,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 605906601}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f73da546b947cda4388c939aa0e3d930, type: 3}
   m_Name: 
@@ -431,6 +432,20 @@ MonoBehaviour:
   _mode: 1
   _autoCycleModes: 0
   _cycleInterval: 5
+--- !u!114 &605906607
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 605906601}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a7b04eb8200147f0b2f430d28ee47919, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Dev.PrimitiveSdfTester
+  _executionMode: 1
+  _debugShapeBounds: 0
 --- !u!1 &925011415
 GameObject:
   m_ObjectHideFlags: 0
