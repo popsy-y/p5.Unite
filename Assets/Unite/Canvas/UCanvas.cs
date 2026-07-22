@@ -31,7 +31,7 @@ namespace Unite.Canvas
         }
 
         public DrawingContext CreateCanvas(
-            DrawingMode mode,
+            DrawingMode mode = DrawingMode.ScreenSpaceOverlay,
             DrawingExecutionMode executionMode = DrawingExecutionMode.Indirect
         )
         {
