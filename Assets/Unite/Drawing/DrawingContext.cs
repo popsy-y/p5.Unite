@@ -45,9 +45,9 @@ namespace Unite.Drawing
 
             string shaderName = DrawingMode switch
             {
-                DrawingMode.WorldSpace => "Hidden/Unite/WorldSpaceDrawing",
-                DrawingMode.ObjectSpace => "Hidden/Unite/ObjectSpaceDrawing",
-                _ => "Hidden/Unite/ClipSpaceDrawing"
+                DrawingMode.World => "Hidden/Unite/WorldDrawing",
+                DrawingMode.CanvasLocal => "Hidden/Unite/CanvasLocalDrawing",
+                _ => "Hidden/Unite/ScreenDrawing"
             };
 
             _material = new Material(Shader.Find(shaderName));
@@ -186,7 +186,7 @@ namespace Unite.Drawing
             );
             properties.SetInt(PID.DebugShapeBounds, DebugShapeBounds ? 1 : 0);
 
-            if (DrawingMode == DrawingMode.ObjectSpace && _parentTransform != null)
+            if (DrawingMode == DrawingMode.CanvasLocal && _parentTransform != null)
             {
                 properties.SetMatrix(PID.ParentTransform, _parentTransform.localToWorldMatrix);
             }
@@ -201,10 +201,10 @@ namespace Unite.Drawing
 
         private float AntiAliasPadding(Camera cam)
         {
-            if (DrawingMode is DrawingMode.ScreenSpace or DrawingMode.ScreenSpaceOverlay)
+            if (DrawingMode is DrawingMode.Screen or DrawingMode.ScreenOverlay)
                 return 1.5f;
 
-            if (DrawingMode is DrawingMode.ClipSpace or DrawingMode.ClipSpaceOverlay)
+            if (DrawingMode is DrawingMode.NormalizedScreen or DrawingMode.NormalizedScreenOverlay)
                 return 1.5f / Mathf.Max(1f, Mathf.Min(cam.pixelWidth, cam.pixelHeight));
 
             return 0.001f;

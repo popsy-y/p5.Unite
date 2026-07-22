@@ -2,17 +2,17 @@
 
 ## Project Overview
 
-p5.Unite is a Unity library that brings p5.js-style creative coding to Unity. It provides an immediate-mode drawing API that allows users to draw shapes (Circle, Rectangle, Square) with simple method calls, supporting multiple coordinate systems (ScreenSpace, ClipSpace, WorldSpace, ObjectSpace).
+p5.Unite is a Unity library that brings p5.js-style creative coding to Unity. It provides an immediate-mode drawing API that allows users to draw shapes (Circle, Rectangle, Square) with simple method calls, supporting multiple coordinate systems (Screen, NormalizedScreen, World, CanvasLocal).
 
 ## Architecture
 
 - **UCanvas**: The main MonoBehaviour component that users attach to a GameObject. Provides the public API for drawing shapes (Circle, Rect, Square), setting colors (Fill, Stroke), and managing coordinate transformations (Translate, Rotate, Scale, Push, Pop). Uses partial classes to organize functionality across multiple files.
 - **DrawingContext**: Handles low-level rendering using Unity's SRP (Scriptable Render Pipeline). Manages mesh creation, material setup, and dispatches draw commands via GPU instancing.
 - **DrawCommand**: A struct that encapsulates drawing parameters (position, rotation, size, shape type, colors) for each shape to be drawn.
-- **DrawingMode**: An enum defining coordinate system modes - ScreenSpaceOverlay, ScreenSpace, ClipSpaceOverlay, ClipSpace, WorldSpace, and ObjectSpace.
+- **DrawingMode**: An enum defining coordinate system modes - ScreenOverlay, Screen, NormalizedScreenOverlay, NormalizedScreen, World, and CanvasLocal.
 - **CanvasTransformStack**: Implements a matrix stack for hierarchical transformations, similar to p5.js's push()/pop() system.
 - **ShapeData**: GPU-friendly struct with GenerateHLSL attribute for shader data passing.
-- **Shaders**: Custom shaders (ClipSpaceDrawing, WorldSpaceDrawing, ObjectSpaceDrawing) for rendering shapes in different coordinate spaces using SDFs.
+- **Shaders**: Custom shaders (ScreenDrawing, WorldDrawing, CanvasLocalDrawing) for rendering shapes in different coordinate spaces using SDFs.
 
 ## Project Structure
 

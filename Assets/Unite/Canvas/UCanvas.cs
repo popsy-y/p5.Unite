@@ -31,7 +31,7 @@ namespace Unite.Canvas
         }
 
         public DrawingContext CreateCanvas(
-            DrawingMode mode = DrawingMode.ScreenSpaceOverlay,
+            DrawingMode mode = DrawingMode.ScreenOverlay,
             DrawingExecutionMode executionMode = DrawingExecutionMode.Indirect
         )
         {
@@ -140,14 +140,14 @@ namespace Unite.Canvas
 
                 var m = _drawingContext.DrawingMode;
 
-                if (m is DrawingMode.ClipSpace or DrawingMode.ClipSpaceOverlay)
+                if (m is DrawingMode.NormalizedScreen or DrawingMode.NormalizedScreenOverlay)
                     return _currentCamera.pixelWidth;
 
-                if (m is DrawingMode.ScreenSpace or DrawingMode.ScreenSpaceOverlay)
+                if (m is DrawingMode.Screen or DrawingMode.ScreenOverlay)
                     return _currentCamera.pixelWidth;
 
-                if (m is DrawingMode.WorldSpace or DrawingMode.ObjectSpace)
-                    return -1; // there's no width in world space or object space
+                if (m is DrawingMode.World or DrawingMode.CanvasLocal)
+                    return -1; // there's no width in world or canvas-local coordinates
 
                 return 0;
             }
@@ -171,14 +171,14 @@ namespace Unite.Canvas
 
                 var m = _drawingContext.DrawingMode;
 
-                if (m is DrawingMode.ClipSpace or DrawingMode.ClipSpaceOverlay)
+                if (m is DrawingMode.NormalizedScreen or DrawingMode.NormalizedScreenOverlay)
                     return _currentCamera.pixelHeight;
 
-                if (m is DrawingMode.ScreenSpace or DrawingMode.ScreenSpaceOverlay)
+                if (m is DrawingMode.Screen or DrawingMode.ScreenOverlay)
                     return _currentCamera.pixelHeight;
 
-                if (m is DrawingMode.WorldSpace or DrawingMode.ObjectSpace)
-                    return -1; // there's no height in world space or object space
+                if (m is DrawingMode.World or DrawingMode.CanvasLocal)
+                    return -1; // there's no height in world or canvas-local coordinates
 
                 return 0;
             }

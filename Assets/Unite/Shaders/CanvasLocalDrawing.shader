@@ -1,4 +1,4 @@
-Shader "Hidden/Unite/WorldSpaceDrawing"
+Shader "Hidden/Unite/CanvasLocalDrawing"
 {
     SubShader
     {
@@ -31,6 +31,10 @@ Shader "Hidden/Unite/WorldSpaceDrawing"
             int _UseShapeIndex;
             int _DebugShapeBounds;
 
+            CBUFFER_START(UnityPerMaterial)
+                float4x4 _ParentTransform;
+            CBUFFER_END
+
             struct Attributes
             {
                 float4 positionOS : POSITION;
@@ -53,7 +57,8 @@ Shader "Hidden/Unite/WorldSpaceDrawing"
                     : input.instanceID;
                 ShapeData data = _ShapeData[dataIndex];
                 float2 shapePosition = ShapePosition(input.uv, data);
-                float3 positionWS = DrawingPosition(shapePosition, data);
+                float3 positionLocal = DrawingPosition(shapePosition, data);
+                float3 positionWS = mul(_ParentTransform, float4(positionLocal, 1.0)).xyz;
 
                 output.positionCS = TransformWorldToHClip(positionWS);
                 output.shapePosition = shapePosition;

@@ -1,10 +1,5 @@
-Shader "Hidden/Unite/ClipSpaceDrawing"
+Shader "Hidden/Unite/WorldDrawing"
 {
-    Properties
-    {
-        _DrawingMode ("Drawing Mode", Int) = 0
-    }
-
     SubShader
     {
         Tags
@@ -32,7 +27,6 @@ Shader "Hidden/Unite/ClipSpaceDrawing"
             #include "Assets/Unite/Shaders/SDFs.hlsl"
 
             StructuredBuffer<ShapeData> _ShapeData;
-            int _DrawingMode;
             int _ShapeIndex;
             int _UseShapeIndex;
             int _DebugShapeBounds;
@@ -58,36 +52,10 @@ Shader "Hidden/Unite/ClipSpaceDrawing"
                     ? (uint)_ShapeIndex
                     : input.instanceID;
                 ShapeData data = _ShapeData[dataIndex];
-
                 float2 shapePosition = ShapePosition(input.uv, data);
-                float3 drawingPosition = DrawingPosition(shapePosition, data);
-                bool isScreenSpace = _DrawingMode == 0 || _DrawingMode == 1;
-                bool isOverlay = _DrawingMode == 0 || _DrawingMode == 2;
+                float3 positionWS = DrawingPosition(shapePosition, data);
 
-                float2 normalizedPosition = isScreenSpace
-                    ? drawingPosition.xy / _ScreenParams.xy
-                    : drawingPosition.xy;
-
-                output.positionCS = float4(normalizedPosition * 2.0 - 1.0,
-                                           isOverlay ? 0.0 : drawingPosition.z, 1.0);
-
-                float rawDepth = output.positionCS.z;
-                if (unity_OrthoParams.w < 0.5)
-                {
-                    float nearOverFar = _ProjectionParams.y / _ProjectionParams.z;
-                    float linearDepth = max(rawDepth, nearOverFar + 1e-5);
-                    output.positionCS.z = (1.0 / linearDepth - _ZBufferParams.y) / _ZBufferParams.x;
-
-                    if (!isOverlay && rawDepth < 0.0)
-                        output.positionCS = float4(0.0, 0.0, 2.0, 1.0);
-                }
-                else
-                {
-                    output.positionCS.z = UNITY_REVERSED_Z
-                        ? 1.0 - output.positionCS.z
-                        : output.positionCS.z;
-                }
-
+                output.positionCS = TransformWorldToHClip(positionWS);
                 output.shapePosition = shapePosition;
                 output.instanceID = dataIndex;
                 return output;

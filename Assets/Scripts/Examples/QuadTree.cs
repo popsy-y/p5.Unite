@@ -27,7 +27,7 @@ namespace Dev
 
         void Start()
         {
-            c.CreateCanvas(DrawingMode.ScreenSpace, DrawingExecutionMode.Indirect);
+            c.CreateCanvas(DrawingMode.Screen, DrawingExecutionMode.Indirect);
         }
 
         void Update()

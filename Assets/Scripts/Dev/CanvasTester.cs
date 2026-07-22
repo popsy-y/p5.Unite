@@ -24,7 +24,7 @@ namespace Dev
         };
 
         [Header("Rendering")]
-        [SerializeField] private DrawingMode _mode = DrawingMode.ScreenSpace;
+        [SerializeField] private DrawingMode _mode = DrawingMode.Screen;
         [SerializeField] private DrawingExecutionMode _executionMode = DrawingExecutionMode.Indirect;
         [SerializeField] private bool _debugShapeBounds;
         [SerializeField] private bool _autoCycleModes;
@@ -46,11 +46,11 @@ namespace Dev
         private float _modeTimer;
         private float _pageTimer;
 
-        private bool IsScreenSpace => _mode is
-            DrawingMode.ScreenSpace or DrawingMode.ScreenSpaceOverlay;
+        private bool IsScreen => _mode is
+            DrawingMode.Screen or DrawingMode.ScreenOverlay;
 
-        private bool IsClipSpace => _mode is
-            DrawingMode.ClipSpace or DrawingMode.ClipSpaceOverlay;
+        private bool IsNormalizedScreen => _mode is
+            DrawingMode.NormalizedScreen or DrawingMode.NormalizedScreenOverlay;
 
         private void Start()
         {
@@ -356,7 +356,7 @@ namespace Dev
 
         private Vector3 Position(float normalizedX, float normalizedY)
         {
-            if (IsScreenSpace)
+            if (IsScreen)
             {
                 return new Vector3(
                     normalizedX * Mathf.Max(1, _canvas.Width),
@@ -365,7 +365,7 @@ namespace Dev
                 );
             }
 
-            if (IsClipSpace)
+            if (IsNormalizedScreen)
                 return new Vector3(normalizedX, normalizedY, DrawingDepth());
 
             return DrawingPlanePosition(normalizedX, normalizedY);
@@ -373,10 +373,10 @@ namespace Dev
 
         private float Unit()
         {
-            if (IsScreenSpace)
+            if (IsScreen)
                 return Mathf.Max(1f, Mathf.Min(_canvas.Width, _canvas.Height));
 
-            if (IsClipSpace)
+            if (IsNormalizedScreen)
                 return 1f;
 
             Vector3 bottom = DrawingPlanePosition(0.5f, 0f);
@@ -390,8 +390,8 @@ namespace Dev
             if (!cam)
                 return new Vector3((normalizedX - 0.5f) * 8f, (normalizedY - 0.5f) * 8f);
 
-            bool isObjectSpace = _mode == DrawingMode.ObjectSpace;
-            var plane = isObjectSpace
+            bool isCanvasLocal = _mode == DrawingMode.CanvasLocal;
+            var plane = isCanvasLocal
                 ? new Plane(transform.forward, transform.position)
                 : new Plane(Vector3.forward, Vector3.zero);
             Ray ray = cam.ViewportPointToRay(new Vector3(normalizedX, normalizedY));
@@ -400,12 +400,12 @@ namespace Dev
                 return Vector3.zero;
 
             Vector3 worldPosition = ray.GetPoint(distance);
-            return isObjectSpace ? transform.InverseTransformPoint(worldPosition) : worldPosition;
+            return isCanvasLocal ? transform.InverseTransformPoint(worldPosition) : worldPosition;
         }
 
         private float DrawingDepth()
         {
-            if (_mode is DrawingMode.ScreenSpaceOverlay or DrawingMode.ClipSpaceOverlay)
+            if (_mode is DrawingMode.ScreenOverlay or DrawingMode.NormalizedScreenOverlay)
                 return 0f;
 
             return _canvas.WorldToLinearDepth(5f, Camera.main);
@@ -413,10 +413,10 @@ namespace Dev
 
         private float AntiAliasMinimum()
         {
-            if (IsScreenSpace)
+            if (IsScreen)
                 return 2f;
 
-            if (IsClipSpace)
+            if (IsNormalizedScreen)
                 return 0.002f;
 
             return 0.02f;

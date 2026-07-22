@@ -1,5 +1,10 @@
-Shader "Hidden/Unite/ObjectSpaceDrawing"
+Shader "Hidden/Unite/ScreenDrawing"
 {
+    Properties
+    {
+        _DrawingMode ("Drawing Mode", Int) = 0
+    }
+
     SubShader
     {
         Tags
@@ -27,13 +32,10 @@ Shader "Hidden/Unite/ObjectSpaceDrawing"
             #include "Assets/Unite/Shaders/SDFs.hlsl"
 
             StructuredBuffer<ShapeData> _ShapeData;
+            int _DrawingMode;
             int _ShapeIndex;
             int _UseShapeIndex;
             int _DebugShapeBounds;
-
-            CBUFFER_START(UnityPerMaterial)
-                float4x4 _ParentTransform;
-            CBUFFER_END
 
             struct Attributes
             {
@@ -56,11 +58,36 @@ Shader "Hidden/Unite/ObjectSpaceDrawing"
                     ? (uint)_ShapeIndex
                     : input.instanceID;
                 ShapeData data = _ShapeData[dataIndex];
-                float2 shapePosition = ShapePosition(input.uv, data);
-                float3 positionLocal = DrawingPosition(shapePosition, data);
-                float3 positionWS = mul(_ParentTransform, float4(positionLocal, 1.0)).xyz;
 
-                output.positionCS = TransformWorldToHClip(positionWS);
+                float2 shapePosition = ShapePosition(input.uv, data);
+                float3 drawingPosition = DrawingPosition(shapePosition, data);
+                bool isPixelScreen = _DrawingMode == 0 || _DrawingMode == 1;
+                bool isOverlay = _DrawingMode == 0 || _DrawingMode == 2;
+
+                float2 screenPosition = isPixelScreen
+                    ? drawingPosition.xy / _ScreenParams.xy
+                    : drawingPosition.xy;
+
+                output.positionCS = float4(screenPosition * 2.0 - 1.0,
+                                           isOverlay ? 0.0 : drawingPosition.z, 1.0);
+
+                float rawDepth = output.positionCS.z;
+                if (unity_OrthoParams.w < 0.5)
+                {
+                    float nearOverFar = _ProjectionParams.y / _ProjectionParams.z;
+                    float linearDepth = max(rawDepth, nearOverFar + 1e-5);
+                    output.positionCS.z = (1.0 / linearDepth - _ZBufferParams.y) / _ZBufferParams.x;
+
+                    if (!isOverlay && rawDepth < 0.0)
+                        output.positionCS = float4(0.0, 0.0, 2.0, 1.0);
+                }
+                else
+                {
+                    output.positionCS.z = UNITY_REVERSED_Z
+                        ? 1.0 - output.positionCS.z
+                        : output.positionCS.z;
+                }
+
                 output.shapePosition = shapePosition;
                 output.instanceID = dataIndex;
                 return output;

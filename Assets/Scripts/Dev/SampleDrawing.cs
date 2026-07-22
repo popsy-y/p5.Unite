@@ -15,7 +15,7 @@ namespace Dev
             if (!_cnv)
                 _cnv = gameObject.AddComponent<UCanvas>();
 
-            _cnv.CreateCanvas(DrawingMode.ScreenSpace);
+            _cnv.CreateCanvas(DrawingMode.Screen);
         }
 
 
