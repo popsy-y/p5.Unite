@@ -23,6 +23,8 @@ namespace Dev
             ShapeMode.Radius
         };
 
+        private const float PlanarExtent = 6f;
+
         [Header("Rendering")]
         [SerializeField] private DrawingMode _mode = DrawingMode.Screen;
         [SerializeField] private DrawingExecutionMode _executionMode = DrawingExecutionMode.Indirect;
@@ -368,7 +370,11 @@ namespace Dev
             if (IsNormalizedScreen)
                 return new Vector3(normalizedX, normalizedY, DrawingDepth());
 
-            return DrawingPlanePosition(normalizedX, normalizedY);
+            return new Vector3(
+                (normalizedX - 0.5f) * PlanarExtent,
+                (normalizedY - 0.5f) * PlanarExtent,
+                0f
+            );
         }
 
         private float Unit()
@@ -379,28 +385,7 @@ namespace Dev
             if (IsNormalizedScreen)
                 return 1f;
 
-            Vector3 bottom = DrawingPlanePosition(0.5f, 0f);
-            Vector3 top = DrawingPlanePosition(0.5f, 1f);
-            return Mathf.Max(0.001f, Vector2.Distance(bottom, top) * 0.7f);
-        }
-
-        private Vector3 DrawingPlanePosition(float normalizedX, float normalizedY)
-        {
-            Camera cam = Camera.main;
-            if (!cam)
-                return new Vector3((normalizedX - 0.5f) * 8f, (normalizedY - 0.5f) * 8f);
-
-            bool isCanvasLocal = _mode == DrawingMode.CanvasLocal;
-            var plane = isCanvasLocal
-                ? new Plane(transform.forward, transform.position)
-                : new Plane(Vector3.forward, Vector3.zero);
-            Ray ray = cam.ViewportPointToRay(new Vector3(normalizedX, normalizedY));
-
-            if (!plane.Raycast(ray, out float distance))
-                return Vector3.zero;
-
-            Vector3 worldPosition = ray.GetPoint(distance);
-            return isCanvasLocal ? transform.InverseTransformPoint(worldPosition) : worldPosition;
+            return PlanarExtent;
         }
 
         private float DrawingDepth()
