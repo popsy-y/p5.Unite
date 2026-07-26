@@ -17,7 +17,7 @@ Shader "Hidden/Unite/ScreenDrawing"
         Pass
         {
             Name "Draw"
-            Blend SrcAlpha OneMinusSrcAlpha
+            Blend One OneMinusSrcAlpha
             ZWrite Off
             Cull Off
 
@@ -97,7 +97,10 @@ Shader "Hidden/Unite/ScreenDrawing"
             {
                 ShapeData data = _ShapeData[input.instanceID];
                 if (_DebugShapeBounds != 0)
-                    return half4(data.FillColor.rgb, max(data.FillColor.a, 0.35));
+                {
+                    half debugAlpha = max(data.FillColor.a, 0.35);
+                    return half4(data.FillColor.rgb * debugAlpha, debugAlpha);
+                }
                 return ComputeShapeColor(input.shapePosition, data);
             }
 

@@ -214,7 +214,9 @@ half4 CompositeShapeAlphas(float fillAlpha, float strokeAlpha, ShapeData data)
     stroke.a *= strokeAlpha;
 
     half4 result;
-    result.rgb = lerp(fill.rgb, stroke.rgb, stroke.a);
+    // Keep RGB premultiplied to match Blend One OneMinusSrcAlpha.
+    result.rgb = stroke.rgb * stroke.a +
+                 fill.rgb * fill.a * (1.0 - stroke.a);
     result.a = stroke.a + fill.a * (1.0 - stroke.a);
     return result;
 }
