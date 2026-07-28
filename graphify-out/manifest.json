@@ -1,0 +1,397 @@
+{
+  ".uloop/settings.permissions.json": {
+    "mtime": 1785077905.3885713,
+    "ast_hash": "781be002d2afee2d2e80332fd8d0ba6b",
+    "semantic_hash": "781be002d2afee2d2e80332fd8d0ba6b"
+  },
+  ".vscode/extensions.json": {
+    "mtime": 1785077905.3900776,
+    "ast_hash": "2c2bc546cba220f6651a152c8c1819d0",
+    "semantic_hash": "2c2bc546cba220f6651a152c8c1819d0"
+  },
+  ".vscode/launch.json": {
+    "mtime": 1785077905.3910844,
+    "ast_hash": "cf87354d3be05efced104408f9982438",
+    "semantic_hash": "cf87354d3be05efced104408f9982438"
+  },
+  ".vscode/settings.json": {
+    "mtime": 1785077905.392085,
+    "ast_hash": "7490be140034d861147aee7850268d64",
+    "semantic_hash": "7490be140034d861147aee7850268d64"
+  },
+  "Assets/Scripts/Dev/AutoRot.cs": {
+    "mtime": 1770108328.2906082,
+    "ast_hash": "f1c1b72d2384c3da0091119d8a1794a0",
+    "semantic_hash": "f1c1b72d2384c3da0091119d8a1794a0"
+  },
+  "Assets/Scripts/Dev/CanvasTester.cs": {
+    "mtime": 1785078981.9464169,
+    "ast_hash": "0d10ef7d1f41a89d13db856095a690b9",
+    "semantic_hash": "0d10ef7d1f41a89d13db856095a690b9"
+  },
+  "Assets/Scripts/Dev/ChangeMyColor.cs": {
+    "mtime": 1770108328.2956142,
+    "ast_hash": "60e994f06165f7a1b6b2e47597ae51ce",
+    "semantic_hash": "60e994f06165f7a1b6b2e47597ae51ce"
+  },
+  "Assets/Scripts/Dev/SampleDrawing.cs": {
+    "mtime": 1785077905.4002903,
+    "ast_hash": "0bc605e410799762ac21ccd89d065141",
+    "semantic_hash": "0bc605e410799762ac21ccd89d065141"
+  },
+  "Assets/Scripts/Examples/Okazz241031A.cs": {
+    "mtime": 1785157393.8519967,
+    "ast_hash": "9c924edc5968db8e756933bc576f6503",
+    "semantic_hash": "9c924edc5968db8e756933bc576f6503"
+  },
+  "Assets/Scripts/Examples/QuadTree.cs": {
+    "mtime": 1785078300.9839644,
+    "ast_hash": "23e5a35149e8199babaecdec00970b6c",
+    "semantic_hash": "23e5a35149e8199babaecdec00970b6c"
+  },
+  "Assets/TextMesh Pro/Sprites/EmojiOne.json": {
+    "mtime": 1769611182.9426608,
+    "ast_hash": "53408097aa38738c15b17ca34e13882a",
+    "semantic_hash": "53408097aa38738c15b17ca34e13882a"
+  },
+  "Assets/TutorialInfo/Scripts/Editor/ReadmeEditor.cs": {
+    "mtime": 1770108328.296711,
+    "ast_hash": "d4806fe980fd22aac16dcc5180208131",
+    "semantic_hash": "d4806fe980fd22aac16dcc5180208131"
+  },
+  "Assets/TutorialInfo/Scripts/Readme.cs": {
+    "mtime": 1768894114.8798215,
+    "ast_hash": "7c8eeb74a94701a4b4a5b5f8d6259965",
+    "semantic_hash": "7c8eeb74a94701a4b4a5b5f8d6259965"
+  },
+  "Assets/Unite/Canvas/Arc.cs": {
+    "mtime": 1785077905.4027946,
+    "ast_hash": "86630b7e334604b2bcf106f007644d8c",
+    "semantic_hash": "86630b7e334604b2bcf106f007644d8c"
+  },
+  "Assets/Unite/Canvas/Color.cs": {
+    "mtime": 1785077905.4053514,
+    "ast_hash": "8aab05eeb9703cc7014d4497462a1e89",
+    "semantic_hash": "8aab05eeb9703cc7014d4497462a1e89"
+  },
+  "Assets/Unite/Canvas/Ellipse.cs": {
+    "mtime": 1785077905.4064784,
+    "ast_hash": "59323a31907f3150609e4f119171a4d5",
+    "semantic_hash": "59323a31907f3150609e4f119171a4d5"
+  },
+  "Assets/Unite/Canvas/Line.cs": {
+    "mtime": 1785077905.407476,
+    "ast_hash": "fbb826338fac73882fee9bde65ae3cc3",
+    "semantic_hash": "fbb826338fac73882fee9bde65ae3cc3"
+  },
+  "Assets/Unite/Canvas/Polygon.cs": {
+    "mtime": 1785077905.410058,
+    "ast_hash": "277ad0b0af01335357caefb4570d83e1",
+    "semantic_hash": "277ad0b0af01335357caefb4570d83e1"
+  },
+  "Assets/Unite/Canvas/Rectangle.cs": {
+    "mtime": 1785077905.4110625,
+    "ast_hash": "ef94c8841dd7cb9c8ffd05edfd4d035f",
+    "semantic_hash": "ef94c8841dd7cb9c8ffd05edfd4d035f"
+  },
+  "Assets/Unite/Canvas/Screen.cs": {
+    "mtime": 1770108328.296711,
+    "ast_hash": "1ad6a2358858c1fff747a92905dbcb66",
+    "semantic_hash": "1ad6a2358858c1fff747a92905dbcb66"
+  },
+  "Assets/Unite/Canvas/Shape.cs": {
+    "mtime": 1785077905.4136226,
+    "ast_hash": "9b583cae8d42d25731d2d729485594fb",
+    "semantic_hash": "9b583cae8d42d25731d2d729485594fb"
+  },
+  "Assets/Unite/Canvas/Transform.cs": {
+    "mtime": 1770108328.2982147,
+    "ast_hash": "5b5b033b71b21e93dc526db7419689d4",
+    "semantic_hash": "5b5b033b71b21e93dc526db7419689d4"
+  },
+  "Assets/Unite/Canvas/UCanvas.cs": {
+    "mtime": 1785077905.4146302,
+    "ast_hash": "ef7a2ef742a657363b05b8d490b1b5c4",
+    "semantic_hash": "ef7a2ef742a657363b05b8d490b1b5c4"
+  },
+  "Assets/Unite/Canvas/Utility.cs": {
+    "mtime": 1785077905.4166732,
+    "ast_hash": "f5da7329c0857eed1c2ece7ff987892c",
+    "semantic_hash": "f5da7329c0857eed1c2ece7ff987892c"
+  },
+  "Assets/Unite/Coordinate/CanvasTransformStack.cs": {
+    "mtime": 1770108328.3002715,
+    "ast_hash": "7d3213a7fd9be09c0dd4f6434647bb04",
+    "semantic_hash": "7d3213a7fd9be09c0dd4f6434647bb04"
+  },
+  "Assets/Unite/Drawing/DrawCommand.cs": {
+    "mtime": 1785077905.418187,
+    "ast_hash": "0ffa28ad12dcadc38a50cfcf7bec0e7c",
+    "semantic_hash": "0ffa28ad12dcadc38a50cfcf7bec0e7c"
+  },
+  "Assets/Unite/Drawing/DrawingContext.cs": {
+    "mtime": 1785077905.4191957,
+    "ast_hash": "1241e5513a3e958c55810c0f719ada61",
+    "semantic_hash": "1241e5513a3e958c55810c0f719ada61"
+  },
+  "Assets/Unite/Drawing/DrawingExecutionMode.cs": {
+    "mtime": 1785077905.4201946,
+    "ast_hash": "6c03841a0a2d4c7ea1c4b8726d240c96",
+    "semantic_hash": "6c03841a0a2d4c7ea1c4b8726d240c96"
+  },
+  "Assets/Unite/Drawing/DrawingHelper.cs": {
+    "mtime": 1770108328.3007898,
+    "ast_hash": "a6e24afda67312738214beac49cbac90",
+    "semantic_hash": "a6e24afda67312738214beac49cbac90"
+  },
+  "Assets/Unite/Drawing/DrawingMode.cs": {
+    "mtime": 1785077905.422194,
+    "ast_hash": "9afe9bf0b6fec23703d0d9ba8007ad6b",
+    "semantic_hash": "9afe9bf0b6fec23703d0d9ba8007ad6b"
+  },
+  "Assets/Unite/Drawing/ShaderPropertyIds.cs": {
+    "mtime": 1785077905.4234679,
+    "ast_hash": "0379c1f8fbbfd779341b8b218c734b0e",
+    "semantic_hash": "0379c1f8fbbfd779341b8b218c734b0e"
+  },
+  "Assets/Unite/Drawing/ShapeData.cs": {
+    "mtime": 1785077905.4244735,
+    "ast_hash": "29a3a67a27cd0d7f27b11aab0973ee03",
+    "semantic_hash": "29a3a67a27cd0d7f27b11aab0973ee03"
+  },
+  "Packages/manifest.json": {
+    "mtime": 1785164111.3826025,
+    "ast_hash": "013a8087913e78661e97d8c4b4b049bc",
+    "semantic_hash": "013a8087913e78661e97d8c4b4b049bc"
+  },
+  "Packages/packages-lock.json": {
+    "mtime": 1785164111.3866954,
+    "ast_hash": "d7b06615467ecf60cdd8004a87b72a3e",
+    "semantic_hash": "d7b06615467ecf60cdd8004a87b72a3e"
+  },
+  "ProjectSettings/Packages/com.unity.probuilder/Settings.json": {
+    "mtime": 1785162489.9065392,
+    "ast_hash": "284e92e23bb7ba8b096be416106be10e",
+    "semantic_hash": "284e92e23bb7ba8b096be416106be10e"
+  },
+  "ProjectSettings/SceneTemplateSettings.json": {
+    "mtime": 1768922548.3655024,
+    "ast_hash": "eeb26e313b89cd9334b828428a4847ef",
+    "semantic_hash": "eeb26e313b89cd9334b828428a4847ef"
+  },
+  ".codex/skills/uloop-clear-console/SKILL.md": {
+    "mtime": 1785077905.3506358,
+    "ast_hash": "41debc4f20bc2153ed100e89813a915b",
+    "semantic_hash": "41debc4f20bc2153ed100e89813a915b"
+  },
+  ".codex/skills/uloop-compile/SKILL.md": {
+    "mtime": 1785077905.3511424,
+    "ast_hash": "acaac42dacb51a2919b46670990b8125",
+    "semantic_hash": "acaac42dacb51a2919b46670990b8125"
+  },
+  ".codex/skills/uloop-control-play-mode/SKILL.md": {
+    "mtime": 1785077905.352648,
+    "ast_hash": "f758feb11d9516d6bd57550f5cdd8948",
+    "semantic_hash": "f758feb11d9516d6bd57550f5cdd8948"
+  },
+  ".codex/skills/uloop-execute-dynamic-code/SKILL.md": {
+    "mtime": 1785077905.3541825,
+    "ast_hash": "fd230e051443b2d8b465788104e28536",
+    "semantic_hash": "fd230e051443b2d8b465788104e28536"
+  },
+  ".codex/skills/uloop-execute-dynamic-code/references/asset-operations.md": {
+    "mtime": 1785077905.355695,
+    "ast_hash": "8c6c67787fbb1259c43b00a5ff7b00da",
+    "semantic_hash": "8c6c67787fbb1259c43b00a5ff7b00da"
+  },
+  ".codex/skills/uloop-execute-dynamic-code/references/batch-operations.md": {
+    "mtime": 1785077905.3567507,
+    "ast_hash": "2226c96430f675c45e86c3e78010b22c",
+    "semantic_hash": "2226c96430f675c45e86c3e78010b22c"
+  },
+  ".codex/skills/uloop-execute-dynamic-code/references/cleanup-operations.md": {
+    "mtime": 1785077905.3572772,
+    "ast_hash": "7dc0ec5f57eff0ce598d049d284053ee",
+    "semantic_hash": "7dc0ec5f57eff0ce598d049d284053ee"
+  },
+  ".codex/skills/uloop-execute-dynamic-code/references/material-operations.md": {
+    "mtime": 1785077905.3585796,
+    "ast_hash": "f7acd0d5d0d063600d7f9037a77319f8",
+    "semantic_hash": "f7acd0d5d0d063600d7f9037a77319f8"
+  },
+  ".codex/skills/uloop-execute-dynamic-code/references/playmode-automation-powershell.md": {
+    "mtime": 1785077905.359681,
+    "ast_hash": "bd59dd4251eb55bfddba6608a903e770",
+    "semantic_hash": "bd59dd4251eb55bfddba6608a903e770"
+  },
+  ".codex/skills/uloop-execute-dynamic-code/references/playmode-automation-zsh.md": {
+    "mtime": 1785077905.360735,
+    "ast_hash": "b7bb18071b389d5dae6cb82b2e0b057d",
+    "semantic_hash": "b7bb18071b389d5dae6cb82b2e0b057d"
+  },
+  ".codex/skills/uloop-execute-dynamic-code/references/playmode-inspection.md": {
+    "mtime": 1785077905.3618097,
+    "ast_hash": "c2770ba2872dcd48ebaba47f51e0c1c7",
+    "semantic_hash": "c2770ba2872dcd48ebaba47f51e0c1c7"
+  },
+  ".codex/skills/uloop-execute-dynamic-code/references/playmode-ui-controls.md": {
+    "mtime": 1785077905.3629053,
+    "ast_hash": "9384c00a96085cc37ae69a6a38adef08",
+    "semantic_hash": "9384c00a96085cc37ae69a6a38adef08"
+  },
+  ".codex/skills/uloop-execute-dynamic-code/references/prefab-operations.md": {
+    "mtime": 1785077905.3639631,
+    "ast_hash": "e6ea776e12d2a1aa5deb968ab9a9172d",
+    "semantic_hash": "e6ea776e12d2a1aa5deb968ab9a9172d"
+  },
+  ".codex/skills/uloop-execute-dynamic-code/references/scene-operations.md": {
+    "mtime": 1785077905.364717,
+    "ast_hash": "7d51256e3fd1f709c557c94a59c90e5c",
+    "semantic_hash": "7d51256e3fd1f709c557c94a59c90e5c"
+  },
+  ".codex/skills/uloop-execute-dynamic-code/references/scriptableobject.md": {
+    "mtime": 1785077905.365859,
+    "ast_hash": "24f9e68c9818aeb858d5658929cbd9e4",
+    "semantic_hash": "24f9e68c9818aeb858d5658929cbd9e4"
+  },
+  ".codex/skills/uloop-execute-dynamic-code/references/selection-operations.md": {
+    "mtime": 1785077905.366931,
+    "ast_hash": "6105221c9b906ba55032babaf5c41677",
+    "semantic_hash": "6105221c9b906ba55032babaf5c41677"
+  },
+  ".codex/skills/uloop-execute-dynamic-code/references/undo-operations.md": {
+    "mtime": 1785077905.3679392,
+    "ast_hash": "658685e90758626cdfd09f0a997b2e0e",
+    "semantic_hash": "658685e90758626cdfd09f0a997b2e0e"
+  },
+  ".codex/skills/uloop-find-game-objects/SKILL.md": {
+    "mtime": 1785077905.3690164,
+    "ast_hash": "39587be820124ab4cf0e5bcb92c8d399",
+    "semantic_hash": "39587be820124ab4cf0e5bcb92c8d399"
+  },
+  ".codex/skills/uloop-focus-window/SKILL.md": {
+    "mtime": 1785077905.3706222,
+    "ast_hash": "671ff37840a979d4a16ef4e05f59cea4",
+    "semantic_hash": "671ff37840a979d4a16ef4e05f59cea4"
+  },
+  ".codex/skills/uloop-get-hierarchy/SKILL.md": {
+    "mtime": 1785077905.3717284,
+    "ast_hash": "b6107fa5918276aed7d0f4b52109dcbb",
+    "semantic_hash": "b6107fa5918276aed7d0f4b52109dcbb"
+  },
+  ".codex/skills/uloop-get-logs/SKILL.md": {
+    "mtime": 1785077905.3727975,
+    "ast_hash": "74ba543efa693e6fe35c95d106c08afb",
+    "semantic_hash": "74ba543efa693e6fe35c95d106c08afb"
+  },
+  ".codex/skills/uloop-launch/SKILL.md": {
+    "mtime": 1785077905.373884,
+    "ast_hash": "254d9028a37e06216894aa14114ba8b0",
+    "semantic_hash": "254d9028a37e06216894aa14114ba8b0"
+  },
+  ".codex/skills/uloop-raycast/SKILL.md": {
+    "mtime": 1785077905.374438,
+    "ast_hash": "d9efee0e529b263220a3a91ab45ee7cb",
+    "semantic_hash": "d9efee0e529b263220a3a91ab45ee7cb"
+  },
+  ".codex/skills/uloop-record-input/SKILL.md": {
+    "mtime": 1785077905.376958,
+    "ast_hash": "5fe5c8353fd64fead1a1510b3ba17e15",
+    "semantic_hash": "5fe5c8353fd64fead1a1510b3ba17e15"
+  },
+  ".codex/skills/uloop-record-input/references/deterministic-replay.md": {
+    "mtime": 1785077905.3779643,
+    "ast_hash": "ec177a09bd26d19d06c69da26c04f0e0",
+    "semantic_hash": "ec177a09bd26d19d06c69da26c04f0e0"
+  },
+  ".codex/skills/uloop-replay-input/SKILL.md": {
+    "mtime": 1785077905.3789659,
+    "ast_hash": "0bf3ff2465de56f1c6862ba35f0b755c",
+    "semantic_hash": "0bf3ff2465de56f1c6862ba35f0b755c"
+  },
+  ".codex/skills/uloop-replay-input/references/deterministic-replay.md": {
+    "mtime": 1785077905.380473,
+    "ast_hash": "ec177a09bd26d19d06c69da26c04f0e0",
+    "semantic_hash": "ec177a09bd26d19d06c69da26c04f0e0"
+  },
+  ".codex/skills/uloop-run-tests/SKILL.md": {
+    "mtime": 1785077905.3814797,
+    "ast_hash": "918d05a33207eb592c9091408c60496e",
+    "semantic_hash": "918d05a33207eb592c9091408c60496e"
+  },
+  ".codex/skills/uloop-screenshot/SKILL.md": {
+    "mtime": 1785077905.3829887,
+    "ast_hash": "4a001e3fd88ef5dab814e29dc423b07a",
+    "semantic_hash": "4a001e3fd88ef5dab814e29dc423b07a"
+  },
+  ".codex/skills/uloop-screenshot/references/annotated-elements.md": {
+    "mtime": 1785077905.3835325,
+    "ast_hash": "14cdcbbb855782e5cb7170d79b253d64",
+    "semantic_hash": "14cdcbbb855782e5cb7170d79b253d64"
+  },
+  ".codex/skills/uloop-simulate-keyboard/SKILL.md": {
+    "mtime": 1785077905.3850474,
+    "ast_hash": "58bdb231479a1bb0fb8ba12df2a74569",
+    "semantic_hash": "58bdb231479a1bb0fb8ba12df2a74569"
+  },
+  ".codex/skills/uloop-simulate-mouse-input/SKILL.md": {
+    "mtime": 1785077905.3860562,
+    "ast_hash": "3fe66388676dabde42c078340de541cb",
+    "semantic_hash": "3fe66388676dabde42c078340de541cb"
+  },
+  ".codex/skills/uloop-simulate-mouse-ui/SKILL.md": {
+    "mtime": 1785077905.3875644,
+    "ast_hash": "e1c7a2569a371eacb656bffbb64e3531",
+    "semantic_hash": "e1c7a2569a371eacb656bffbb64e3531"
+  },
+  "AGENTS.md": {
+    "mtime": 1785077905.393085,
+    "ast_hash": "8af394352b94c775cb3d5f9c4e36e988",
+    "semantic_hash": "8af394352b94c775cb3d5f9c4e36e988"
+  },
+  "API_CHECKLIST.md": {
+    "mtime": 1785085494.5589545,
+    "ast_hash": "14cbf1acd44b40380e70f41a98d3a3b5",
+    "semantic_hash": "14cbf1acd44b40380e70f41a98d3a3b5"
+  },
+  "Assets/TextMesh Pro/Fonts/LiberationSans - OFL.txt": {
+    "mtime": 1769611182.5746343,
+    "ast_hash": "a0631122fee5a71a264609ff53bf5a23",
+    "semantic_hash": "a0631122fee5a71a264609ff53bf5a23"
+  },
+  "Assets/TextMesh Pro/Resources/LineBreaking Following Characters.txt": {
+    "mtime": 1769611182.9285052,
+    "ast_hash": "345c77ed32179f5f982dcf8e2b1d92af",
+    "semantic_hash": "345c77ed32179f5f982dcf8e2b1d92af"
+  },
+  "Assets/TextMesh Pro/Resources/LineBreaking Leading Characters.txt": {
+    "mtime": 1769611182.9290252,
+    "ast_hash": "d52dd40acd32a62df3bc764b1e783ddf",
+    "semantic_hash": "d52dd40acd32a62df3bc764b1e783ddf"
+  },
+  "Assets/TextMesh Pro/Sprites/EmojiOne Attribution.txt": {
+    "mtime": 1769611182.9426608,
+    "ast_hash": "759264906d349d566518f06e38d06772",
+    "semantic_hash": "759264906d349d566518f06e38d06772"
+  },
+  "ProjectSettings/ProjectVersion.txt": {
+    "mtime": 1768894114.8834977,
+    "ast_hash": "2179663f7d5f5fadb77adbe9ed6c4a6b",
+    "semantic_hash": "2179663f7d5f5fadb77adbe9ed6c4a6b"
+  },
+  "README.md": {
+    "mtime": 1785085367.9663591,
+    "ast_hash": "e69fffb554fc78fbf7957bf305be8144",
+    "semantic_hash": "e69fffb554fc78fbf7957bf305be8144"
+  },
+  "Assets/TextMesh Pro/Sprites/EmojiOne.png": {
+    "mtime": 1769611184.679481,
+    "ast_hash": "abd61fb690e3df99b4cbd4f114afbd06",
+    "semantic_hash": "abd61fb690e3df99b4cbd4f114afbd06"
+  },
+  "Assets/TutorialInfo/Icons/URP.png": {
+    "mtime": 1768894116.3961513,
+    "ast_hash": "6d2f425093f43ca4866c76d333895ab8",
+    "semantic_hash": "6d2f425093f43ca4866c76d333895ab8"
+  }
+}
