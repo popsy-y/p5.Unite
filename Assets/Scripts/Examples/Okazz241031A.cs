@@ -40,6 +40,9 @@ namespace Unite.Examples
         [SerializeField] private ExampleDrawingMode _drawingMode = ExampleDrawingMode.ScreenOverlay;
         [SerializeField] private bool _drawBackground = true;
         [SerializeField] private Vector2 _canvasLocalSize = new(10f, 10f);
+        [SerializeField]
+        [Tooltip("Enables local Z-axis movement in CanvasLocal mode. ScreenOverlay ignores depth.")]
+        private bool _moveAlongZ;
         [SerializeField] private uint _seed = 241031;
 
         private readonly List<DynamicShape> _shapes = new();
@@ -50,6 +53,7 @@ namespace Unite.Examples
         private Vector2 _canvasOrigin;
         private float _canvasSize;
         private float _spawnCountdown;
+        private bool _previousMoveAlongZ;
 
         private void OnEnable()
         {
@@ -62,11 +66,13 @@ namespace Unite.Examples
             _random = new Random(_seed == 0 ? 1u : _seed);
             _canvasDimensions = Vector2.zero;
             _spawnCountdown = nextSpawnDelay();
+            _previousMoveAlongZ = _moveAlongZ;
         }
 
         private void Update()
         {
             updateDrawingMode();
+            updateZMovement();
 
             if (!updateCanvasDimensions())
                 return;
@@ -78,7 +84,7 @@ namespace Unite.Examples
             foreach (var shape in _shapes)
             {
                 shape.Draw(_canvas);
-                shape.Step(deltaFrames, _canvasSize, ref _random);
+                shape.Step(deltaFrames, _canvasSize, isZMovementEnabled(), ref _random);
             }
 
             _spawnCountdown -= deltaFrames;
@@ -137,10 +143,24 @@ namespace Unite.Examples
             _canvasDimensions = Vector2.zero;
         }
 
+        private void updateZMovement()
+        {
+            if (_moveAlongZ == _previousMoveAlongZ)
+                return;
+
+            _previousMoveAlongZ = _moveAlongZ;
+            _shapes.Clear();
+            if (_canvasSize > 0f)
+                addShape();
+        }
+
         private DrawingMode getDrawingMode()
             => _drawingMode == ExampleDrawingMode.ScreenOverlay
                 ? DrawingMode.ScreenOverlay
                 : DrawingMode.CanvasLocal;
+
+        private bool isZMovementEnabled()
+            => _moveAlongZ && _drawingMode == ExampleDrawingMode.CanvasLocal;
 
         private Vector2 getCanvasDimensions()
         {
@@ -162,7 +182,15 @@ namespace Unite.Examples
         private void addShape()
         {
             var color = _colors[_random.NextInt(_colors.Length)];
-            _shapes.Add(new DynamicShape(_canvasOrigin, _canvasSize, color, ref _random));
+            _shapes.Add(
+                new DynamicShape(
+                    _canvasOrigin,
+                    _canvasSize,
+                    color,
+                    isZMovementEnabled(),
+                    ref _random
+                )
+            );
         }
 
         private float nextSpawnDelay()
@@ -186,9 +214,9 @@ namespace Unite.Examples
             private readonly int _maxActionPoints;
             private readonly int _shapeType;
 
-            private Vector2 _position;
-            private Vector2 _fromPosition;
-            private Vector2 _toPosition;
+            private Vector3 _position;
+            private Vector3 _fromPosition;
+            private Vector3 _toPosition;
             private int _actionPoints;
             private int _animationType;
             private float _duration;
@@ -206,12 +234,14 @@ namespace Unite.Examples
                 Vector2 canvasOrigin,
                 float canvasSize,
                 Color color,
+                bool moveAlongZ,
                 ref Random random
             )
             {
-                _position = canvasOrigin + new Vector2(
-                    random.NextFloat(0.3f, 0.7f) * canvasSize,
-                    random.NextFloat(0.3f, 0.7f) * canvasSize
+                _position = new Vector3(
+                    canvasOrigin.x + random.NextFloat(0.3f, 0.7f) * canvasSize,
+                    canvasOrigin.y + random.NextFloat(0.3f, 0.7f) * canvasSize,
+                    0f
                 );
                 _color = color;
                 _shapeType = random.NextInt(4);
@@ -219,7 +249,7 @@ namespace Unite.Examples
                 _actionPoints = _maxActionPoints;
                 _sizeMax = canvasSize * random.NextFloat(0.01f, 0.05f);
 
-                initializeAction(canvasSize, ref random);
+                initializeAction(canvasSize, moveAlongZ, ref random);
             }
 
             public void Draw(UCanvas canvas)
@@ -231,10 +261,19 @@ namespace Unite.Examples
 
                 canvas.Stroke(_color);
                 canvas.StrokeWeight(_lineStrokeWeight);
-                canvas.Line(_position, _fromPosition);
+                canvas.Line(
+                    new Vector2(_position.x, _position.y),
+                    new Vector2(_fromPosition.x, _fromPosition.y),
+                    _position.z
+                );
             }
 
-            public void Step(float deltaFrames, float canvasSize, ref Random random)
+            public void Step(
+                float deltaFrames,
+                float canvasSize,
+                bool moveAlongZ,
+                ref Random random
+            )
             {
                 var normalizedTime = Mathf.Clamp01(_elapsed / _duration);
                 var easedTime = easeInOutExpo(normalizedTime);
@@ -260,7 +299,7 @@ namespace Unite.Examples
                     return;
 
                 _actionPoints--;
-                initializeAction(canvasSize, ref random);
+                initializeAction(canvasSize, moveAlongZ, ref random);
                 if (_actionPoints < 0)
                     IsDead = true;
             }
@@ -306,7 +345,7 @@ namespace Unite.Examples
                         Mathf.Sin(easedTime * Mathf.PI)
                     );
                 }
-                else
+                else if (_animationType == 2)
                 {
                     _position.y = Mathf.Lerp(_fromPosition.y, _toPosition.y, easedTime);
                     _lineStrokeWeight = Mathf.Lerp(
@@ -314,6 +353,10 @@ namespace Unite.Examples
                         _size * 0.2f,
                         Mathf.Sin(easedTime * Mathf.PI)
                     );
+                }
+                else
+                {
+                    _position.z = Mathf.Lerp(_fromPosition.z, _toPosition.z, easedTime);
                 }
 
                 _reductionRatio = Mathf.Lerp(
@@ -323,7 +366,11 @@ namespace Unite.Examples
                 );
             }
 
-            private void initializeAction(float canvasSize, ref Random random)
+            private void initializeAction(
+                float canvasSize,
+                bool moveAlongZ,
+                ref Random random
+            )
             {
                 _elapsed = 0f;
                 _fromSize = _size;
@@ -336,7 +383,10 @@ namespace Unite.Examples
                 _toPosition.y += canvasSize * 0.1f
                     * (random.NextBool() ? -1f : 1f)
                     * random.NextInt(1, 4);
-                _animationType = random.NextInt(3);
+                _toPosition.z += canvasSize * 0.1f
+                    * (random.NextBool() ? -1f : 1f)
+                    * random.NextInt(1, 4);
+                _animationType = random.NextInt(moveAlongZ ? 4 : 3);
                 _duration = random.NextFloat(20f, 50f);
                 _reductionRatio = 1f;
                 _lineStrokeWeight = 0f;
