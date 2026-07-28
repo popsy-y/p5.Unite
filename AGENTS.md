@@ -25,6 +25,10 @@ p5.Unite is a Unity library that brings p5.js-style creative coding to Unity. It
 /Assets/Scripts/Dev/ - Development and testing scripts (CanvasTester.cs, MassiveShapeTester.cs, etc.)
 ```
 
+## API Reference
+
+A categorized p5.js compatibility reference is available. Start at the manifest in [`API_CHECKLIST.md`](API_CHECKLIST.md), which links to the category documents under `references/api-checklist/`.
+
 ## Build/Lint/Test Commands
 
 ### Formatting
