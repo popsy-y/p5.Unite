@@ -57,10 +57,10 @@ Shader "Hidden/Unite/CanvasLocalDrawing"
                     : input.instanceID;
                 ShapeData data = _ShapeData[dataIndex];
                 float2 shapePosition = ShapePosition(input.uv, data);
-                float3 positionLocal = DrawingPosition(shapePosition, data);
-                float3 positionWS = mul(_ParentTransform, float4(positionLocal, 1.0)).xyz;
+                float4 positionLocal = DrawingPosition(shapePosition, data);
+                float4 positionWS = mul(_ParentTransform, positionLocal);
 
-                output.positionCS = TransformWorldToHClip(positionWS);
+                output.positionCS = mul(UNITY_MATRIX_VP, positionWS);
                 output.shapePosition = shapePosition;
                 output.instanceID = dataIndex;
                 return output;

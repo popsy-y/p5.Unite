@@ -53,9 +53,9 @@ Shader "Hidden/Unite/WorldDrawing"
                     : input.instanceID;
                 ShapeData data = _ShapeData[dataIndex];
                 float2 shapePosition = ShapePosition(input.uv, data);
-                float3 positionWS = DrawingPosition(shapePosition, data);
+                float4 positionWS = DrawingPosition(shapePosition, data);
 
-                output.positionCS = TransformWorldToHClip(positionWS);
+                output.positionCS = mul(UNITY_MATRIX_VP, positionWS);
                 output.shapePosition = shapePosition;
                 output.instanceID = dataIndex;
                 return output;

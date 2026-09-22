@@ -32,8 +32,17 @@ namespace Unite.Canvas
 
     public partial class UCanvas
     {
-        public ShapeMode RectMode { get; set; } = ShapeMode.Corner;
-        public ShapeMode EllipseMode { get; set; } = ShapeMode.Center;
+        public ShapeMode RectMode
+        {
+            get => _styleState.RectMode;
+            set => _styleState.RectMode = value;
+        }
+
+        public ShapeMode EllipseMode
+        {
+            get => _styleState.EllipseMode;
+            set => _styleState.EllipseMode = value;
+        }
 
         private void EnqueueCenteredShape(
             Shape shape,
@@ -43,26 +52,21 @@ namespace Unite.Canvas
         )
         {
             CheckDrawingContext();
-            if (!_fillEnabled && !_strokeEnabled)
+            if (!_styleState.FillEnabled && !_styleState.StrokeEnabled)
                 return;
-
-            var (rotation, scale) = GetRotationAndScale();
-            var absoluteScale = new Vector2(Mathf.Abs(scale.x), Mathf.Abs(scale.y));
-            var scaledSize = Vector2.Scale(Abs(size), absoluteScale);
 
             _commandQueue.Enqueue(new DrawCommand
             {
-                Position = TransformPoint(center),
-                Rotation = rotation,
-                Size = scaledSize,
+                Transform = CurrentTransform * Matrix4x4.Translate(center),
+                Size = Abs(size),
                 ShapeType = shape,
-                CornerRadiiX = Abs(cornerRadii) * absoluteScale.x,
-                CornerRadiiY = Abs(cornerRadii) * absoluteScale.y,
-                FillColor = _fillColor,
-                StrokeColor = _strokeColor,
-                StrokeWeight = Mathf.Max(0f, _strokeWeight),
-                FillEnabled = _fillEnabled,
-                StrokeEnabled = _strokeEnabled
+                CornerRadiiX = Abs(cornerRadii),
+                CornerRadiiY = Abs(cornerRadii),
+                FillColor = _styleState.FillColor,
+                StrokeColor = _styleState.StrokeColor,
+                StrokeWeight = Mathf.Max(0f, _styleState.StrokeWeight),
+                FillEnabled = _styleState.FillEnabled,
+                StrokeEnabled = _styleState.StrokeEnabled
             });
         }
 
@@ -79,8 +83,8 @@ namespace Unite.Canvas
         {
             CheckDrawingContext();
 
-            bool fillEnabled = allowFill && _fillEnabled;
-            if (!fillEnabled && !_strokeEnabled)
+            bool fillEnabled = allowFill && _styleState.FillEnabled;
+            if (!fillEnabled && !_styleState.StrokeEnabled)
                 return;
 
             Vector2 boundsMin = point0;
@@ -91,10 +95,7 @@ namespace Unite.Canvas
 
             var center2 = (boundsMin + boundsMax) * 0.5f;
             var center3 = new Vector3(center2.x, center2.y, z);
-            var (rotation, scale) = GetRotationAndScale();
-            var absoluteScale = new Vector2(Mathf.Abs(scale.x), Mathf.Abs(scale.y));
-
-            Vector2 ToShapePoint(Vector2 point) => Vector2.Scale(point - center2, absoluteScale);
+            Vector2 ToShapePoint(Vector2 point) => point - center2;
 
             var shapePoint0 = ToShapePoint(point0);
             var shapePoint1 = ToShapePoint(point1);
@@ -108,8 +109,7 @@ namespace Unite.Canvas
 
             _commandQueue.Enqueue(new DrawCommand
             {
-                Position = TransformPoint(center3),
-                Rotation = rotation,
+                Transform = CurrentTransform * Matrix4x4.Translate(center3),
                 Size = shapeBoundsMax - shapeBoundsMin,
                 Point0 = shapePoint0,
                 Point1 = shapePoint1,
@@ -119,11 +119,11 @@ namespace Unite.Canvas
                 BoundsMax = shapeBoundsMax,
                 HasCustomBounds = true,
                 ShapeType = shape,
-                FillColor = _fillColor,
-                StrokeColor = _strokeColor,
-                StrokeWeight = Mathf.Max(0f, _strokeWeight),
+                FillColor = _styleState.FillColor,
+                StrokeColor = _styleState.StrokeColor,
+                StrokeWeight = Mathf.Max(0f, _styleState.StrokeWeight),
                 FillEnabled = fillEnabled,
-                StrokeEnabled = _strokeEnabled
+                StrokeEnabled = _styleState.StrokeEnabled
             });
         }
 

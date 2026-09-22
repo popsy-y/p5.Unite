@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using Unity.Mathematics;
 using UnityEngine;
 
 namespace Unite.Coordinate
@@ -15,7 +14,9 @@ namespace Unite.Coordinate
     {
         private Matrix4x4 _currentMatrix = Matrix4x4.identity;
 
-        private Stack<Matrix4x4> _stack = new();
+        private readonly Stack<Matrix4x4> _stack = new();
+
+        public Matrix4x4 CurrentMatrix => _currentMatrix;
 
         public CanvasTransformStack()
         {
@@ -25,6 +26,11 @@ namespace Unite.Coordinate
         public void Reset()
         {
             _currentMatrix = Matrix4x4.identity;
+        }
+
+        public void Clear()
+        {
+            Reset();
             _stack.Clear();
         }
 
@@ -38,10 +44,13 @@ namespace Unite.Coordinate
             }
             else
             {
-                Debug.LogWarning("Matrix stack underflow!");
-                _currentMatrix = Matrix4x4.identity;
+                Debug.LogWarning("p5.Unite: Pop() was called without a matching Push().");
             }
         }
+
+        public void Restore(Matrix4x4 matrix) => _currentMatrix = matrix;
+
+        public void ApplyMatrix(Matrix4x4 matrix) => _currentMatrix *= matrix;
 
         public void Translate(Vector3 translation)
             => _currentMatrix *= Matrix4x4.Translate(translation);
@@ -49,13 +58,27 @@ namespace Unite.Coordinate
         public void Translate(float x, float y, float z = 0f)
             => Translate(new Vector3(x, y, z));
 
-
         public void Rotate(float radians)
             => _currentMatrix *= Matrix4x4.Rotate(Quaternion.Euler(0f, 0f, radians * Mathf.Rad2Deg));
 
         public void Rotate(Vector3 anglesRadians)
             => _currentMatrix *= Matrix4x4.Rotate(Quaternion.Euler(anglesRadians * Mathf.Rad2Deg));
 
+        public void Rotate(float radians, Vector3 axis)
+        {
+            if (axis.sqrMagnitude <= Mathf.Epsilon)
+                return;
+
+            _currentMatrix *= Matrix4x4.Rotate(
+                Quaternion.AngleAxis(radians * Mathf.Rad2Deg, axis.normalized)
+            );
+        }
+
+        public void RotateX(float radians) => Rotate(radians, Vector3.right);
+
+        public void RotateY(float radians) => Rotate(radians, Vector3.up);
+
+        public void RotateZ(float radians) => Rotate(radians, Vector3.forward);
 
         public void Scale(Vector3 scale)
             => _currentMatrix *= Matrix4x4.Scale(scale);
@@ -63,15 +86,23 @@ namespace Unite.Coordinate
         public void Scale(float x, float y, float z)
             => Scale(new Vector3(x, y, z));
 
+        public void ShearX(float radians)
+        {
+            var matrix = Matrix4x4.identity;
+            matrix.m01 = Mathf.Tan(radians);
+            ApplyMatrix(matrix);
+        }
+
+        public void ShearY(float radians)
+        {
+            var matrix = Matrix4x4.identity;
+            matrix.m10 = Mathf.Tan(radians);
+            ApplyMatrix(matrix);
+        }
+
 
         public Vector3 TransformPoint(Vector3 point)
-            => _currentMatrix.MultiplyPoint3x4(point);
-
-        // public (float angleDeg, Vector2 scale) RotationAndScale()
-        //     => (
-        //         _currentMatrix.rotation.eulerAngles.z * Mathf.Deg2Rad,
-        //         new Vector2(_currentMatrix.lossyScale.x, _currentMatrix.lossyScale.y)
-        //     );
+            => _currentMatrix.MultiplyPoint(point);
 
         public (Vector3 angleDeg, Vector2 scale) RotationAndScale()
             => (

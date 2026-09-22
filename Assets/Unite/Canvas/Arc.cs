@@ -48,7 +48,7 @@ namespace Unite.Canvas
         )
         {
             CheckDrawingContext();
-            if (!_fillEnabled && !_strokeEnabled)
+            if (!_styleState.FillEnabled && !_styleState.StrokeEnabled)
                 return;
 
             float rawSweep = stop - start;
@@ -56,16 +56,14 @@ namespace Unite.Canvas
                 return;
 
             var (center, resolvedSize) = ResolveShapeMode(position, size, EllipseMode);
-            var (rotation, scale) = GetRotationAndScale();
-            var absoluteScale = new Vector2(Mathf.Abs(scale.x), Mathf.Abs(scale.y));
-            var scaledSize = Vector2.Scale(Abs(resolvedSize), absoluteScale);
-            var radius = scaledSize * 0.5f;
+            var shapeSize = Abs(resolvedSize);
+            var radius = shapeSize * 0.5f;
 
             bool isFullEllipse = Mathf.Abs(Mathf.Repeat(rawSweep, TwoPi)) < AngleEpsilon;
-            float correctedStart = CorrectEllipseAngle(start, scaledSize);
+            float correctedStart = CorrectEllipseAngle(start, shapeSize);
             float correctedSweep = isFullEllipse
                 ? TwoPi
-                : Mathf.Repeat(CorrectEllipseAngle(stop, scaledSize) - correctedStart, TwoPi);
+                : Mathf.Repeat(CorrectEllipseAngle(stop, shapeSize) - correctedStart, TwoPi);
 
             if (!isFullEllipse && correctedSweep < AngleEpsilon)
                 return;
@@ -81,20 +79,19 @@ namespace Unite.Canvas
 
             _commandQueue.Enqueue(new DrawCommand
             {
-                Position = TransformPoint(center),
-                Rotation = rotation,
-                Size = scaledSize,
+                Transform = CurrentTransform * Matrix4x4.Translate(center),
+                Size = shapeSize,
                 BoundsMin = boundsMin,
                 BoundsMax = boundsMax,
                 HasCustomBounds = true,
                 Parameters0 = new Vector4(correctedStart, correctedSweep, 0f, 0f),
                 ShapeType = Shape.Arc,
                 ArcMode = mode,
-                FillColor = _fillColor,
-                StrokeColor = _strokeColor,
-                StrokeWeight = Mathf.Max(0f, _strokeWeight),
-                FillEnabled = _fillEnabled,
-                StrokeEnabled = _strokeEnabled
+                FillColor = _styleState.FillColor,
+                StrokeColor = _styleState.StrokeColor,
+                StrokeWeight = Mathf.Max(0f, _styleState.StrokeWeight),
+                FillEnabled = _styleState.FillEnabled,
+                StrokeEnabled = _styleState.StrokeEnabled
             });
         }
 
