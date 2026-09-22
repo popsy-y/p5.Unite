@@ -60,7 +60,11 @@ Shader "Hidden/Unite/ScreenDrawing"
                 ShapeData data = _ShapeData[dataIndex];
 
                 float2 shapePosition = ShapePosition(input.uv, data);
-                float3 drawingPosition = DrawingPosition(shapePosition, data);
+                float4 drawingPositionH = DrawingPosition(shapePosition, data);
+                float safeW = abs(drawingPositionH.w) > 1e-6
+                    ? drawingPositionH.w
+                    : (drawingPositionH.w < 0.0 ? -1e-6 : 1e-6);
+                float3 drawingPosition = drawingPositionH.xyz / safeW;
                 bool isPixelScreen = _DrawingMode == 0 || _DrawingMode == 1;
                 bool isOverlay = _DrawingMode == 0 || _DrawingMode == 2;
 
@@ -68,8 +72,13 @@ Shader "Hidden/Unite/ScreenDrawing"
                     ? drawingPosition.xy / _ScreenParams.xy
                     : drawingPosition.xy;
 
+                float anchorSafeW = abs(data.Transform3.w) > 1e-6
+                    ? data.Transform3.w
+                    : (data.Transform3.w < 0.0 ? -1e-6 : 1e-6);
+                float anchorDepth = data.Transform3.z / anchorSafeW;
+
                 output.positionCS = float4(screenPosition * 2.0 - 1.0,
-                                           isOverlay ? 0.0 : drawingPosition.z, 1.0);
+                                           isOverlay ? 0.0 : anchorDepth, 1.0);
 
                 float rawDepth = output.positionCS.z;
                 if (unity_OrthoParams.w < 0.5)

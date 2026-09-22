@@ -6,6 +6,40 @@ using UnityEngine.Rendering;
 
 namespace Unite.Canvas
 {
+    internal struct CanvasStyleState
+    {
+        public Color FillColor;
+        public Color StrokeColor;
+        public float StrokeWeight;
+        public bool FillEnabled;
+        public bool StrokeEnabled;
+        public ShapeMode RectMode;
+        public ShapeMode EllipseMode;
+
+        public static CanvasStyleState Default => new()
+        {
+            FillColor = Color.white,
+            StrokeColor = Color.black,
+            StrokeWeight = 1f,
+            FillEnabled = true,
+            StrokeEnabled = true,
+            RectMode = ShapeMode.Corner,
+            EllipseMode = ShapeMode.Center
+        };
+    }
+
+    internal readonly struct CanvasState
+    {
+        public CanvasState(Matrix4x4 transform, CanvasStyleState style)
+        {
+            Transform = transform;
+            Style = style;
+        }
+
+        public Matrix4x4 Transform { get; }
+        public CanvasStyleState Style { get; }
+    }
+
     public partial class UCanvas : MonoBehaviour
     {
         [SerializeField][HideInInspector] private DrawingContext _drawingContext;
@@ -111,11 +145,9 @@ namespace Unite.Canvas
 
         #region Color
 
-        private Color _fillColor = Color.white;
-        private Color _strokeColor = Color.black;
-        private float _strokeWeight = 1f;
-        private bool _fillEnabled = true;
-        private bool _strokeEnabled = true;
+        private CanvasStyleState _styleState = CanvasStyleState.Default;
+
+        internal CanvasStyleState StyleState => _styleState;
 
         #endregion
 

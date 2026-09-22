@@ -6,20 +6,20 @@ namespace Unite.Canvas
     {
         public void Fill(Color color)
         {
-            _fillColor = color;
-            _fillEnabled = true;
+            _styleState.FillColor = color;
+            _styleState.FillEnabled = true;
         }
 
-        public void NoFill() => _fillEnabled = false;
+        public void NoFill() => _styleState.FillEnabled = false;
 
         public void Stroke(Color color)
         {
-            _strokeColor = color;
-            _strokeEnabled = true;
+            _styleState.StrokeColor = color;
+            _styleState.StrokeEnabled = true;
         }
 
-        public void NoStroke() => _strokeEnabled = false;
+        public void NoStroke() => _styleState.StrokeEnabled = false;
 
-        public void StrokeWeight(float weight) => _strokeWeight = weight;
+        public void StrokeWeight(float weight) => _styleState.StrokeWeight = weight;
     }
 }

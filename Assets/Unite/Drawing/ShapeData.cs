@@ -12,8 +12,10 @@ namespace Unite.Drawing
     [StructLayout(LayoutKind.Sequential)]
     public struct ShapeData
     {
-        public Vector4 Position;
-        public Vector4 Rotation;
+        public Vector4 Transform0;
+        public Vector4 Transform1;
+        public Vector4 Transform2;
+        public Vector4 Transform3;
         public Vector4 Bounds;
         public Vector4 ShapeParameters;
 

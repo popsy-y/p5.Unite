@@ -100,12 +100,13 @@ namespace Unite.Drawing
 
             foreach (var cmd in commands)
             {
-                var q = Quaternion.Euler(cmd.Rotation);
-                var rot = new Vector4(q.x, q.y, q.z, q.w);
+                var transform = cmd.Transform == Matrix4x4.zero
+                    ? Matrix4x4.TRS(cmd.Position, Quaternion.Euler(cmd.Rotation), Vector3.one)
+                    : cmd.Transform;
                 var shapeSize = new Vector2(Mathf.Abs(cmd.Size.x), Mathf.Abs(cmd.Size.y));
                 var halfSize = shapeSize * 0.5f;
                 float strokeWeight = cmd.StrokeEnabled ? Mathf.Max(0f, cmd.StrokeWeight) : 0f;
-                float padding = strokeWeight * 0.5f + AntiAliasPadding(cam);
+                float padding = strokeWeight * 0.5f + AntiAliasPadding(cam, transform);
                 var padding2 = Vector2.one * padding;
                 int styleFlags = (cmd.FillEnabled ? 1 : 0) |
                                  (cmd.StrokeEnabled && strokeWeight > 0f ? 2 : 0);
@@ -114,8 +115,10 @@ namespace Unite.Drawing
 
                 shapeDataArray[index] = new ShapeData
                 {
-                    Position = new Vector4(cmd.Position.x, cmd.Position.y, cmd.Position.z, 0f),
-                    Rotation = rot,
+                    Transform0 = transform.GetColumn(0),
+                    Transform1 = transform.GetColumn(1),
+                    Transform2 = transform.GetColumn(2),
+                    Transform3 = transform.GetColumn(3),
                     Bounds = new Vector4(
                         boundsMin.x - padding2.x,
                         boundsMin.y - padding2.y,
@@ -199,15 +202,25 @@ namespace Unite.Drawing
             };
         }
 
-        private float AntiAliasPadding(Camera cam)
+        private float AntiAliasPadding(Camera cam, Matrix4x4 transform)
         {
+            float drawingPadding;
             if (DrawingMode is DrawingMode.Screen or DrawingMode.ScreenOverlay)
-                return 1.5f;
+                drawingPadding = 1.5f;
+            else if (DrawingMode is DrawingMode.NormalizedScreen or DrawingMode.NormalizedScreenOverlay)
+                drawingPadding = 1.5f / Mathf.Max(1f, Mathf.Min(cam.pixelWidth, cam.pixelHeight));
+            else
+                drawingPadding = 0.001f;
 
-            if (DrawingMode is DrawingMode.NormalizedScreen or DrawingMode.NormalizedScreenOverlay)
-                return 1.5f / Mathf.Max(1f, Mathf.Min(cam.pixelWidth, cam.pixelHeight));
+            var xAxis = new Vector3(transform.m00, transform.m10, transform.m20);
+            var yAxis = new Vector3(transform.m01, transform.m11, transform.m21);
+            float xx = Vector3.Dot(xAxis, xAxis);
+            float yy = Vector3.Dot(yAxis, yAxis);
+            float xy = Vector3.Dot(xAxis, yAxis);
+            float discriminant = Mathf.Sqrt(Mathf.Max(0f, (xx - yy) * (xx - yy) + 4f * xy * xy));
+            float minimumScale = Mathf.Sqrt(Mathf.Max(0f, (xx + yy - discriminant) * 0.5f));
 
-            return 0.001f;
+            return drawingPadding / Mathf.Max(0.0001f, minimumScale);
         }
 
         private static float GpuShapeType(Shape shape)

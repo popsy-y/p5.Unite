@@ -5,9 +5,9 @@ p5.Unite の公開 API と [p5.js 公式リファレンス](https://p5js.org/ref
 ## Snapshot
 
 - Baseline: p5.js official reference
-- Last checked: 2026-07-27
-- Implemented: 23 / 660
-- Partial support: 2
+- Last checked: 2026-08-05
+- Implemented: 31 / 660
+- Partial support: 0
 - Reference directory: [`references/api-checklist/`](references/api-checklist/)
 
 ## Status semantics
@@ -32,7 +32,7 @@ p5.Unite の公開 API と [p5.js 公式リファレンス](https://p5js.org/ref
 | [Color](references/api-checklist/color.md) | Color creation, reading, fill, stroke, and p5.Color | 4 | 0 | 31 |
 | [Typography](references/api-checklist/typography.md) | Text rendering, font metrics, and p5.Font | 0 | 0 | 25 |
 | [Image](references/api-checklist/image.md) | Images, pixels, loading, display, and p5.Image | 0 | 0 | 39 |
-| [Transform](references/api-checklist/transform.md) | Matrix stack and geometric transforms | 4 | 2 | 12 |
+| [Transform](references/api-checklist/transform.md) | Matrix stack and geometric transforms | 12 | 0 | 12 |
 | [Environment](references/api-checklist/environment.md) | Canvas, display, frame, cursor, and window state | 2 | 0 | 28 |
 | [3D](references/api-checklist/3d.md) | Camera, interaction, lighting, materials, shaders, and GPU data | 0 | 0 | 100 |
 | [Rendering](references/api-checklist/rendering.md) | Graphics buffers, framebuffers, and renderer APIs | 1 | 0 | 28 |

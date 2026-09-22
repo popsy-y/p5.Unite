@@ -4,6 +4,10 @@ namespace Unite.Canvas
 {
     public struct DrawCommand
     {
+        public Matrix4x4 Transform;
+
+        // Legacy fields retained for source compatibility with existing callers.
+        // DrawingContext uses them only when Transform is the zero matrix.
         public Vector3 Position;
         public Vector3 Rotation;
         public Vector2 Size;

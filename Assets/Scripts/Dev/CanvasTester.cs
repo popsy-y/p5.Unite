@@ -12,7 +12,8 @@ namespace Dev
         {
             Primitives,
             ModesAndStyles,
-            Stress
+            Stress,
+            Transforms
         }
 
         private static readonly ShapeMode[] ShapeModes =
@@ -76,6 +77,9 @@ namespace Dev
                     break;
                 case TestPage.Stress:
                     DrawStressTest();
+                    break;
+                case TestPage.Transforms:
+                    DrawTransforms();
                     break;
                 default:
                     DrawPrimitives();
@@ -375,6 +379,63 @@ namespace Dev
                 (normalizedY - 0.5f) * PlanarExtent,
                 0f
             );
+        }
+
+        private void DrawTransforms()
+        {
+            float unit = Unit();
+            float strokeWeight = Mathf.Max(AntiAliasMinimum(), unit * 0.01f);
+            float angle = _animateTransforms ? Mathf.Sin(Time.time) * 0.45f : 0.35f;
+            var shapeSize = new Vector2(unit * 0.13f, unit * 0.09f);
+
+            _canvas.RectMode = ShapeMode.Center;
+            _canvas.EllipseMode = ShapeMode.Center;
+            SetStyle(new Color(0.2f, 0.8f, 1f, 0.8f), DarkColor(), strokeWeight);
+            
+            // moving x low -> x high, y high -> y low
+
+            // Blue Rectangles
+            // Shear X through ApplyMatrix -> Shear X through ShearX() -> Shear Y through ShearY() -> Negative Scale 
+            DrawTransformedRect(Position(0.125f, 0.75f), shapeSize, () =>
+                _canvas.ApplyMatrix(1f, 0f, Mathf.Tan(angle), 1f, 0f, 0f)
+            );
+            DrawTransformedRect(Position(0.375f, 0.75f), shapeSize, () => _canvas.ShearX(angle));
+            DrawTransformedRect(Position(0.625f, 0.75f), shapeSize, () => _canvas.ShearY(angle));
+            DrawTransformedRect(Position(0.875f, 0.75f), shapeSize, () => _canvas.Scale(-1f, 1f, 1f));
+
+            
+            // Orange Rectangles
+            // Rotate X -> Rotate Y -> Rotate Z
+            _canvas.Fill(new Color(1f, 0.55f, 0.2f, 0.8f));
+            DrawTransformedRect(Position(0.125f, 0.35f), shapeSize, () => _canvas.RotateX(angle));
+            DrawTransformedRect(Position(0.375f, 0.35f), shapeSize, () => _canvas.RotateY(angle));
+            DrawTransformedRect(Position(0.625f, 0.35f), shapeSize, () => _canvas.RotateZ(angle));
+
+            
+            // Pink Rectangle
+            // Shear X
+            _canvas.Fill(new Color(0.45f, 1f, 0.55f, 0.8f));
+            _canvas.Stroke(DarkColor());
+            _canvas.Push();
+            _canvas.Translate(Position(0.875f, 0.35f));
+            _canvas.Fill(new Color(1f, 0.25f, 0.65f, 0.8f));
+            _canvas.NoStroke();
+            _canvas.ShearX(angle);
+            _canvas.Rect(Vector3.zero, shapeSize);
+            _canvas.Pop();
+
+            // The outline proves that Pop() restored both transform and style.
+            _canvas.NoFill();
+            _canvas.Circle(Position(0.875f, 0.35f), unit * 0.15f);
+        }
+
+        private void DrawTransformedRect(Vector3 position, Vector2 size, Action transform)
+        {
+            _canvas.Push();
+            _canvas.Translate(position);
+            transform();
+            _canvas.Rect(Vector3.zero, size, size.y * 0.2f);
+            _canvas.Pop();
         }
 
         private float Unit()
