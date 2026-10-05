@@ -14,6 +14,7 @@ namespace Unite.Drawing
     {
         private Mesh _mesh;
         private Material _material;
+        private Material _depthPrepassMaterial;
 
         private Queue<DrawCommand> _commandQueue;
         private DrawCommand[] _frameCommands = Array.Empty<DrawCommand>();
@@ -23,6 +24,29 @@ namespace Unite.Drawing
         public bool DebugShapeBounds { get; set; }
         private Transform _parentTransform;
 
+        private bool _enableDepth;
+
+        /// <summary>
+        /// Enables depth testing and depth writes for this canvas.
+        /// When enabled, shapes are occluded by scene geometry and occlude each other.
+        /// When disabled, shapes are drawn in draw order regardless of the depth buffer.
+        /// Overlay drawing modes always ignore depth.
+        /// </summary>
+        public bool EnableDepth
+        {
+            get => _enableDepth;
+            set
+            {
+                if (_enableDepth == value) return;
+                _enableDepth = value;
+                ApplyDepthState();
+            }
+        }
+
+        private bool DepthIsActive =>
+            _enableDepth &&
+            DrawingMode is not (DrawingMode.ScreenOverlay or DrawingMode.NormalizedScreenOverlay);
+
         private GraphicsBuffer _shapeDataBuffer;
         private GraphicsBuffer _commandBuffer;
         private GraphicsBuffer.IndirectDrawIndexedArgs[] _commandData;
@@ -31,11 +55,13 @@ namespace Unite.Drawing
             DrawingMode mode,
             Queue<DrawCommand> commandQueue,
             Transform parentTransform = null,
-            DrawingExecutionMode executionMode = DrawingExecutionMode.Indirect
+            DrawingExecutionMode executionMode = DrawingExecutionMode.Indirect,
+            bool enableDepth = false
         )
         {
             DrawingMode = mode;
             ExecutionMode = executionMode;
+            _enableDepth = enableDepth;
 
             _commandQueue = commandQueue;
             _parentTransform = parentTransform;
@@ -51,6 +77,16 @@ namespace Unite.Drawing
             };
 
             _material = new Material(Shader.Find(shaderName));
+            _material.SetFloat(PID.SrcBlend, (float)BlendMode.One);
+            _material.SetFloat(PID.DstBlend, (float)BlendMode.OneMinusSrcAlpha);
+            _material.SetFloat(PID.ZWrite, 0f);
+
+            _depthPrepassMaterial = new Material(Shader.Find(shaderName));
+            _depthPrepassMaterial.SetFloat(PID.SrcBlend, (float)BlendMode.Zero);
+            _depthPrepassMaterial.SetFloat(PID.DstBlend, (float)BlendMode.One);
+            _depthPrepassMaterial.SetFloat(PID.ZWrite, 1f);
+            _depthPrepassMaterial.EnableKeyword("_UNITE_DEPTH_PREPASS");
+            ApplyDepthState();
 
             _commandData = new GraphicsBuffer.IndirectDrawIndexedArgs[1];
         }
@@ -64,9 +100,11 @@ namespace Unite.Drawing
 
 #if UNITY_EDITOR
             Object.DestroyImmediate(_material);
+            Object.DestroyImmediate(_depthPrepassMaterial);
             Object.DestroyImmediate(_mesh);
 #else
             Object.Destroy(_material);
+            Object.Destroy(_depthPrepassMaterial);
             Object.Destroy(_mesh);
 #endif
         }
@@ -159,17 +197,31 @@ namespace Unite.Drawing
 
         private void RenderIndirect(Camera cam, int count)
         {
-            var rp = CreateRenderParams(cam, 0);
-
             _commandData[0].indexCountPerInstance = _mesh.GetIndexCount(0);
             _commandData[0].instanceCount = (uint)count;
             _commandBuffer.SetData(_commandData);
 
+            if (DepthIsActive)
+            {
+                var prepassParams = CreateRenderParams(cam, 0, useDepthPrepass: true);
+                Graphics.RenderMeshIndirect(prepassParams, _mesh, _commandBuffer, 1);
+            }
+
+            var rp = CreateRenderParams(cam, 0);
             Graphics.RenderMeshIndirect(rp, _mesh, _commandBuffer, 1);
         }
 
         private void RenderSequential(Camera cam, int count)
         {
+            if (DepthIsActive)
+            {
+                for (int index = 0; index < count; index++)
+                {
+                    var prepassParams = CreateRenderParams(cam, index, useDepthPrepass: true);
+                    Graphics.RenderMesh(prepassParams, _mesh, 0, Matrix4x4.identity);
+                }
+            }
+
             for (int index = 0; index < count; index++)
             {
                 var rp = CreateRenderParams(cam, index);
@@ -177,7 +229,11 @@ namespace Unite.Drawing
             }
         }
 
-        private RenderParams CreateRenderParams(Camera cam, int shapeIndex)
+        private RenderParams CreateRenderParams(
+            Camera cam,
+            int shapeIndex,
+            bool useDepthPrepass = false
+        )
         {
             var properties = new MaterialPropertyBlock();
             properties.SetBuffer(PID.ShapeDataBuffer, _shapeDataBuffer);
@@ -194,12 +250,21 @@ namespace Unite.Drawing
                 properties.SetMatrix(PID.ParentTransform, _parentTransform.localToWorldMatrix);
             }
 
-            return new RenderParams(_material)
+            return new RenderParams(useDepthPrepass ? _depthPrepassMaterial : _material)
             {
                 worldBounds = new Bounds(cam.transform.position, Vector3.one * 10000f),
                 camera = cam,
                 matProps = properties
             };
+        }
+
+        private void ApplyDepthState()
+        {
+            _material.SetFloat(
+                PID.ZTest,
+                (float)(DepthIsActive ? CompareFunction.LessEqual : CompareFunction.Always)
+            );
+            _depthPrepassMaterial.SetFloat(PID.ZTest, (float)CompareFunction.LessEqual);
         }
 
         private float AntiAliasPadding(Camera cam, Matrix4x4 transform)

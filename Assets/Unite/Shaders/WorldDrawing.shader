@@ -1,5 +1,13 @@
 Shader "Hidden/Unite/WorldDrawing"
 {
+    Properties
+    {
+        _SrcBlend ("Src Blend", Float) = 1
+        _DstBlend ("Dst Blend", Float) = 10
+        _ZWrite ("ZWrite", Float) = 0
+        _ZTest ("ZTest", Float) = 4
+    }
+
     SubShader
     {
         Tags
@@ -12,8 +20,9 @@ Shader "Hidden/Unite/WorldDrawing"
         Pass
         {
             Name "Draw"
-            Blend One OneMinusSrcAlpha
-            ZWrite Off
+            Blend [_SrcBlend] [_DstBlend]
+            ZWrite [_ZWrite]
+            ZTest [_ZTest]
             Cull Off
 
             HLSLPROGRAM
@@ -21,6 +30,7 @@ Shader "Hidden/Unite/WorldDrawing"
             #pragma vertex vert
             #pragma fragment frag
             #pragma target 4.5
+            #pragma multi_compile_local _ _UNITE_DEPTH_PREPASS
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Assets/Unite/Shaders/UniteCommon.hlsl"
@@ -56,6 +66,7 @@ Shader "Hidden/Unite/WorldDrawing"
                 float4 positionWS = DrawingPosition(shapePosition, data);
 
                 output.positionCS = mul(UNITY_MATRIX_VP, positionWS);
+                output.positionCS.z *= DepthBiasFactor(dataIndex);
                 output.shapePosition = shapePosition;
                 output.instanceID = dataIndex;
                 return output;
@@ -64,12 +75,23 @@ Shader "Hidden/Unite/WorldDrawing"
             half4 frag(Varyings input) : SV_Target
             {
                 ShapeData data = _ShapeData[input.instanceID];
+                half4 color;
                 if (_DebugShapeBounds != 0)
                 {
                     half debugAlpha = max(data.FillColor.a, 0.35);
-                    return half4(data.FillColor.rgb * debugAlpha, debugAlpha);
+                    color = half4(data.FillColor.rgb * debugAlpha, debugAlpha);
                 }
-                return ComputeShapeColor(input.shapePosition, data);
+                else
+                {
+                    color = ComputeShapeColor(input.shapePosition, data);
+                }
+
+                #if defined(_UNITE_DEPTH_PREPASS)
+                // Depth prepass: write depth only where the shape is visible.
+                clip(color.a - 0.004);
+                #endif
+
+                return color;
             }
 
             ENDHLSL

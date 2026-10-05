@@ -40,4 +40,14 @@ float4 DrawingPosition(float2 shapePosition, ShapeData data)
          + data.Transform3;
 }
 
+// Later instances are nudged toward the camera so that coplanar shapes keep
+// the painter's (later wins) order when depth testing is enabled.
+#define UNITE_DEPTH_BIAS 1e-6
+
+float DepthBiasFactor(uint instanceIndex)
+{
+    float direction = UNITY_REVERSED_Z ? 1.0 : -1.0;
+    return 1.0 + direction * instanceIndex * UNITE_DEPTH_BIAS;
+}
+
 #endif // UNITE_COMMON_HLSL

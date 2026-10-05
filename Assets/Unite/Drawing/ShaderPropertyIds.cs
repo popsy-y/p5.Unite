@@ -10,5 +10,9 @@ namespace Unite.Drawing
         public static int ShapeIndex => Shader.PropertyToID("_ShapeIndex");
         public static int UseShapeIndex => Shader.PropertyToID("_UseShapeIndex");
         public static int DebugShapeBounds => Shader.PropertyToID("_DebugShapeBounds");
+        public static int SrcBlend => Shader.PropertyToID("_SrcBlend");
+        public static int DstBlend => Shader.PropertyToID("_DstBlend");
+        public static int ZWrite => Shader.PropertyToID("_ZWrite");
+        public static int ZTest => Shader.PropertyToID("_ZTest");
     }
 }

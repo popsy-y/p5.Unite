@@ -64,13 +64,32 @@ namespace Unite.Canvas
             set => _drawingContext.DebugShapeBounds = value;
         }
 
+        /// <summary>
+        /// Enables depth testing and depth writes for this canvas.
+        /// When enabled, shapes are occluded by scene geometry and occlude each other.
+        /// When disabled, shapes are drawn in draw order regardless of the depth buffer.
+        /// Overlay drawing modes always ignore depth.
+        /// </summary>
+        public bool EnableDepth
+        {
+            get => _drawingContext.EnableDepth;
+            set => _drawingContext.EnableDepth = value;
+        }
+
+        /// <summary>
+        /// Creates (or recreates) the drawing context for this canvas.
+        /// </summary>
+        /// <param name="enableDepth">
+        /// Enables depth testing and depth writes. Overlay drawing modes ignore depth.
+        /// </param>
         public DrawingContext CreateCanvas(
             DrawingMode mode = DrawingMode.ScreenOverlay,
-            DrawingExecutionMode executionMode = DrawingExecutionMode.Indirect
+            DrawingExecutionMode executionMode = DrawingExecutionMode.Indirect,
+            bool enableDepth = false
         )
         {
             _drawingContext?.Dispose();
-            _drawingContext = new DrawingContext(mode, _commandQueue, transform, executionMode);
+            _drawingContext = new DrawingContext(mode, _commandQueue, transform, executionMode, enableDepth);
             return _drawingContext;
         }
 

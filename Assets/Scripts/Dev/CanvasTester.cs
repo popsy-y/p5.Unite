@@ -13,7 +13,8 @@ namespace Dev
             Primitives,
             ModesAndStyles,
             Stress,
-            Transforms
+            Transforms,
+            Depth
         }
 
         private static readonly ShapeMode[] ShapeModes =
@@ -29,6 +30,7 @@ namespace Dev
         [Header("Rendering")]
         [SerializeField] private DrawingMode _mode = DrawingMode.Screen;
         [SerializeField] private DrawingExecutionMode _executionMode = DrawingExecutionMode.Indirect;
+        [SerializeField] private bool _enableDepth = true;
         [SerializeField] private bool _debugShapeBounds;
         [SerializeField] private bool _autoCycleModes;
         [SerializeField] private float _cycleInterval = 3f;
@@ -45,6 +47,7 @@ namespace Dev
         private UCanvas _canvas;
         private DrawingMode _currentMode;
         private DrawingExecutionMode _currentExecutionMode;
+        private bool _currentEnableDepth;
         private bool _currentDebugShapeBounds;
         private float _modeTimer;
         private float _pageTimer;
@@ -60,6 +63,7 @@ namespace Dev
             _canvas = GetComponent<UCanvas>();
             _currentMode = _mode;
             _currentExecutionMode = _executionMode;
+            _currentEnableDepth = _enableDepth;
             _currentDebugShapeBounds = _debugShapeBounds;
             CreateCanvas();
         }
@@ -81,6 +85,9 @@ namespace Dev
                 case TestPage.Transforms:
                     DrawTransforms();
                     break;
+                case TestPage.Depth:
+                    DrawDepthTest();
+                    break;
                 default:
                     DrawPrimitives();
                     break;
@@ -91,6 +98,7 @@ namespace Dev
         {
             _canvas.CreateCanvas(_mode, _executionMode);
             _canvas.DebugShapeBounds = _debugShapeBounds;
+            _canvas.EnableDepth = _enableDepth;
         }
 
         private void ApplyRenderingSettings()
@@ -100,6 +108,12 @@ namespace Dev
                 _currentMode = _mode;
                 _currentExecutionMode = _executionMode;
                 CreateCanvas();
+            }
+
+            if (_enableDepth != _currentEnableDepth)
+            {
+                _currentEnableDepth = _enableDepth;
+                _canvas.EnableDepth = _enableDepth;
             }
 
             if (_debugShapeBounds == _currentDebugShapeBounds)
@@ -284,6 +298,55 @@ namespace Dev
                         break;
                 }
             }
+        }
+
+        private void DrawDepthTest()
+        {
+            float unit = Unit();
+            float strokeWeight = Mathf.Max(AntiAliasMinimum(), unit * 0.01f);
+            Vector2 shapeSize = new Vector2(unit * 0.17f, unit * 0.17f);
+            var nearColor = new Color(0.15f, 0.75f, 0.95f, 1f);
+            var farColor = new Color(0.95f, 0.3f, 0.35f, 1f);
+            bool screenDepth = IsScreen || IsNormalizedScreen;
+            float nearDepth = screenDepth ? 4f : -unit * 0.04f;
+            float farDepth = screenDepth ? 6f : unit * 0.04f;
+
+            _canvas.RectMode = ShapeMode.Center;
+            _canvas.EllipseMode = ShapeMode.Center;
+            _canvas.StrokeWeight(strokeWeight);
+
+            // Same depth: the last drawn color must win regardless of depth testing.
+            const int tieCount = 12;
+            Vector3 tiePosition = Position(0.18f, 0.62f);
+            for (int index = 0; index < tieCount; index++)
+            {
+                _canvas.NoStroke();
+                _canvas.Fill(Color.HSVToRGB(Mathf.Repeat(index * 0.083f, 1f), 0.7f, 0.95f));
+                _canvas.Rect(tiePosition, shapeSize, shapeSize.x * 0.12f);
+            }
+
+            // Near drawn first, far drawn second.
+            // With depth on the near color must survive; with depth off the far color wins.
+            _canvas.Fill(nearColor);
+            _canvas.Stroke(DarkColor());
+            _canvas.Rect(PositionWithDepth(0.5f, 0.62f, nearDepth), shapeSize, shapeSize.x * 0.12f);
+            _canvas.Fill(farColor);
+            _canvas.Rect(PositionWithDepth(0.56f, 0.62f, farDepth), shapeSize, shapeSize.x * 0.12f);
+
+            // Far drawn first, near drawn second: the near color wins in both settings.
+            _canvas.Fill(farColor);
+            _canvas.Rect(PositionWithDepth(0.8f, 0.55f, farDepth), shapeSize, shapeSize.x * 0.12f);
+            _canvas.Fill(nearColor);
+            _canvas.Rect(PositionWithDepth(0.86f, 0.55f, nearDepth), shapeSize, shapeSize.x * 0.12f);
+        }
+
+        private Vector3 PositionWithDepth(float normalizedX, float normalizedY, float depth)
+        {
+            Vector3 position = Position(normalizedX, normalizedY);
+            position.z = IsScreen || IsNormalizedScreen
+                ? _canvas.WorldToLinearDepth(depth, Camera.main)
+                : depth;
+            return position;
         }
 
         private void DrawArc(Vector3 center, float unit, ArcMode mode)

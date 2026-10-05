@@ -691,17 +691,18 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 605906601}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 61842b5b430b4d898943fdba109e6136, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Dev.CanvasTester
-  _mode: 1
+  _mode: 5
   _executionMode: 0
+  _enableDepth: 1
   _debugShapeBounds: 0
   _autoCycleModes: 0
   _cycleInterval: 3
-  _page: 3
+  _page: 4
   _autoCyclePages: 0
   _pageCycleInterval: 3
   _animateTransforms: 1
@@ -754,7 +755,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 605906601}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 6b52b614133f5ed49bd6c8f3affc77d4, type: 3}
   m_Name: 
@@ -1877,6 +1878,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Dev.CanvasTester
   _mode: 5
   _executionMode: 0
+  _enableDepth: 1
   _debugShapeBounds: 0
   _autoCycleModes: 0
   _cycleInterval: 3
@@ -2825,6 +2827,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Dev.CanvasTester
   _mode: 5
   _executionMode: 0
+  _enableDepth: 1
   _debugShapeBounds: 0
   _autoCycleModes: 0
   _cycleInterval: 3
@@ -3619,6 +3622,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Dev.CanvasTester
   _mode: 5
   _executionMode: 0
+  _enableDepth: 1
   _debugShapeBounds: 0
   _autoCycleModes: 0
   _cycleInterval: 3
@@ -4188,6 +4192,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Dev.CanvasTester
   _mode: 5
   _executionMode: 0
+  _enableDepth: 1
   _debugShapeBounds: 0
   _autoCycleModes: 0
   _cycleInterval: 3
@@ -4289,6 +4294,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Dev.CanvasTester
   _mode: 5
   _executionMode: 0
+  _enableDepth: 1
   _debugShapeBounds: 0
   _autoCycleModes: 0
   _cycleInterval: 3

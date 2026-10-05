@@ -3,6 +3,10 @@ Shader "Hidden/Unite/ScreenDrawing"
     Properties
     {
         _DrawingMode ("Drawing Mode", Int) = 0
+        _SrcBlend ("Src Blend", Float) = 1
+        _DstBlend ("Dst Blend", Float) = 10
+        _ZWrite ("ZWrite", Float) = 0
+        _ZTest ("ZTest", Float) = 4
     }
 
     SubShader
@@ -17,8 +21,9 @@ Shader "Hidden/Unite/ScreenDrawing"
         Pass
         {
             Name "Draw"
-            Blend One OneMinusSrcAlpha
-            ZWrite Off
+            Blend [_SrcBlend] [_DstBlend]
+            ZWrite [_ZWrite]
+            ZTest [_ZTest]
             Cull Off
 
             HLSLPROGRAM
@@ -26,6 +31,7 @@ Shader "Hidden/Unite/ScreenDrawing"
             #pragma vertex vert
             #pragma fragment frag
             #pragma target 4.5
+            #pragma multi_compile_local _ _UNITE_DEPTH_PREPASS
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
             #include "Assets/Unite/Shaders/UniteCommon.hlsl"
@@ -76,25 +82,40 @@ Shader "Hidden/Unite/ScreenDrawing"
                     ? data.Transform3.w
                     : (data.Transform3.w < 0.0 ? -1e-6 : 1e-6);
                 float anchorDepth = data.Transform3.z / anchorSafeW;
+                float depthBias = DepthBiasFactor(dataIndex);
 
                 output.positionCS = float4(screenPosition * 2.0 - 1.0,
                                            isOverlay ? 0.0 : anchorDepth, 1.0);
 
-                float rawDepth = output.positionCS.z;
-                if (unity_OrthoParams.w < 0.5)
+                if (!isOverlay)
                 {
-                    float nearOverFar = _ProjectionParams.y / _ProjectionParams.z;
-                    float linearDepth = max(rawDepth, nearOverFar + 1e-5);
-                    output.positionCS.z = (1.0 / linearDepth - _ZBufferParams.y) / _ZBufferParams.x;
-
-                    if (!isOverlay && rawDepth < 0.0)
+                    if (anchorDepth < 0.0)
+                    {
                         output.positionCS = float4(0.0, 0.0, 2.0, 1.0);
-                }
-                else
-                {
-                    output.positionCS.z = UNITY_REVERSED_Z
-                        ? 1.0 - output.positionCS.z
-                        : output.positionCS.z;
+                    }
+                    else
+                    {
+                        float nearPlane = _ProjectionParams.y;
+                        float farPlane = _ProjectionParams.z;
+                        float deviceDepth;
+
+                        if (unity_OrthoParams.w < 0.5)
+                        {
+                            // anchorDepth is 0 at the near plane and 1 at the far plane.
+                            float eyeDepth = lerp(nearPlane, farPlane, anchorDepth);
+                            deviceDepth = UNITY_REVERSED_Z
+                                ? (1.0 / eyeDepth - 1.0 / farPlane) / (1.0 / nearPlane - 1.0 / farPlane)
+                                : (1.0 / eyeDepth - 1.0 / nearPlane) / (1.0 / farPlane - 1.0 / nearPlane);
+                        }
+                        else
+                        {
+                            deviceDepth = UNITY_REVERSED_Z
+                                ? 1.0 - anchorDepth
+                                : anchorDepth;
+                        }
+
+                        output.positionCS.z = deviceDepth * depthBias;
+                    }
                 }
 
                 output.shapePosition = shapePosition;
@@ -105,12 +126,23 @@ Shader "Hidden/Unite/ScreenDrawing"
             half4 frag(Varyings input) : SV_Target
             {
                 ShapeData data = _ShapeData[input.instanceID];
+                half4 color;
                 if (_DebugShapeBounds != 0)
                 {
                     half debugAlpha = max(data.FillColor.a, 0.35);
-                    return half4(data.FillColor.rgb * debugAlpha, debugAlpha);
+                    color = half4(data.FillColor.rgb * debugAlpha, debugAlpha);
                 }
-                return ComputeShapeColor(input.shapePosition, data);
+                else
+                {
+                    color = ComputeShapeColor(input.shapePosition, data);
+                }
+
+                #if defined(_UNITE_DEPTH_PREPASS)
+                // Depth prepass: write depth only where the shape is visible.
+                clip(color.a - 0.004);
+                #endif
+
+                return color;
             }
 
             ENDHLSL
