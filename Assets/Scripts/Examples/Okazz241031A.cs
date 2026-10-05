@@ -63,6 +63,8 @@ namespace Unite.Examples
             _canvas.CreateCanvas(getDrawingMode());
             _canvas.RectMode = ShapeMode.Center;
 
+            _canvas.EnableDepth = true;
+
             _random = new Random(_seed == 0 ? 1u : _seed);
             _canvasDimensions = Vector2.zero;
             _spawnCountdown = nextSpawnDelay();
