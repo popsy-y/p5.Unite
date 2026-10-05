@@ -48,6 +48,8 @@ namespace Unite.Canvas
         )
         {
             CheckDrawingContext();
+            if (!isActiveAndEnabled)
+                return;
             if (!_styleState.FillEnabled && !_styleState.StrokeEnabled)
                 return;
 

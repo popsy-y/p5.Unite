@@ -101,9 +101,17 @@ namespace Unite.Canvas
 
         #region MonoBehaviour
 
-        private void Start()
+        private void OnEnable()
         {
             RenderPipelineManager.beginCameraRendering += OnCameraRendering;
+        }
+
+        private void OnDisable()
+        {
+            RenderPipelineManager.beginCameraRendering -= OnCameraRendering;
+
+            _transformStack.Reset();
+            _commandQueue.Clear();
         }
 
         private void OnDestroy()
