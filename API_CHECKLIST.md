@@ -6,8 +6,8 @@ p5.Unite の公開 API と [p5.js 公式リファレンス](https://p5js.org/ref
 
 - Baseline: p5.js official reference
 - Last checked: 2026-08-05
-- Implemented: 31 / 660
-- Partial support: 0
+- Implemented: 50 / 660
+- Partial support: 1
 - Reference directory: [`references/api-checklist/`](references/api-checklist/)
 
 ## Status semantics
@@ -28,13 +28,13 @@ p5.Unite の公開 API と [p5.js 公式リファレンス](https://p5js.org/ref
 
 | Category | Scope | Implemented | Partial | Total |
 | --- | --- | ---: | ---: | ---: |
-| [Shape](references/api-checklist/shape.md) | 2D/3D primitives, attributes, curves, and custom geometry | 12 | 0 | 65 |
+| [Shape](references/api-checklist/shape.md) | 2D/3D primitives, attributes, curves, and custom geometry | 30 | 1 | 65 |
 | [Color](references/api-checklist/color.md) | Color creation, reading, fill, stroke, and p5.Color | 4 | 0 | 31 |
 | [Typography](references/api-checklist/typography.md) | Text rendering, font metrics, and p5.Font | 0 | 0 | 25 |
 | [Image](references/api-checklist/image.md) | Images, pixels, loading, display, and p5.Image | 0 | 0 | 39 |
 | [Transform](references/api-checklist/transform.md) | Matrix stack and geometric transforms | 12 | 0 | 12 |
 | [Environment](references/api-checklist/environment.md) | Canvas, display, frame, cursor, and window state | 2 | 0 | 28 |
-| [3D](references/api-checklist/3d.md) | Camera, interaction, lighting, materials, shaders, and GPU data | 0 | 0 | 100 |
+| [3D](references/api-checklist/3d.md) | Camera, interaction, lighting, materials, shaders, and GPU data | 1 | 0 | 100 |
 | [Rendering](references/api-checklist/rendering.md) | Graphics buffers, framebuffers, and renderer APIs | 1 | 0 | 28 |
 | [Math](references/api-checklist/math.md) | Calculations, noise, random, trigonometry, quaternion, and vectors | 0 | 0 | 75 |
 | [IO](references/api-checklist/io.md) | Input, time/date, tables, XML, and writer APIs | 0 | 0 | 77 |

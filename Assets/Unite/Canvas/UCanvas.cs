@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using Unite.Drawing;
 using UnityEngine;
 using UnityEngine.Rendering;
+using StrokeCapValue = Unite.Canvas.StrokeCap;
+using StrokeJoinValue = Unite.Canvas.StrokeJoin;
 
 namespace Unite.Canvas
 {
@@ -15,6 +17,9 @@ namespace Unite.Canvas
         public bool StrokeEnabled;
         public ShapeMode RectMode;
         public ShapeMode EllipseMode;
+        public StrokeCap StrokeCap;
+        public StrokeJoin StrokeJoin;
+        public bool LinePerspective;
 
         public static CanvasStyleState Default => new()
         {
@@ -24,7 +29,10 @@ namespace Unite.Canvas
             FillEnabled = true,
             StrokeEnabled = true,
             RectMode = ShapeMode.Corner,
-            EllipseMode = ShapeMode.Center
+            EllipseMode = ShapeMode.Center,
+            StrokeCap = StrokeCapValue.Round,
+            StrokeJoin = StrokeJoinValue.Round,
+            LinePerspective = true
         };
     }
 
@@ -70,6 +78,13 @@ namespace Unite.Canvas
         /// When disabled, shapes are drawn in draw order regardless of the depth buffer.
         /// Overlay drawing modes always ignore depth.
         /// </summary>
+        /// <remarks>
+        /// Line strokes are depth tested but never write depth. This keeps the
+        /// overlapping segments of curves and paths from occluding each other,
+        /// which would otherwise cut visible seams at every joint. As a result,
+        /// strokes are occluded by shapes and scene geometry, but they do not
+        /// occlude other shapes themselves.
+        /// </remarks>
         public bool EnableDepth
         {
             get => _drawingContext.EnableDepth;

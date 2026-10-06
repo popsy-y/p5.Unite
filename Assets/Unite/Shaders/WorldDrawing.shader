@@ -48,20 +48,21 @@ Shader "Hidden/Unite/WorldDrawing"
                 uint instanceID : SV_InstanceID;
             };
 
-            struct Varyings
-            {
-                float4 positionCS : SV_POSITION;
-                float2 shapePosition : TEXCOORD0;
-                nointerpolation uint instanceID : TEXCOORD1;
-            };
+            typedef UniteVaryings Varyings;
 
             Varyings vert(Attributes input)
             {
-                Varyings output;
                 uint dataIndex = _UseShapeIndex != 0
                     ? (uint)_ShapeIndex
                     : input.instanceID;
                 ShapeData data = _ShapeData[dataIndex];
+
+                if ((int)data.Style.x == 7)
+                {
+                    return UniteBuildLocal3DLine(input.uv, data, dataIndex);
+                }
+
+                Varyings output;
                 float2 shapePosition = ShapePosition(input.uv, data);
                 float4 positionWS = DrawingPosition(shapePosition, data);
 
@@ -69,6 +70,9 @@ Shader "Hidden/Unite/WorldDrawing"
                 output.positionCS.z *= DepthBiasFactor(dataIndex);
                 output.shapePosition = shapePosition;
                 output.instanceID = dataIndex;
+                output.lineCoords = 0.0;
+                output.halfWidth = 0.0;
+                output.lineLength = 0.0;
                 return output;
             }
 
@@ -81,6 +85,15 @@ Shader "Hidden/Unite/WorldDrawing"
                     half debugAlpha = max(data.FillColor.a, 0.35);
                     color = half4(data.FillColor.rgb * debugAlpha, debugAlpha);
                 }
+                else if ((int)data.Style.x == 7)
+                {
+                    color = ComputeLineColor(
+                        input.lineCoords,
+                        input.halfWidth,
+                        input.lineLength,
+                        data
+                    );
+                }
                 else
                 {
                     color = ComputeShapeColor(input.shapePosition, data);
@@ -88,6 +101,11 @@ Shader "Hidden/Unite/WorldDrawing"
 
                 #if defined(_UNITE_DEPTH_PREPASS)
                 // Depth prepass: write depth only where the shape is visible.
+                // Line strokes overlap at every joint, so they never write depth.
+                // They are still depth-tested against shapes and scene geometry,
+                // but overlapping segments blend together as one stroke.
+                if ((int)data.Style.x == 7)
+                    clip(-1);
                 clip(color.a - 0.004);
                 #endif
 

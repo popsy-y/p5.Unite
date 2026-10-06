@@ -17,6 +17,20 @@ namespace Unite.Canvas
         public Vector2 Point2;
         public Vector2 Point3;
 
+        // Line3D only: shape-local endpoints of a line segment in 3D space.
+        public Vector3 LineStart;
+        public Vector3 LineEnd;
+
+        // Packed StrokeCap values: start cap in bits 0..1, end cap in bits 2..3.
+        public int LineCaps;
+
+        // Line3D only: scales the stroke weight by the perspective projection.
+        public bool LinePerspective;
+
+        // PolygonFill only: shape-local points of the outline, in order. Holes are
+        // stored as additional contours wound opposite to the outer contour.
+        public Vector4[] PolygonPoints;
+
         public Vector4 Parameters0;
         public Vector4 Parameters1;
         public Vector4 CornerRadiiX;

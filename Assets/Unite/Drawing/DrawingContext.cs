@@ -49,7 +49,9 @@ namespace Unite.Drawing
 
         private GraphicsBuffer _shapeDataBuffer;
         private GraphicsBuffer _commandBuffer;
+        private GraphicsBuffer _polygonPointBuffer;
         private GraphicsBuffer.IndirectDrawIndexedArgs[] _commandData;
+        private readonly List<Vector4> _polygonPoints = new();
 
         public DrawingContext(
             DrawingMode mode,
@@ -95,8 +97,10 @@ namespace Unite.Drawing
         {
             _shapeDataBuffer?.Dispose();
             _commandBuffer?.Dispose();
+            _polygonPointBuffer?.Dispose();
             _shapeDataBuffer = null;
             _commandBuffer = null;
+            _polygonPointBuffer = null;
 
 #if UNITY_EDITOR
             Object.DestroyImmediate(_material);
@@ -134,6 +138,7 @@ namespace Unite.Drawing
             EnsureBuffers(count);
 
             var shapeDataArray = new ShapeData[count];
+            _polygonPoints.Clear();
             int index = 0;
 
             foreach (var cmd in commands)
@@ -151,6 +156,47 @@ namespace Unite.Drawing
                 Vector2 boundsMin = cmd.HasCustomBounds ? cmd.BoundsMin : -halfSize;
                 Vector2 boundsMax = cmd.HasCustomBounds ? cmd.BoundsMax : halfSize;
 
+                Vector4 point0 = cmd.Point0;
+                Vector4 point1 = cmd.Point1;
+                Vector4 parameters0 = cmd.Parameters0;
+
+                if (cmd.ShapeType == Shape.Line3D)
+                {
+                    point0 = new Vector4(
+                        cmd.LineStart.x,
+                        cmd.LineStart.y,
+                        cmd.LineStart.z,
+                        0f
+                    );
+                    point1 = new Vector4(
+                        cmd.LineEnd.x,
+                        cmd.LineEnd.y,
+                        cmd.LineEnd.z,
+                        0f
+                    );
+                }
+
+                if (cmd.ShapeType is Shape.Line or Shape.Line3D)
+                {
+                    parameters0 = new Vector4(
+                        cmd.LineCaps,
+                        cmd.LinePerspective ? 1f : 0f,
+                        0f,
+                        0f
+                    );
+                }
+
+                if (cmd.ShapeType == Shape.PolygonFill && cmd.PolygonPoints != null)
+                {
+                    parameters0 = new Vector4(
+                        _polygonPoints.Count,
+                        cmd.PolygonPoints.Length,
+                        0f,
+                        0f
+                    );
+                    _polygonPoints.AddRange(cmd.PolygonPoints);
+                }
+
                 shapeDataArray[index] = new ShapeData
                 {
                     Transform0 = transform.GetColumn(0),
@@ -164,11 +210,11 @@ namespace Unite.Drawing
                         boundsMax.y + padding2.y
                     ),
                     ShapeParameters = new Vector4(shapeSize.x, shapeSize.y, 0f, 0f),
-                    Point0 = cmd.Point0,
-                    Point1 = cmd.Point1,
+                    Point0 = point0,
+                    Point1 = point1,
                     Point2 = cmd.Point2,
                     Point3 = cmd.Point3,
-                    Parameters0 = cmd.Parameters0,
+                    Parameters0 = parameters0,
                     Parameters1 = cmd.Parameters1,
                     CornerRadiiX = cmd.CornerRadiiX,
                     CornerRadiiY = cmd.CornerRadiiY,
@@ -186,6 +232,9 @@ namespace Unite.Drawing
             }
 
             _shapeDataBuffer.SetData(shapeDataArray);
+            EnsurePolygonPointBuffer(_polygonPoints.Count);
+            if (_polygonPoints.Count > 0)
+                _polygonPointBuffer.SetData(_polygonPoints);
             if (ExecutionMode == DrawingExecutionMode.Sequential)
             {
                 RenderSequential(cam, count);
@@ -237,6 +286,7 @@ namespace Unite.Drawing
         {
             var properties = new MaterialPropertyBlock();
             properties.SetBuffer(PID.ShapeDataBuffer, _shapeDataBuffer);
+            properties.SetBuffer(PID.PolygonPoints, _polygonPointBuffer);
             properties.SetInt(PID.DrawingMode, (int)DrawingMode);
             properties.SetInt(PID.ShapeIndex, shapeIndex);
             properties.SetInt(
@@ -295,10 +345,12 @@ namespace Unite.Drawing
                 Shape.Circle or Shape.Ellipse => 0f,
                 Shape.Rectangle or Shape.Square => 1f,
                 Shape.Line => 2f,
+                Shape.Line3D => 7f,
                 Shape.Point => 3f,
                 Shape.Triangle => 4f,
                 Shape.Quad => 5f,
                 Shape.Arc => 6f,
+                Shape.PolygonFill => 8f,
                 _ => 0f
             };
         }
@@ -317,6 +369,20 @@ namespace Unite.Drawing
             {
                 _commandBuffer = new GraphicsBuffer(GraphicsBuffer.Target.IndirectArguments, 1, GraphicsBuffer.IndirectDrawIndexedArgs.size);
             }
+        }
+
+        private void EnsurePolygonPointBuffer(int count)
+        {
+            count = Mathf.Max(1, count);
+            if (_polygonPointBuffer != null && _polygonPointBuffer.count >= count)
+                return;
+
+            _polygonPointBuffer?.Dispose();
+            _polygonPointBuffer = new GraphicsBuffer(
+                GraphicsBuffer.Target.Structured,
+                count,
+                sizeof(float) * 4
+            );
         }
     }
 }

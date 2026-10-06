@@ -14,7 +14,8 @@ namespace Dev
             ModesAndStyles,
             Stress,
             Transforms,
-            Depth
+            Depth,
+            Curves
         }
 
         private static readonly ShapeMode[] ShapeModes =
@@ -87,6 +88,9 @@ namespace Dev
                     break;
                 case TestPage.Depth:
                     DrawDepthTest();
+                    break;
+                case TestPage.Curves:
+                    DrawCurves();
                     break;
                 default:
                     DrawPrimitives();
@@ -349,6 +353,134 @@ namespace Dev
             return position;
         }
 
+        private void DrawCurves()
+        {
+            float unit = Unit();
+            float strokeWeight = Mathf.Max(AntiAliasMinimum(), unit * 0.012f);
+
+            _canvas.RectMode = ShapeMode.Center;
+            _canvas.EllipseMode = ShapeMode.Center;
+            _canvas.NoFill();
+            _canvas.StrokeWeight(strokeWeight);
+
+            // Curves on the top row: Bezier, spline INCLUDE and spline EXCLUDE.
+            _canvas.Stroke(new Color(0.2f, 0.85f, 1f, 0.95f));
+            _canvas.Bezier(
+                Position(0.08f, 0.9f),
+                Position(0.2f, 0.62f),
+                Position(0.32f, 0.62f),
+                Position(0.44f, 0.9f)
+            );
+
+            _canvas.Stroke(new Color(0.55f, 1f, 0.4f, 0.95f));
+            _canvas.SplineEnds = SplineEndMode.Include;
+            _canvas.Spline(
+                Position(0.56f, 0.9f),
+                Position(0.66f, 0.66f),
+                Position(0.78f, 0.94f),
+                Position(0.9f, 0.7f)
+            );
+
+            _canvas.Stroke(new Color(1f, 0.7f, 0.3f, 0.95f));
+            _canvas.SplineEnds = SplineEndMode.Exclude;
+            _canvas.Spline(
+                Position(0.56f, 0.52f),
+                Position(0.66f, 0.28f),
+                Position(0.78f, 0.56f),
+                Position(0.9f, 0.32f)
+            );
+            _canvas.SplineEnds = SplineEndMode.Include;
+
+            // Stroke caps.
+            float capY = 0.36f;
+            _canvas.StrokeWeight(Mathf.Max(strokeWeight, unit * 0.03f));
+            DrawCapSample(
+                StrokeCap.Round,
+                Position(0.1f, capY),
+                Position(0.3f, capY),
+                new Color(0.95f, 0.35f, 0.45f)
+            );
+            DrawCapSample(
+                StrokeCap.Square,
+                Position(0.4f, capY),
+                Position(0.6f, capY),
+                new Color(0.45f, 0.95f, 0.6f)
+            );
+            DrawCapSample(
+                StrokeCap.Project,
+                Position(0.7f, capY),
+                Position(0.9f, capY),
+                new Color(0.4f, 0.6f, 1f)
+            );
+
+            // Custom path with fill and stroke.
+            _canvas.StrokeWeight(Mathf.Max(strokeWeight, unit * 0.008f));
+            _canvas.Fill(new Color(0.9f, 0.55f, 1f, 0.65f));
+            _canvas.Stroke(new Color(0.1f, 0.1f, 0.2f));
+            _canvas.BeginShape();
+            _canvas.Vertex(Position(0.1f, 0.15f));
+            _canvas.Vertex(Position(0.3f, 0.05f));
+            _canvas.Vertex(Position(0.42f, 0.22f));
+            _canvas.Vertex(Position(0.25f, 0.3f));
+            _canvas.BeginContour();
+            _canvas.Vertex(Position(0.19f, 0.14f));
+            _canvas.Vertex(Position(0.27f, 0.11f));
+            _canvas.Vertex(Position(0.3f, 0.18f));
+            _canvas.Vertex(Position(0.21f, 0.21f));
+            _canvas.EndContour();
+            _canvas.EndShape(ShapeCloseMode.Close);
+
+            // Custom path built from spline vertices.
+            _canvas.NoFill();
+            _canvas.Stroke(new Color(0.9f, 0.9f, 0.3f, 0.95f));
+            _canvas.BeginShape();
+            _canvas.SplineVertex(Position(0.55f, 0.12f));
+            _canvas.SplineVertex(Position(0.65f, 0.3f));
+            _canvas.SplineVertex(Position(0.78f, 0.1f));
+            _canvas.SplineVertex(Position(0.9f, 0.28f));
+            _canvas.EndShape();
+
+            // 3D line segments: z is depth in screen modes and world height in
+            // world modes.
+            _canvas.StrokeWeight(Mathf.Max(strokeWeight, unit * 0.006f));
+            _canvas.Stroke(new Color(0.4f, 1f, 1f, 0.9f));
+            float depthSpan = IsScreen || IsNormalizedScreen ? 0.12f : unit * 0.5f;
+            _canvas.Line(
+                WithDepth(Position(0.08f, 0.46f), 0f),
+                WithDepth(Position(0.3f, 0.46f), depthSpan)
+            );
+            _canvas.Line(
+                WithDepth(Position(0.3f, 0.46f), depthSpan),
+                WithDepth(Position(0.5f, 0.38f), 0f)
+            );
+            _canvas.Line(
+                WithDepth(Position(0.5f, 0.38f), 0f),
+                WithDepth(Position(0.72f, 0.46f), depthSpan)
+            );
+            _canvas.Line(
+                WithDepth(Position(0.72f, 0.46f), depthSpan),
+                WithDepth(Position(0.9f, 0.38f), 0f)
+            );
+        }
+
+        private void DrawCapSample(
+            StrokeCap cap,
+            Vector3 start,
+            Vector3 end,
+            Color color
+        )
+        {
+            _canvas.Stroke(color);
+            _canvas.StrokeCap(cap);
+            _canvas.Line(start.x, start.y, start.z, end.x, end.y, end.z);
+        }
+
+        private static Vector3 WithDepth(Vector3 position, float depthOffset)
+        {
+            position.z += depthOffset;
+            return position;
+        }
+
         private void DrawArc(Vector3 center, float unit, ArcMode mode)
         {
             _canvas.Arc(
@@ -454,7 +586,7 @@ namespace Dev
             _canvas.RectMode = ShapeMode.Center;
             _canvas.EllipseMode = ShapeMode.Center;
             SetStyle(new Color(0.2f, 0.8f, 1f, 0.8f), DarkColor(), strokeWeight);
-            
+
             // moving x low -> x high, y high -> y low
 
             // Blue Rectangles
@@ -466,7 +598,7 @@ namespace Dev
             DrawTransformedRect(Position(0.625f, 0.75f), shapeSize, () => _canvas.ShearY(angle));
             DrawTransformedRect(Position(0.875f, 0.75f), shapeSize, () => _canvas.Scale(-1f, 1f, 1f));
 
-            
+
             // Orange Rectangles
             // Rotate X -> Rotate Y -> Rotate Z
             _canvas.Fill(new Color(1f, 0.55f, 0.2f, 0.8f));
@@ -474,7 +606,7 @@ namespace Dev
             DrawTransformedRect(Position(0.375f, 0.35f), shapeSize, () => _canvas.RotateY(angle));
             DrawTransformedRect(Position(0.625f, 0.35f), shapeSize, () => _canvas.RotateZ(angle));
 
-            
+
             // Pink Rectangle
             // Shear X
             _canvas.Fill(new Color(0.45f, 1f, 0.55f, 0.8f));

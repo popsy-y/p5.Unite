@@ -8,11 +8,13 @@ namespace Unite.Canvas
         Circle,
         Ellipse,
         Line,
+        Line3D,
         Point,
         Quad,
         Rectangle,
         Square,
-        Triangle
+        Triangle,
+        PolygonFill
     }
 
     public enum ShapeMode
@@ -28,6 +30,27 @@ namespace Unite.Canvas
         Open,
         Chord,
         Pie
+    }
+
+    /// <summary>
+    /// Defines how the ends of a stroke are rendered.
+    /// </summary>
+    public enum StrokeCap
+    {
+        Round,
+        Square,
+        Project
+    }
+
+    /// <summary>
+    /// Defines how the joints between stroke segments are rendered.
+    /// Only <see cref="StrokeJoin.Round"/> is currently produced by stroke rendering.
+    /// </summary>
+    public enum StrokeJoin
+    {
+        Miter,
+        Bevel,
+        Round
     }
 
     public partial class UCanvas
@@ -80,7 +103,8 @@ namespace Unite.Canvas
             Vector2 point2,
             Vector2 point3,
             int pointCount,
-            bool allowFill
+            bool allowFill,
+            bool allowStroke = true
         )
         {
             CheckDrawingContext();
@@ -88,7 +112,8 @@ namespace Unite.Canvas
                 return;
 
             bool fillEnabled = allowFill && _styleState.FillEnabled;
-            if (!fillEnabled && !_styleState.StrokeEnabled)
+            bool strokeEnabled = allowStroke && _styleState.StrokeEnabled;
+            if (!fillEnabled && !strokeEnabled)
                 return;
 
             Vector2 boundsMin = point0;
@@ -127,9 +152,13 @@ namespace Unite.Canvas
                 StrokeColor = _styleState.StrokeColor,
                 StrokeWeight = Mathf.Max(0f, _styleState.StrokeWeight),
                 FillEnabled = fillEnabled,
-                StrokeEnabled = _styleState.StrokeEnabled
+                StrokeEnabled = strokeEnabled,
+                LineCaps = PackLineCaps(_styleState.StrokeCap, _styleState.StrokeCap)
             });
         }
+
+        internal static int PackLineCaps(StrokeCap start, StrokeCap end)
+            => ((int)start & 3) | (((int)end & 3) << 2);
 
         private static void IncludePoint(
             Vector2 point,

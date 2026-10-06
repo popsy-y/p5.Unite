@@ -230,16 +230,101 @@ half4 CompositeShape(float distance, ShapeData data)
     return CompositeShapeAlphas(fillAlpha, strokeAlpha, data);
 }
 
+half4 ComputeLineColor(float2 lineCoords, float halfWidth, float lineLength, ShapeData data)
+{
+    float distance = UniteLineDistance(
+        lineCoords,
+        halfWidth,
+        lineLength,
+        (int)data.Parameters0.x
+    );
+    int styleFlags = (int)data.Style.w;
+    float strokeAlpha = (styleFlags & 2) != 0 ? SdfAlpha(distance) : 0.0;
+    return CompositeShapeAlphas(0.0, strokeAlpha, data);
+}
+
+// Fills one or more contours with the even-odd winding rule. The contour list is
+// stored in _PolygonPoints, and Parameters0.xy give its start index and count.
+// Nested contours alternate between holes and islands regardless of the winding
+// direction, and a single instance avoids the anti-aliasing seams of overlapping
+// triangles. The minimum distance to the edges provides the antialiasing.
+half4 ComputePolygonFillColor(float2 position, ShapeData data)
+{
+    int start = (int)data.Parameters0.x;
+    int count = (int)data.Parameters0.y;
+    if (count < 3)
+        return half4(0.0, 0.0, 0.0, 0.0);
+
+    float winding = 0.0;
+    float edgeDistance = 1e9;
+    float2 first = _PolygonPoints[start].xy;
+    float2 previous = first;
+
+    for (int index = 0; index < count; index++)
+    {
+        float2 current = _PolygonPoints[start + index].xy;
+        edgeDistance = min(edgeDistance, SdSegment(position, previous, current));
+
+        if ((previous.y <= position.y) != (current.y <= position.y))
+        {
+            float crossing = previous.x
+                + (position.y - previous.y) * (current.x - previous.x)
+                    / (current.y - previous.y);
+            if (position.x < crossing)
+                winding += current.y > previous.y ? 1.0 : -1.0;
+        }
+
+        previous = current;
+    }
+
+    edgeDistance = min(edgeDistance, SdSegment(position, previous, first));
+    if ((previous.y <= position.y) != (first.y <= position.y))
+    {
+        float crossing = previous.x
+            + (position.y - previous.y) * (first.x - previous.x)
+                / (first.y - previous.y);
+        if (position.x < crossing)
+            winding += first.y > previous.y ? 1.0 : -1.0;
+    }
+
+    float fillDistance = fmod(abs(winding), 2.0) > 0.5
+        ? -edgeDistance
+        : edgeDistance;
+    int styleFlags = (int)data.Style.w;
+    float fillAlpha = (styleFlags & 1) != 0 ? SdfAlpha(fillDistance) : 0.0;
+    return CompositeShapeAlphas(fillAlpha, 0.0, data);
+}
+
 half4 ComputeShapeColor(float2 shapePosition, ShapeData data)
 {
     float2 halfSize = data.ShapeParameters.xy * 0.5;
     int shapeType = (int)data.Style.x;
 
-    if (shapeType == 2 || shapeType == 3)
+    if (shapeType == 8)
+        return ComputePolygonFillColor(shapePosition, data);
+
+    if (shapeType == 2)
     {
-        float distance = shapeType == 2
-            ? SdSegment(shapePosition, data.Point0.xy, data.Point1.xy)
-            : length(shapePosition - data.Point0.xy);
+        float2 start = data.Point0.xy;
+        float2 end = data.Point1.xy;
+        float2 segment = end - start;
+        float lineLength = max(length(segment), 1e-6);
+        float2 direction = segment / lineLength;
+        float2 relative = shapePosition - start;
+        float distance = UniteLineDistance(
+            float2(dot(relative, direction), dot(relative, float2(-direction.y, direction.x))),
+            data.Style.z * 0.5,
+            lineLength,
+            (int)data.Parameters0.x
+        );
+        int styleFlags = (int)data.Style.w;
+        float strokeAlpha = (styleFlags & 2) != 0 ? SdfAlpha(distance) : 0.0;
+        return CompositeShapeAlphas(0.0, strokeAlpha, data);
+    }
+
+    if (shapeType == 3)
+    {
+        float distance = length(shapePosition - data.Point0.xy);
         int styleFlags = (int)data.Style.w;
         float strokeDistance = distance - data.Style.z * 0.5;
         float strokeAlpha = (styleFlags & 2) != 0 ? SdfAlpha(strokeDistance) : 0.0;
