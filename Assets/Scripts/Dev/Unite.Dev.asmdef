@@ -1,0 +1,16 @@
+{
+    "name": "Unite.Dev",
+    "rootNamespace": "Dev",
+    "references": [
+        "Unite.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
