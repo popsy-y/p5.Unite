@@ -33,8 +33,8 @@ Shader "Hidden/Unite/WorldDrawing"
             #pragma multi_compile_local _ _UNITE_DEPTH_PREPASS
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
-            #include "Assets/Unite/Shaders/UniteCommon.hlsl"
-            #include "Assets/Unite/Shaders/SDFs.hlsl"
+            #include "Packages/net.sbm.unite/Runtime/Shaders/UniteCommon.hlsl"
+            #include "Packages/net.sbm.unite/Runtime/Shaders/SDFs.hlsl"
 
             StructuredBuffer<ShapeData> _ShapeData;
             int _ShapeIndex;

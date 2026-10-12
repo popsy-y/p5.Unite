@@ -1,0 +1,25 @@
+{
+  "name": "net.sbm.unite",
+  "version": "0.1.0",
+  "displayName": "p5.Unite",
+  "description": "p5.js-style immediate-mode drawing for Unity. Draw shapes, curves and paths through a UCanvas API in screen, normalized screen, world and canvas-local coordinate spaces.",
+  "unity": "6000.2",
+  "keywords": [
+    "p5",
+    "p5js",
+    "creative-coding",
+    "drawing",
+    "sdf",
+    "generative",
+    "urp"
+  ],
+  "author": {
+    "name": "popsy-y",
+    "url": "https://github.com/popsy-y"
+  },
+  "dependencies": {
+    "com.unity.mathematics": "1.3.2",
+    "com.unity.render-pipelines.core": "17.0.0"
+  },
+  "documentationUrl": "https://github.com/popsy-y/p5.Unite#readme"
+}

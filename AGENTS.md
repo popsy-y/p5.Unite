@@ -17,13 +17,22 @@ p5.Unite is a Unity library that brings p5.js-style creative coding to Unity. It
 ## Project Structure
 
 ```
-/Assets/Unite/
-  Canvas/       - Core canvas API (UCanvas.cs, Shape.cs, Color.cs, Transform.cs, Screen.cs, Utility.cs)
-  Coordinate/   - Coordinate transformation system (CanvasTransformStack.cs)
-  Drawing/      - Rendering internals (DrawingContext.cs, DrawCommand.cs, DrawingHelper.cs, DrawingMode.cs, ShapeData.cs, ShaderPropertyIds.cs)
-  Shaders/      - Custom shaders and HLSL includes (.shader, .hlsl files)
-/Assets/Scripts/Dev/ - Development and testing scripts (CanvasTester.cs, MassiveShapeTester.cs, etc.)
+/Packages/net.sbm.unite/          - The library itself (embedded UPM package, net.sbm.unite)
+  package.json
+  Runtime/      - Core canvas API, coordinate system, rendering internals and shaders
+    Canvas/       (UCanvas.cs, Shape.cs, Color.cs, Transform.cs, Screen.cs, Utility.cs)
+    Coordinate/   (CanvasTransformStack.cs)
+    Drawing/      (DrawingContext.cs, DrawCommand.cs, DrawingHelper.cs, DrawingMode.cs, ShapeData.cs, ShaderPropertyIds.cs, UniteShaderLibrary.cs)
+    Shaders/      (Custom shaders and HLSL includes: .shader, .hlsl files)
+    Resources/    (UniteShaderLibrary.asset - keeps the shaders in player builds)
+  Tests/EditMode/ - EditMode tests (assembly Unite.Runtime.Tests)
+/Assets/Scripts/Dev/ - Development and testing scripts (CanvasTester.cs, etc. Not shipped)
+/Assets/Scripts/Examples/ - Samples that are compiled at all times (Not shipped)
 ```
+
+The repository root is a Unity project used for development. See
+[`PACKAGE_MIGRATION.md`](PACKAGE_MIGRATION.md) for the package layout, the shader
+inclusion mechanism and the release steps.
 
 ## API Reference
 
@@ -38,7 +47,7 @@ A categorized p5.js compatibility reference is available. Start at the manifest 
 dotnet format Assembly-CSharp.csproj
 
 # Format specific files only
-dotnet format Assembly-CSharp.csproj --include Assets/Unite/Canvas/UCanvas.cs
+dotnet format Unite.Runtime.csproj --include Packages/net.sbm.unite/Runtime/Canvas/UCanvas.cs
 ```
 
 ### Building
@@ -50,9 +59,21 @@ dotnet format Assembly-CSharp.csproj --include Assets/Unite/Canvas/UCanvas.cs
 
 ### Testing
 
-- No formal test framework currently in use
-- Manual testing via scripts in `/Assets/Scripts/Dev/`
-- Run CanvasTester.cs in Play mode to verify functionality
+- EditMode tests live in `Packages/net.sbm.unite/Tests/EditMode` (assembly `Unite.Runtime.Tests`). The package is exposed to the Test Runner through `testables` in `Packages/manifest.json`.
+- Run them from the Test Runner window, or headlessly:
+
+  ```powershell
+  & '<UnityEditor>\Unity.exe' -batchmode -nographics -projectPath '<project>' `
+    -runTests -testPlatform EditMode -testResults Logs\TestResults-EditMode.xml `
+    -logFile Logs\editmode-tests.log
+  ```
+
+- Manual testing via scripts in `/Assets/Scripts/Dev/` (run CanvasTester.cs in Play mode)
+- Shaders are only compiled during a real import or a player build. Check `Logs\*.log` for
+  `Shader error` entries after moving or renaming anything under `Runtime/Shaders`.
+- Shader inclusion in a player build: **Tools > p5.Unite > Verify Shader Inclusion In Build**
+  (`Assets/Editor/BuildShaderCheck.cs`, development-only). It also runs headlessly through
+  `-executeMethod P5Unite.EditorTools.BuildShaderCheck.Verify` and exits with code 1 on failure.
 
 ## Code Style Guidelines
 

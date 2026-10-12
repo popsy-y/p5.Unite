@@ -1,7 +1,8 @@
-Shader "Hidden/Unite/CanvasLocalDrawing"
+Shader "Hidden/Unite/ScreenDrawing"
 {
     Properties
     {
+        _DrawingMode ("Drawing Mode", Int) = 0
         _SrcBlend ("Src Blend", Float) = 1
         _DstBlend ("Dst Blend", Float) = 10
         _ZWrite ("ZWrite", Float) = 0
@@ -33,17 +34,14 @@ Shader "Hidden/Unite/CanvasLocalDrawing"
             #pragma multi_compile_local _ _UNITE_DEPTH_PREPASS
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
-            #include "Assets/Unite/Shaders/UniteCommon.hlsl"
-            #include "Assets/Unite/Shaders/SDFs.hlsl"
+            #include "Packages/net.sbm.unite/Runtime/Shaders/UniteCommon.hlsl"
+            #include "Packages/net.sbm.unite/Runtime/Shaders/SDFs.hlsl"
 
             StructuredBuffer<ShapeData> _ShapeData;
+            int _DrawingMode;
             int _ShapeIndex;
             int _UseShapeIndex;
             int _DebugShapeBounds;
-
-            CBUFFER_START(UnityPerMaterial)
-                float4x4 _ParentTransform;
-            CBUFFER_END
 
             struct Attributes
             {
@@ -60,39 +58,54 @@ Shader "Hidden/Unite/CanvasLocalDrawing"
                     ? (uint)_ShapeIndex
                     : input.instanceID;
                 ShapeData data = _ShapeData[dataIndex];
+                bool isPixelScreen = _DrawingMode == 0 || _DrawingMode == 1;
+                bool isOverlay = _DrawingMode == 0 || _DrawingMode == 2;
 
                 if ((int)data.Style.x == 7)
                 {
-                    float4 startH = TransformPoint3D(data.Point0.xyz, data);
-                    float4 endH = TransformPoint3D(data.Point1.xyz, data);
-                    float3 startLocal = float3(
-                        SafeDivide(startH.x, startH.w),
-                        SafeDivide(startH.y, startH.w),
-                        SafeDivide(startH.z, startH.w)
-                    );
-                    float3 endLocal = float3(
-                        SafeDivide(endH.x, endH.w),
-                        SafeDivide(endH.y, endH.w),
-                        SafeDivide(endH.z, endH.w)
-                    );
-                    float3 startWorld = mul(_ParentTransform, float4(startLocal, 1.0)).xyz;
-                    float3 endWorld = mul(_ParentTransform, float4(endLocal, 1.0)).xyz;
-                    return UniteBuildWorldLine(
+                    return UniteBuildPlanar3DLine(
                         input.uv,
                         data,
                         dataIndex,
-                        startWorld,
-                        endWorld
+                        isPixelScreen,
+                        isOverlay
                     );
                 }
 
                 Varyings output;
                 float2 shapePosition = ShapePosition(input.uv, data);
-                float4 positionLocal = DrawingPosition(shapePosition, data);
-                float4 positionWS = mul(_ParentTransform, positionLocal);
+                float4 drawingPositionH = DrawingPosition(shapePosition, data);
+                float safeW = abs(drawingPositionH.w) > 1e-6
+                    ? drawingPositionH.w
+                    : (drawingPositionH.w < 0.0 ? -1e-6 : 1e-6);
+                float3 drawingPosition = drawingPositionH.xyz / safeW;
 
-                output.positionCS = mul(UNITY_MATRIX_VP, positionWS);
-                output.positionCS.z *= DepthBiasFactor(dataIndex);
+                float2 screenPosition = isPixelScreen
+                    ? drawingPosition.xy / _ScreenParams.xy
+                    : drawingPosition.xy;
+
+                float anchorSafeW = abs(data.Transform3.w) > 1e-6
+                    ? data.Transform3.w
+                    : (data.Transform3.w < 0.0 ? -1e-6 : 1e-6);
+                float anchorDepth = data.Transform3.z / anchorSafeW;
+                float depthBias = DepthBiasFactor(dataIndex);
+
+                output.positionCS = float4(screenPosition * 2.0 - 1.0,
+                                           isOverlay ? 0.0 : anchorDepth, 1.0);
+
+                if (!isOverlay)
+                {
+                    if (anchorDepth < 0.0)
+                    {
+                        output.positionCS = UniteCulledPosition();
+                    }
+                    else
+                    {
+                        output.positionCS.z =
+                            UniteLinearDepthToDeviceDepth(saturate(anchorDepth)) * depthBias;
+                    }
+                }
+
                 output.shapePosition = shapePosition;
                 output.instanceID = dataIndex;
                 output.lineCoords = 0.0;

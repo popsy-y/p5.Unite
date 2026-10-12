@@ -101,3 +101,6 @@ InitTestScene*.unity*
 graphify-out/cache/*
 graphify-out/.*
 graphify-out/memory
+
+# Samples imported from the embedded package (Package Manager -> Samples -> Import)
+/[Aa]ssets/[Ss]amples/

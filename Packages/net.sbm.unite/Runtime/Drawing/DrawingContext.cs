@@ -58,7 +58,8 @@ namespace Unite.Drawing
             Queue<DrawCommand> commandQueue,
             Transform parentTransform = null,
             DrawingExecutionMode executionMode = DrawingExecutionMode.Indirect,
-            bool enableDepth = false
+            bool enableDepth = false,
+            UniteShaderLibrary shaderLibrary = null
         )
         {
             DrawingMode = mode;
@@ -71,19 +72,21 @@ namespace Unite.Drawing
             _mesh = DH.UnitQuad;
             _mesh.RecalculateBounds();
 
-            string shaderName = DrawingMode switch
+            var shader = ResolveShader(shaderLibrary);
+            if (shader == null)
             {
-                DrawingMode.World => "Hidden/Unite/WorldDrawing",
-                DrawingMode.CanvasLocal => "Hidden/Unite/CanvasLocalDrawing",
-                _ => "Hidden/Unite/ScreenDrawing"
-            };
+                throw new NullReferenceException(
+                    $"p5.Unite: shader '{UniteShaderLibrary.ShaderNameFor(DrawingMode)}' was not found. "
+                    + "The UniteShaderLibrary asset is missing or has no shader assigned."
+                );
+            }
 
-            _material = new Material(Shader.Find(shaderName));
+            _material = new Material(shader);
             _material.SetFloat(PID.SrcBlend, (float)BlendMode.One);
             _material.SetFloat(PID.DstBlend, (float)BlendMode.OneMinusSrcAlpha);
             _material.SetFloat(PID.ZWrite, 0f);
 
-            _depthPrepassMaterial = new Material(Shader.Find(shaderName));
+            _depthPrepassMaterial = new Material(shader);
             _depthPrepassMaterial.SetFloat(PID.SrcBlend, (float)BlendMode.Zero);
             _depthPrepassMaterial.SetFloat(PID.DstBlend, (float)BlendMode.One);
             _depthPrepassMaterial.SetFloat(PID.ZWrite, 1f);
@@ -91,6 +94,16 @@ namespace Unite.Drawing
             ApplyDepthState();
 
             _commandData = new GraphicsBuffer.IndirectDrawIndexedArgs[1];
+        }
+
+        private Shader ResolveShader(UniteShaderLibrary shaderLibrary)
+        {
+            var library = shaderLibrary != null ? shaderLibrary : UniteShaderLibrary.Instance;
+            var shader = library != null ? library.GetShader(DrawingMode) : null;
+
+            // Shader.Find alone does not create a build dependency, so it is only a safety net
+            // for shaders that are included in the build by other means.
+            return shader != null ? shader : Shader.Find(UniteShaderLibrary.ShaderNameFor(DrawingMode));
         }
 
         public void Dispose()

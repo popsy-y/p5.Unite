@@ -52,6 +52,21 @@ namespace Unite.Canvas
     {
         [SerializeField][HideInInspector] private DrawingContext _drawingContext;
 
+        /// <summary>
+        /// Shaders used to render this canvas. When empty, the library shipped with the
+        /// package (<see cref="UniteShaderLibrary"/>) is used instead.
+        /// </summary>
+        [SerializeField] private UniteShaderLibrary _shaderLibrary;
+
+        /// <summary>
+        /// Shaders used to render this canvas.
+        /// </summary>
+        public UniteShaderLibrary ShaderLibrary
+        {
+            get => _shaderLibrary;
+            set => _shaderLibrary = value;
+        }
+
         public DrawingMode DrawingMode => _drawingContext.DrawingMode;
 
         /// <summary>
@@ -104,7 +119,14 @@ namespace Unite.Canvas
         )
         {
             _drawingContext?.Dispose();
-            _drawingContext = new DrawingContext(mode, _commandQueue, transform, executionMode, enableDepth);
+            _drawingContext = new DrawingContext(
+                mode,
+                _commandQueue,
+                transform,
+                executionMode,
+                enableDepth,
+                _shaderLibrary
+            );
             return _drawingContext;
         }
 
@@ -160,6 +182,37 @@ namespace Unite.Canvas
 
             _transformStack.Reset();
         }
+
+        #endregion
+
+
+        #region Shader Library
+
+#if UNITY_EDITOR
+        private void Reset()
+        {
+            AssignDefaultShaderLibrary();
+        }
+
+        private void OnValidate()
+        {
+            AssignDefaultShaderLibrary();
+        }
+
+        /// <summary>
+        /// Fills in the shader library shipped with the package, so that adding UCanvas to a
+        /// GameObject never requires wiring the shaders by hand.
+        /// </summary>
+        private void AssignDefaultShaderLibrary()
+        {
+            if (_shaderLibrary != null)
+                return;
+
+            _shaderLibrary = UnityEditor.AssetDatabase.LoadAssetAtPath<UniteShaderLibrary>(
+                UniteShaderLibrary.AssetPath
+            );
+        }
+#endif
 
         #endregion
 

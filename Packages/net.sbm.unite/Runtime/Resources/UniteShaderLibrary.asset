@@ -1,0 +1,17 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: faa52d35db56435b99d9482715727da9, type: 3}
+  m_Name: UniteShaderLibrary
+  m_EditorClassIdentifier: 
+  _screenDrawing: {fileID: 4800000, guid: 80b014096f584cdc92631f15831df02f, type: 3}
+  _worldDrawing: {fileID: 4800000, guid: 685783dda1b149eeb9bfc93ddbed51f3, type: 3}
+  _canvasLocalDrawing: {fileID: 4800000, guid: 78282619789e1b34aa8bb32ab725ce49, type: 3}
