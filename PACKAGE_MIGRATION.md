@@ -75,15 +75,30 @@ Packages/net.sbm.unite/Runtime/Resources/UniteShaderLibrary.asset
 - 中の `.cs` はコンパイルされない（エディタを開いていても検証されない）
 - Package Manager の「Samples」→ **Import** を押したときに
   `Assets/Samples/<表示名>/<バージョン>/` へ**コピー**され、そこで初めてコンパイルされる
+- `.meta` も一緒にコピーされるため GUID は保たれる（Unity 公式パッケージも `Samples~` に
+  `.meta` を同梱している）。**サンプルを追加するときは `.meta` も必ず入れる**
 
-このため、**壊れたサンプルは誰かが Import するまで気付けません**。運用は次のとおりです。
+このため、**壊れたサンプルは誰かが Import するまで気付けません**。追加・変更時の手順:
 
-1. まず `Assets/Scripts/Examples` で動くことを確認する（常時コンパイルされる）
-2. 問題ないことを確認したら `Samples~/<サンプル名>` へコピーする
-3. `.meta` も一緒にコピーする（Import 時に GUID を保つため。Unity 公式パッケージも同様）
-4. `package.json` の `samples` 配列に `displayName` / `description` / `path` を追加する
-5. 追加後は、新しいプロジェクトで Import して動作確認する（CI で検証する場合は
-   Unity を起動する前に `Samples~` を `Assets/` へコピーし、コンパイルエラーで落とす）
+1. `Assets/Scripts/Examples` など常時コンパイルされる場所で動作を確認する
+2. `Samples~/<サンプル名>` に `.meta` ごと配置する
+3. `package.json` の `samples` 配列に `displayName` / `description` / `path` を追加する
+4. **コンパイル検証**: `Samples~` の中身を一時的に `Assets/__SampleBuild` などへコピーして
+   Unity を起動し、コンパイルエラーが出ないことを確認してから一時フォルダを消す
+   （`Samples~` は普段コンパイルされないので、この手順を省くと壊れたまま配布してしまう）
+5. 可能なら新しいプロジェクトで Import して動作確認する
+
+`Samples~/BasicDrawing` は `UCanvas` の最小サンプルです:
+
+| ファイル | 内容 |
+| --- | --- |
+| `BasicDrawing.unity` | カメラと `UCanvas` を持つシーン。Import 後そのまま再生できる |
+| `Scripts/BasicDrawing.cs` | 毎フレーム図形を描くスケッチ本体 |
+| `Scripts/Unite.Samples.BasicDrawing.asmdef` | `Unite.Runtime` を参照するサンプル用アセンブリ |
+
+シーンの `UCanvas` には `UniteShaderLibrary` への参照がシリアライズされており、これは
+パッケージの仮想パス（`Packages/net.sbm.unite/...`）と GUID で解決されるため、Import 先が
+`Assets/Samples/...` でも参照が切れません。
 
 Import 先はバージョン付きのパスなので、パッケージを更新して再 Import すると古いコピーが
 残ります。CI で扱う場合はコピー先を毎回消してから実行してください。
@@ -98,6 +113,14 @@ Import 先はバージョン付きのパスなので、パッケージを更新�
 ```
 https://github.com/popsy-y/p5.Unite.git?path=Packages/net.sbm.unite#vX.Y.Z
 ```
+
+補足: このリポジトリは現状**非公開**なので、`https://` のままだと認証が通らず 404 になります。
+自分用に試すときは SSH 形式（`git@github.com:popsy-y/p5.Unite.git?path=Packages/net.sbm.unite#package`）、
+またはアクセストークン付きの HTTPS URL を使うか、リポジトリを公開してください。
+`#` の後ろはタグでもブランチでも指定できます（ブランチは動くターゲットなので、更新を拾うには
+Package Manager の **Update** が必要です）。push 不要で試したい場合は、利用側の `manifest.json` に
+`"net.sbm.unite": "file:F:/Unity_Projects/p5.Unite/Packages/net.sbm.unite"` と書けば作業ツリーを
+直接参照できます（ローカルパッケージ扱いになり、編集がそのまま反映されます）。
 
 ## 検証コマンド
 

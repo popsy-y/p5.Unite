@@ -7,7 +7,8 @@ p5.js風のクリエイティブコーディングをUnityで楽しむための�
 ## 動作環境
 
 - Unity 6000.2 以降
-- 依存パッケージ: `com.unity.mathematics`, `com.unity.render-pipelines.core`（UPMが自動で解決します）
+- **URP（Universal Render Pipeline）が必要です。** 描画シェーダーがURPのシェーダーライブラリをインクルードしています
+- 依存パッケージ（`com.unity.mathematics`, `com.unity.render-pipelines.core`, `com.unity.render-pipelines.universal`）はUPMが自動で解決します
 
 ## インストール
 
@@ -59,6 +60,14 @@ public sealed class Sketch : MonoBehaviour
 | `NormalizedScreen` | 0..1 の正規化座標。深度を使う |
 | `World` | ワールド座標 |
 | `CanvasLocal` | `UCanvas` のGameObjectにローカルな座標 |
+
+## サンプル
+
+Package Managerで `p5.Unite` を開き、**Samples** の「Basic Drawing」を **Import** すると、そのまま再生できるサンプルシーンが入ります。
+
+```
+Assets/Samples/p5.Unite/<バージョン>/BasicDrawing/BasicDrawing.unity
+```
 
 ## asmdefを使う場合
 

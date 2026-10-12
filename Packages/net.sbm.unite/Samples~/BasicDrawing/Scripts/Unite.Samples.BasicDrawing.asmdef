@@ -1,0 +1,16 @@
+{
+    "name": "Unite.Samples.BasicDrawing",
+    "rootNamespace": "Unite.Samples.BasicDrawing",
+    "references": [
+        "Unite.Runtime"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

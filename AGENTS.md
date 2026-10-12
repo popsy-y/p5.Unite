@@ -26,6 +26,7 @@ p5.Unite is a Unity library that brings p5.js-style creative coding to Unity. It
     Shaders/      (Custom shaders and HLSL includes: .shader, .hlsl files)
     Resources/    (UniteShaderLibrary.asset - keeps the shaders in player builds)
   Tests/EditMode/ - EditMode tests (assembly Unite.Runtime.Tests)
+  Samples~/BasicDrawing/ - Importable sample (never compiled until imported, so .meta files must be committed)
 /Assets/Scripts/Dev/ - Development and testing scripts (CanvasTester.cs, etc. Not shipped)
 /Assets/Scripts/Examples/ - Samples that are compiled at all times (Not shipped)
 ```
