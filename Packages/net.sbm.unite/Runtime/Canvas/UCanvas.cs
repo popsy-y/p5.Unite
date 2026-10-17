@@ -235,6 +235,32 @@ namespace Unite.Canvas
 
         private Queue<DrawCommand> _commandQueue = new();
 
+        /// <summary>
+        /// The active drawing mode; throws the standard not-initialized error when the
+        /// canvas has never been set up with CreateCanvas().
+        /// </summary>
+        internal DrawingMode CurrentDrawingMode
+        {
+            get
+            {
+                CheckDrawingContext();
+                return _drawingContext.DrawingMode;
+            }
+        }
+
+        /// <summary>
+        /// Enqueues a fully-built draw command, bypassing the per-shape helpers. Used by
+        /// optional packages (e.g., p5.Unite Text) that emit their own command batches
+        /// through the same queue so draw order against shapes is preserved.
+        /// </summary>
+        internal void EnqueueRawCommand(DrawCommand command)
+        {
+            CheckDrawingContext();
+            if (!isActiveAndEnabled)
+                return;
+            _commandQueue.Enqueue(command);
+        }
+
         #endregion
 
 

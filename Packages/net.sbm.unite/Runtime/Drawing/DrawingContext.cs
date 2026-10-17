@@ -162,7 +162,12 @@ namespace Unite.Drawing
                 var shapeSize = new Vector2(Mathf.Abs(cmd.Size.x), Mathf.Abs(cmd.Size.y));
                 var halfSize = shapeSize * 0.5f;
                 float strokeWeight = cmd.StrokeEnabled ? Mathf.Max(0f, cmd.StrokeWeight) : 0f;
-                float padding = strokeWeight * 0.5f + AntiAliasPadding(cam, transform);
+                // Glyph quads sample a prebaked SDF that already has generous sprite
+                // padding, so they keep their tight bounds (the analytic shapes round
+                // their bounds out to give the anti-aliasing room).
+                float padding = cmd.ShapeType == Shape.Text
+                    ? 0f
+                    : strokeWeight * 0.5f + AntiAliasPadding(cam, transform);
                 var padding2 = Vector2.one * padding;
                 int styleFlags = (cmd.FillEnabled ? 1 : 0) |
                                  (cmd.StrokeEnabled && strokeWeight > 0f ? 2 : 0);
@@ -259,18 +264,44 @@ namespace Unite.Drawing
 
         private void RenderIndirect(Camera cam, int count)
         {
-            _commandData[0].indexCountPerInstance = _mesh.GetIndexCount(0);
-            _commandData[0].instanceCount = (uint)count;
-            _commandBuffer.SetData(_commandData);
+            CollectAtlasRuns();
+            bool singleRun = _runs.Count == 1 && _runs[0].Atlas == null;
 
-            if (DepthIsActive)
+            if (singleRun)
             {
-                var prepassParams = CreateRenderParams(cam, 0, useDepthPrepass: true);
-                Graphics.RenderMeshIndirect(prepassParams, _mesh, _commandBuffer, 1);
+                _commandData[0].indexCountPerInstance = _mesh.GetIndexCount(0);
+                _commandData[0].instanceCount = (uint)count;
+                _commandBuffer.SetData(_commandData);
+
+                if (DepthIsActive)
+                {
+                    var prepassParams = CreateRenderParams(cam, 0, useDepthPrepass: true);
+                    Graphics.RenderMeshIndirect(prepassParams, _mesh, _commandBuffer, 1);
+                }
+
+                var rp = CreateRenderParams(cam, 0);
+                Graphics.RenderMeshIndirect(rp, _mesh, _commandBuffer, 1);
+                return;
             }
 
-            var rp = CreateRenderParams(cam, 0);
-            Graphics.RenderMeshIndirect(rp, _mesh, _commandBuffer, 1);
+            // Glyph commands reference different atlas textures; each run submits its own
+            // indirect draw and indexes the shared shape buffer through _ShapeDataBase
+            // (SV_InstanceID restarts at zero for every draw call).
+            _commandData[0].indexCountPerInstance = _mesh.GetIndexCount(0);
+            foreach (var run in _runs)
+            {
+                _commandData[0].instanceCount = (uint)run.Count;
+                _commandBuffer.SetData(_commandData);
+
+                if (DepthIsActive)
+                {
+                    var prepassParams = CreateRenderParams(cam, 0, true, run.Start, run.Atlas);
+                    Graphics.RenderMeshIndirect(prepassParams, _mesh, _commandBuffer, 1);
+                }
+
+                var rp = CreateRenderParams(cam, 0, false, run.Start, run.Atlas);
+                Graphics.RenderMeshIndirect(rp, _mesh, _commandBuffer, 1);
+            }
         }
 
         private void RenderSequential(Camera cam, int count)
@@ -279,22 +310,62 @@ namespace Unite.Drawing
             {
                 for (int index = 0; index < count; index++)
                 {
-                    var prepassParams = CreateRenderParams(cam, index, useDepthPrepass: true);
+                    var prepassParams = CreateRenderParams(
+                        cam,
+                        index,
+                        useDepthPrepass: true,
+                        atlas: _frameCommands[index].GlyphAtlas
+                    );
                     Graphics.RenderMesh(prepassParams, _mesh, 0, Matrix4x4.identity);
                 }
             }
 
             for (int index = 0; index < count; index++)
             {
-                var rp = CreateRenderParams(cam, index);
+                var rp = CreateRenderParams(cam, index, atlas: _frameCommands[index].GlyphAtlas);
                 Graphics.RenderMesh(rp, _mesh, 0, Matrix4x4.identity);
             }
+        }
+
+        private struct AtlasRun
+        {
+            public int Start;
+            public int Count;
+            public Texture Atlas;
+        }
+
+        private readonly List<AtlasRun> _runs = new();
+
+        // Groups consecutive commands that share the same atlas texture into runs.
+        private void CollectAtlasRuns()
+        {
+            _runs.Clear();
+            int count = _frameCommands.Length;
+            Texture current = null;
+            int start = 0;
+
+            for (int index = 0; index < count; index++)
+            {
+                var atlas = _frameCommands[index].GlyphAtlas;
+                if (ReferenceEquals(atlas, current)) continue;
+
+                if (index > start)
+                    _runs.Add(new AtlasRun { Start = start, Count = index - start, Atlas = current });
+
+                start = index;
+                current = atlas;
+            }
+
+            if (count > start)
+                _runs.Add(new AtlasRun { Start = start, Count = count - start, Atlas = current });
         }
 
         private RenderParams CreateRenderParams(
             Camera cam,
             int shapeIndex,
-            bool useDepthPrepass = false
+            bool useDepthPrepass = false,
+            int shapeDataOffset = 0,
+            Texture atlas = null
         )
         {
             var properties = new MaterialPropertyBlock();
@@ -307,6 +378,16 @@ namespace Unite.Drawing
                 ExecutionMode == DrawingExecutionMode.Sequential ? 1 : 0
             );
             properties.SetInt(PID.DebugShapeBounds, DebugShapeBounds ? 1 : 0);
+
+            if (shapeDataOffset != 0)
+            {
+                properties.SetInt(PID.ShapeDataBase, shapeDataOffset);
+            }
+
+            if (atlas != null)
+            {
+                properties.SetTexture(PID.GlyphAtlas, atlas);
+            }
 
             if (DrawingMode == DrawingMode.CanvasLocal && _parentTransform != null)
             {
@@ -364,6 +445,7 @@ namespace Unite.Drawing
                 Shape.Quad => 5f,
                 Shape.Arc => 6f,
                 Shape.PolygonFill => 8f,
+                Shape.Text => 9f,
                 _ => 0f
             };
         }

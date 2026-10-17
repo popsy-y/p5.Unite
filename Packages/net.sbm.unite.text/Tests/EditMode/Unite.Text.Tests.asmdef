@@ -1,0 +1,22 @@
+{
+    "name": "Unite.Text.Tests",
+    "rootNamespace": "Unite.Text.Tests",
+    "references": [
+        "Unite.Runtime",
+        "Unite.Text"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false,
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ]
+}

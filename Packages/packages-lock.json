@@ -254,6 +254,14 @@
         "com.unity.render-pipelines.universal": "17.0.0"
       }
     },
+    "net.sbm.unite.text": {
+      "version": "file:net.sbm.unite.text",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {
+        "net.sbm.unite": "0.1.0"
+      }
+    },
     "com.unity.modules.accessibility": {
       "version": "1.0.0",
       "depth": 0,

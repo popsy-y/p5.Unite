@@ -39,6 +39,7 @@ Shader "Hidden/Unite/CanvasLocalDrawing"
             StructuredBuffer<ShapeData> _ShapeData;
             int _ShapeIndex;
             int _UseShapeIndex;
+            int _ShapeDataBase;
             int _DebugShapeBounds;
 
             CBUFFER_START(UnityPerMaterial)
@@ -58,7 +59,7 @@ Shader "Hidden/Unite/CanvasLocalDrawing"
             {
                 uint dataIndex = _UseShapeIndex != 0
                     ? (uint)_ShapeIndex
-                    : input.instanceID;
+                    : input.instanceID + (uint)_ShapeDataBase;
                 ShapeData data = _ShapeData[dataIndex];
 
                 if ((int)data.Style.x == 7)
@@ -103,7 +104,7 @@ Shader "Hidden/Unite/CanvasLocalDrawing"
 
             half4 frag(Varyings input) : SV_Target
             {
-                ShapeData data = _ShapeData[input.instanceID];
+                ShapeData data = _ShapeData[input.instanceID + (uint)_ShapeDataBase];
                 half4 color;
                 if (_DebugShapeBounds != 0)
                 {
@@ -118,6 +119,10 @@ Shader "Hidden/Unite/CanvasLocalDrawing"
                         input.lineLength,
                         data
                     );
+                }
+                else if ((int)data.Style.x == 9)
+                {
+                    color = ComputeGlyphColor(input.shapePosition, data);
                 }
                 else
                 {

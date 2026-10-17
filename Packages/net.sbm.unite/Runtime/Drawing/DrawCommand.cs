@@ -47,5 +47,8 @@ namespace Unite.Canvas
         public float StrokeWeight;
         public bool FillEnabled;
         public bool StrokeEnabled;
+
+        // Text only: atlas page texture holding this glyph's SDF. Null for every shape.
+        public Texture GlyphAtlas;
     }
 }

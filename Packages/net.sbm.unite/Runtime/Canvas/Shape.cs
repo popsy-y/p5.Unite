@@ -14,7 +14,8 @@ namespace Unite.Canvas
         Rectangle,
         Square,
         Triangle,
-        PolygonFill
+        PolygonFill,
+        Text
     }
 
     public enum ShapeMode

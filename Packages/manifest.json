@@ -1,6 +1,7 @@
 {
   "testables": [
-    "net.sbm.unite"
+    "net.sbm.unite",
+    "net.sbm.unite.text"
   ],
   "dependencies": {
     "com.unity.ai.navigation": "2.0.15",
