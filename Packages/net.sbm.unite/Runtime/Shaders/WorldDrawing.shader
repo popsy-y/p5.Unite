@@ -79,7 +79,7 @@ Shader "Hidden/Unite/WorldDrawing"
 
             half4 frag(Varyings input) : SV_Target
             {
-                ShapeData data = _ShapeData[input.instanceID + (uint)_ShapeDataBase];
+                ShapeData data = _ShapeData[input.instanceID];
                 half4 color;
                 if (_DebugShapeBounds != 0)
                 {

@@ -34,9 +34,10 @@ namespace Unite.Text
             ResolveRaster(canvas, state, font, out int em, out float glyphScale, out float unitsPerPx);
             var atlas = AtlasRegistry.GetOrCreate(state.Font);
 
-        // Text assumes drawing-space +y is up, matching the pipeline's clip mapping;
-        // successive lines drop toward -y like p5's leading behavior.
-        float lineAdvance = (font.Ascender - font.Descender) * glyphScale * unitsPerPx;
+            // Text draws in p5 canvas orientation: +y is DOWN on screen, while font
+            // space is y-up — glyphs flip vertically and successive lines advance
+            // toward +y (down), like p5's leading behavior.
+            float lineAdvance = (font.Ascender - font.Descender) * glyphScale * unitsPerPx;
             float baseline = y;
 
             foreach (var line in SplitLines(text))
@@ -46,7 +47,7 @@ namespace Unite.Text
                     float startX = x - AlignmentOffset(state, line, font, glyphScale * unitsPerPx);
                     DrawLine(canvas, atlas, font, line, startX, baseline, em, glyphScale, unitsPerPx);
                 }
-                baseline -= lineAdvance;
+                baseline += lineAdvance;
             }
         }
 
@@ -185,11 +186,12 @@ namespace Unite.Text
                 if (!atlas.TryGetCached(key, frame, out var glyph))
                     glyph = BakeGlyph(atlas, key, frame, outline, emBucket, glyphScale);
 
-                // Sprite rect: X/Y in page texels, pen-relative (y up, y=0 at the
-                // baseline). Drawing space is y-up like font space, so no flip.
+                // Sprite rect: pen-relative origin (OffsetX/Y) + size in baked pixels.
+                // Drawing space is y-down while font space is y-up, so the vertical
+                // axis flips: the quad's top edge samples the sprite rect's TOP.
                 var center = new Vector3(
-                    penX + (glyph.X + glyph.W * 0.5f) * unitsPerPx,
-                    baseline + (glyph.Y + glyph.H * 0.5f) * unitsPerPx,
+                    penX + (glyph.OffsetX + glyph.W * 0.5f) * unitsPerPx,
+                    baseline - (glyph.OffsetY + glyph.H * 0.5f) * unitsPerPx,
                     0f
                 );
 
@@ -198,8 +200,8 @@ namespace Unite.Text
                     Transform = canvas.CurrentTransform * Matrix4x4.Translate(center),
                     Size = new Vector2(glyph.W * unitsPerPx, glyph.H * unitsPerPx),
                     ShapeType = Shape.Text,
-                    Point2 = glyph.UvMin,
-                    Point3 = glyph.UvMax,
+                    Point2 = new Vector2(glyph.UvMin.x, glyph.UvMax.y),
+                    Point3 = new Vector2(glyph.UvMax.x, glyph.UvMin.y),
                     Parameters0 = new Vector4(glyph.Range, glyph.W, 0f, 0f),
                     GlyphAtlas = glyph.Texture,
                     FillColor = style.FillColor,
@@ -258,7 +260,9 @@ namespace Unite.Text
             var field = new byte[width * height];
             SdfEncoder.Encode(coverage, width, height, range, field);
 
-            return atlas.Reserve(key, frame, width, height, range, field);
+            // (issueX, issueY) is the pen-relative sprite rect origin: the glyph's
+            // baked pixel box measured from the pen origin / baseline (y-up).
+            return atlas.Reserve(key, frame, width, height, range, field, issueX, issueY);
         }
 
         private static int GetCurrentFrame()

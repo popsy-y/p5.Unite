@@ -356,12 +356,15 @@ half4 ComputeShapeColor(float2 shapePosition, ShapeData data)
 // texture. Point2/Point3 carry the sprite's UV rect, Parameters0.x the SDF range in
 // texels and Parameters0.y the texel width of that rect. The quad is exactly the
 // sprite rect scaled into drawing-space units, so units per texel is uniform.
-Texture2D<float> _GlyphAtlas;
+// The sampler is declared explicitly: the implicit sampler_<texture> generation does
+// not fire for this include on all targets.
+Texture2D _GlyphAtlas;
+SamplerState sampler_GlyphAtlas;
 
 float4 ComputeGlyphColor(float2 shapePosition, ShapeData data)
 {
     float2 size = max(data.ShapeParameters.xy, 1e-6);
-    float2 uv = lerp(data.Point2, data.Point3, saturate(shapePosition / size + 0.5));
+    float2 uv = lerp(data.Point2.xy, data.Point3.xy, saturate(shapePosition / size + 0.5));
     float signedField = SAMPLE_TEXTURE2D(_GlyphAtlas, sampler_GlyphAtlas, uv).r - 0.5;
     float unitsPerTexel = size.x / max(data.Parameters0.y, 1e-6);
     float distance = signedField * 2.0 * data.Parameters0.x * unitsPerTexel;

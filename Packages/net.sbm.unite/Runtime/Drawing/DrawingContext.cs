@@ -53,6 +53,10 @@ namespace Unite.Drawing
         private GraphicsBuffer.IndirectDrawIndexedArgs[] _commandData;
         private readonly List<Vector4> _polygonPoints = new();
 
+        // MaterialPropertyBlock textures do not reach RenderMeshIndirect reliably, so
+        // every atlas page gets its own material variant that owns the texture binding.
+        private readonly Dictionary<Texture, Material> _glyphMaterials = new();
+
         public DrawingContext(
             DrawingMode mode,
             Queue<DrawCommand> commandQueue,
@@ -119,11 +123,23 @@ namespace Unite.Drawing
             Object.DestroyImmediate(_material);
             Object.DestroyImmediate(_depthPrepassMaterial);
             Object.DestroyImmediate(_mesh);
+            foreach (var glyphMaterial in _glyphMaterials.Values)
+                Object.DestroyImmediate(glyphMaterial);
 #else
             Object.Destroy(_material);
             Object.Destroy(_depthPrepassMaterial);
             Object.Destroy(_mesh);
+            foreach (var glyphMaterial in _glyphMaterials.Values)
+                Object.Destroy(glyphMaterial);
 #endif
+            _glyphMaterials.Clear();
+
+            foreach (var buffer in _argsBufferPool)
+                buffer?.Dispose();
+            foreach (var buffer in _activeArgsBuffers)
+                buffer?.Dispose();
+            _argsBufferPool.Clear();
+            _activeArgsBuffers.Clear();
         }
 
         public void Draw(Camera cam)
@@ -284,24 +300,30 @@ namespace Unite.Drawing
                 return;
             }
 
-            // Glyph commands reference different atlas textures; each run submits its own
-            // indirect draw and indexes the shared shape buffer through _ShapeDataBase
-            // (SV_InstanceID restarts at zero for every draw call).
-            _commandData[0].indexCountPerInstance = _mesh.GetIndexCount(0);
+            // Glyph commands reference different atlas textures; every run submits its
+            // own indirect args buffer (a shared buffer would apply the LAST run's
+            // instance count to every queued draw) with `startInstance` left at zero;
+            // the run's offset into the shared shape buffer goes through the
+            // _ShapeDataBase material property instead. Runs draw in submission order
+            // so painter's order is preserved against the regular shapes.
             foreach (var run in _runs)
             {
+                var argsBuffer = AcquireArgsBuffer();
+                _commandData[0].indexCountPerInstance = _mesh.GetIndexCount(0);
                 _commandData[0].instanceCount = (uint)run.Count;
-                _commandBuffer.SetData(_commandData);
+                argsBuffer.SetData(_commandData);
 
-                if (DepthIsActive)
+                if (DepthIsActive && run.Atlas == null)
                 {
-                    var prepassParams = CreateRenderParams(cam, 0, true, run.Start, run.Atlas);
-                    Graphics.RenderMeshIndirect(prepassParams, _mesh, _commandBuffer, 1);
+                    var prepassParams = CreateRenderParams(cam, 0, true, shapeDataOffset: run.Start);
+                    Graphics.RenderMeshIndirect(prepassParams, _mesh, argsBuffer, 1);
                 }
 
-                var rp = CreateRenderParams(cam, 0, false, run.Start, run.Atlas);
-                Graphics.RenderMeshIndirect(rp, _mesh, _commandBuffer, 1);
+                var rp = CreateRenderParams(cam, 0, false, shapeDataOffset: run.Start, atlas: run.Atlas);
+                Graphics.RenderMeshIndirect(rp, _mesh, argsBuffer, 1);
             }
+
+            ReleaseArgsBuffers();
         }
 
         private void RenderSequential(Camera cam, int count)
@@ -310,11 +332,15 @@ namespace Unite.Drawing
             {
                 for (int index = 0; index < count; index++)
                 {
+                    // Glyph quads never write depth (like line strokes): the depth
+                    // prepass material does not know the glyph's atlas texture.
+                    if (_frameCommands[index].GlyphAtlas != null)
+                        continue;
+
                     var prepassParams = CreateRenderParams(
                         cam,
                         index,
-                        useDepthPrepass: true,
-                        atlas: _frameCommands[index].GlyphAtlas
+                        useDepthPrepass: true
                     );
                     Graphics.RenderMesh(prepassParams, _mesh, 0, Matrix4x4.identity);
                 }
@@ -335,6 +361,34 @@ namespace Unite.Drawing
         }
 
         private readonly List<AtlasRun> _runs = new();
+        private readonly List<GraphicsBuffer> _argsBufferPool = new();
+        private readonly List<GraphicsBuffer> _activeArgsBuffers = new();
+
+        private GraphicsBuffer AcquireArgsBuffer()
+        {
+            if (_argsBufferPool.Count > 0)
+            {
+                var reused = _argsBufferPool[_argsBufferPool.Count - 1];
+                _argsBufferPool.RemoveAt(_argsBufferPool.Count - 1);
+                _activeArgsBuffers.Add(reused);
+                return reused;
+            }
+
+            var created = new GraphicsBuffer(
+                GraphicsBuffer.Target.IndirectArguments,
+                1,
+                GraphicsBuffer.IndirectDrawIndexedArgs.size
+            );
+            _activeArgsBuffers.Add(created);
+            return created;
+        }
+
+        private void ReleaseArgsBuffers()
+        {
+            foreach (var buffer in _activeArgsBuffers)
+                _argsBufferPool.Add(buffer);
+            _activeArgsBuffers.Clear();
+        }
 
         // Groups consecutive commands that share the same atlas texture into runs.
         private void CollectAtlasRuns()
@@ -384,17 +438,13 @@ namespace Unite.Drawing
                 properties.SetInt(PID.ShapeDataBase, shapeDataOffset);
             }
 
-            if (atlas != null)
-            {
-                properties.SetTexture(PID.GlyphAtlas, atlas);
-            }
-
             if (DrawingMode == DrawingMode.CanvasLocal && _parentTransform != null)
             {
                 properties.SetMatrix(PID.ParentTransform, _parentTransform.localToWorldMatrix);
             }
 
-            return new RenderParams(useDepthPrepass ? _depthPrepassMaterial : _material)
+            var baseMaterial = atlas != null ? GetGlyphMaterial(atlas) : _material;
+            return new RenderParams(useDepthPrepass ? _depthPrepassMaterial : baseMaterial)
             {
                 worldBounds = new Bounds(cam.transform.position, Vector3.one * 10000f),
                 camera = cam,
@@ -404,11 +454,33 @@ namespace Unite.Drawing
 
         private void ApplyDepthState()
         {
-            _material.SetFloat(
-                PID.ZTest,
-                (float)(DepthIsActive ? CompareFunction.LessEqual : CompareFunction.Always)
-            );
+            var zTest = (float)(DepthIsActive ? CompareFunction.LessEqual : CompareFunction.Always);
+            _material.SetFloat(PID.ZTest, zTest);
             _depthPrepassMaterial.SetFloat(PID.ZTest, (float)CompareFunction.LessEqual);
+
+            foreach (var glyphMaterial in _glyphMaterials.Values)
+                glyphMaterial.SetFloat(PID.ZTest, zTest);
+        }
+
+        // Clones the canvas material for one atlas page and owns its texture binding.
+        // The binding is re-asserted on every acquire: the page texture can be replaced
+        // (eviction + page reuse) or destroyed across play sessions, and a stale bind
+        // makes every glyph quad sample the empty page (solid rectangles).
+        private Material GetGlyphMaterial(Texture atlas)
+        {
+            if (_glyphMaterials.TryGetValue(atlas, out var material) && material != null)
+            {
+                if (material.GetTexture(PID.GlyphAtlas) == atlas)
+                    return material;
+
+                material.SetTexture(PID.GlyphAtlas, atlas);
+                return material;
+            }
+
+            material = new Material(_material);
+            material.SetTexture(PID.GlyphAtlas, atlas);
+            _glyphMaterials[atlas] = material;
+            return material;
         }
 
         private float AntiAliasPadding(Camera cam, Matrix4x4 transform)

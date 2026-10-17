@@ -526,48 +526,59 @@ namespace Dev
             var outlineColor = new Color(1f, 0.55f, 0.25f);
 
             // 1) Size ramp: the three sizes land in different pow2 raster buckets.
+            // Rows run top → bottom like the other pages (drawing +y is down).
+            // A dark backdrop keeps the samples readable over the dev scene.
+            _canvas.NoStroke();
+            _canvas.Fill(new Color(0.03f, 0.06f, 0.1f, 0.55f));
+            _canvas.Rect(Position(0.5f, 0.55f), new Vector2(unit * 1.9f, unit * 1.1f));
+
             _canvas.TextAlign(TextAlignMode.Left);
             _canvas.NoStroke();
             _canvas.Fill(textColor);
-            DrawTextSample("small", 0.05f, 0.05f, 0.85f);
-            DrawTextSample("medium", 0.08f, 0.28f, 0.85f);
-            DrawTextSample("large", 0.12f, 0.52f, 0.85f);
+            DrawTextSample("small", 0.05f, 0.05f, 0.15f);
+            DrawTextSample("medium", 0.08f, 0.28f, 0.15f);
+            DrawTextSample("large", 0.12f, 0.7f, 0.15f);
 
             // 2) Alignment: each string anchors LEFT / CENTER / RIGHT on its line.
-            DrawTextAlignmentRow(unit, strokeWeight, accent, textColor, 0.6f);
+            DrawTextAlignmentRow(unit, strokeWeight, accent, textColor, 0.4f);
 
             // 3) Glyph render paths: filled, outline-only and fill+stroke.
+            // The stroke weight stays well inside the glyph SDF range: a stroke wider
+            // than the SDF spread floods the whole quad.
             _canvas.TextAlign(TextAlignMode.Left);
             _canvas.NoStroke();
             _canvas.Fill(textColor);
-            DrawTextSample("fill", 0.07f, 0.06f, 0.4f);
+            DrawTextSample("fill", 0.07f, 0.06f, 0.6f);
 
             _canvas.NoFill();
             _canvas.Stroke(outlineColor);
-            _canvas.StrokeWeight(Mathf.Max(strokeWeight, unit * 0.012f));
-            DrawTextSample("outline", 0.07f, 0.28f, 0.4f);
+            _canvas.StrokeWeight(Mathf.Max(strokeWeight, unit * 0.003f));
+            DrawTextSample("outline", 0.07f, 0.28f, 0.6f);
 
             _canvas.Fill(accent);
             _canvas.Stroke(DarkColor());
-            _canvas.StrokeWeight(Mathf.Max(strokeWeight, unit * 0.004f));
-            DrawTextSample("both", 0.07f, 0.52f, 0.4f);
+            _canvas.StrokeWeight(Mathf.Max(strokeWeight, unit * 0.002f));
+            DrawTextSample("both", 0.07f, 0.52f, 0.6f);
             _canvas.NoStroke();
 
             // 4) Multi-line text plus a TextWidth() measurement underline.
             _canvas.Fill(textColor);
-            DrawTextSample("p5.Unite\nsecond\nthird", 0.055f, 0.06f, 0.27f);
+            DrawTextSample("p5.Unite\nsecond\nthird", 0.055f, 0.06f, 0.73f);
 
             _canvas.TextSize(unit * 0.06f);
             const string measured = "TextWidth()";
-            var measuredPosition = Position(0.55f, 0.27f);
-            _canvas.Text(measured, measuredPosition.x, measuredPosition.y);
+            var measuredPosition = Position(0.55f, 0.73f);
+            _canvas.Push();
+            _canvas.Translate(measuredPosition);
+            _canvas.Text(measured, 0f, 0f);
             float measuredWidth = _canvas.TextWidth(measured);
+            _canvas.Pop();
             _canvas.NoStroke();
             _canvas.Fill(accent);
             _canvas.Rect(
                 new Vector3(
                     measuredPosition.x + measuredWidth * 0.5f,
-                    measuredPosition.y - unit * 0.02f,
+                    measuredPosition.y + unit * 0.02f,
                     measuredPosition.z
                 ),
                 new Vector2(measuredWidth, Mathf.Max(AntiAliasMinimum(), unit * 0.004f))
@@ -576,7 +587,7 @@ namespace Dev
             // 5) Text inside Push/Translate/Rotate: glyph quads follow the current
             // transform like any other shape.
             _canvas.Push();
-            _canvas.Translate(Position(0.62f, 0.07f));
+            _canvas.Translate(Position(0.62f, 0.93f));
             _canvas.Rotate(_animateTransforms ? Mathf.Sin(Time.time * 1.4f) * 0.55f : 0.3f);
             _canvas.TextSize(unit * 0.05f);
             _canvas.Fill(new Color(0.6f, 1f, 0.5f));
@@ -584,11 +595,15 @@ namespace Dev
             _canvas.Pop();
         }
 
+        // Text is drawn through Push/Translate so the glyph quads inherit the anchor's
+        // drawing depth (Text(str, x, y) itself is 2D, exactly like p5's text()).
         private void DrawTextSample(string text, float sizeFactor, float xNorm, float yNorm)
         {
             _canvas.TextSize(Unit() * sizeFactor);
-            var position = Position(xNorm, yNorm);
-            _canvas.Text(text, position.x, position.y);
+            _canvas.Push();
+            _canvas.Translate(Position(xNorm, yNorm));
+            _canvas.Text(text, 0f, 0f);
+            _canvas.Pop();
         }
 
         private void DrawTextAlignmentRow(
@@ -643,8 +658,8 @@ namespace Dev
         )
         {
             // Reference line the text must hug according to its alignment.
-            var top = Position(xNorm, baselineY + 0.08f);
-            var bottom = Position(xNorm, baselineY - 0.04f);
+            var top = Position(xNorm, baselineY - 0.08f);
+            var bottom = Position(xNorm, baselineY + 0.04f);
             _canvas.NoFill();
             _canvas.Stroke(accent);
             _canvas.StrokeWeight(strokeWeight);
@@ -654,8 +669,10 @@ namespace Dev
             _canvas.Fill(textColor);
             _canvas.TextAlign(align);
             _canvas.TextSize(unit * 0.06f);
-            var position = Position(xNorm, baselineY);
-            _canvas.Text(label, position.x, position.y);
+            _canvas.Push();
+            _canvas.Translate(Position(xNorm, baselineY));
+            _canvas.Text(label, 0f, 0f);
+            _canvas.Pop();
         }
 
         private void DrawArc(Vector3 center, float unit, ArcMode mode)

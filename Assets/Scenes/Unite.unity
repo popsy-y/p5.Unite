@@ -702,11 +702,12 @@ MonoBehaviour:
   _debugShapeBounds: 0
   _autoCycleModes: 0
   _cycleInterval: 3
-  _page: 5
+  _page: 6
   _autoCyclePages: 0
   _pageCycleInterval: 3
   _animateTransforms: 1
   _stressShapeCount: 5000
+  _textFont: {fileID: 11400000, guid: 6e3eeb01708244d48b5e011c3e9710e0, type: 2}
 --- !u!114 &605906603
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -719,6 +720,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7b6d2f41c9c2f074f99191b5efa2d520, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Unite.Canvas.Canvas
+  _shaderLibrary: {fileID: 11400000, guid: 620af193329c432da3205918ea693f73, type: 2}
 --- !u!4 &605906604
 Transform:
   m_ObjectHideFlags: 0
@@ -1887,6 +1889,7 @@ MonoBehaviour:
   _pageCycleInterval: 3
   _animateTransforms: 1
   _stressShapeCount: 5000
+  _textFont: {fileID: 0}
 --- !u!114 &1275819814
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1899,6 +1902,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7b6d2f41c9c2f074f99191b5efa2d520, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Unite.Canvas.Canvas
+  _shaderLibrary: {fileID: 11400000, guid: 620af193329c432da3205918ea693f73, type: 2}
 --- !u!4 &1275819815
 Transform:
   m_ObjectHideFlags: 0
@@ -2836,6 +2840,7 @@ MonoBehaviour:
   _pageCycleInterval: 3
   _animateTransforms: 1
   _stressShapeCount: 5000
+  _textFont: {fileID: 0}
 --- !u!114 &1762135873
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2848,6 +2853,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7b6d2f41c9c2f074f99191b5efa2d520, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Unite.Canvas.Canvas
+  _shaderLibrary: {fileID: 11400000, guid: 620af193329c432da3205918ea693f73, type: 2}
 --- !u!4 &1762135874
 Transform:
   m_ObjectHideFlags: 0
@@ -3631,6 +3637,7 @@ MonoBehaviour:
   _pageCycleInterval: 3
   _animateTransforms: 1
   _stressShapeCount: 5000
+  _textFont: {fileID: 0}
 --- !u!114 &1869666849
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3643,6 +3650,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7b6d2f41c9c2f074f99191b5efa2d520, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Unite.Canvas.Canvas
+  _shaderLibrary: {fileID: 11400000, guid: 620af193329c432da3205918ea693f73, type: 2}
 --- !u!4 &1869666850
 Transform:
   m_ObjectHideFlags: 0
@@ -4201,6 +4209,7 @@ MonoBehaviour:
   _pageCycleInterval: 3
   _animateTransforms: 1
   _stressShapeCount: 5000
+  _textFont: {fileID: 0}
 --- !u!114 &1996237512
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4213,6 +4222,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7b6d2f41c9c2f074f99191b5efa2d520, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Unite.Canvas.Canvas
+  _shaderLibrary: {fileID: 11400000, guid: 620af193329c432da3205918ea693f73, type: 2}
 --- !u!4 &1996237513
 Transform:
   m_ObjectHideFlags: 0
@@ -4303,6 +4313,7 @@ MonoBehaviour:
   _pageCycleInterval: 3
   _animateTransforms: 1
   _stressShapeCount: 5000
+  _textFont: {fileID: 0}
 --- !u!114 &2020405482
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4315,6 +4326,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 7b6d2f41c9c2f074f99191b5efa2d520, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Unite.Canvas.Canvas
+  _shaderLibrary: {fileID: 11400000, guid: 620af193329c432da3205918ea693f73, type: 2}
 --- !u!4 &2020405483
 Transform:
   m_ObjectHideFlags: 0

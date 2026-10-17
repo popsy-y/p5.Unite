@@ -21,7 +21,16 @@ namespace Unite.Text
         /// <summary>A baked glyph inside the atlas.</summary>
         internal readonly struct CachedGlyph
         {
-            public CachedGlyph(Texture2D texture, int x, int y, int width, int height, float range)
+            public CachedGlyph(
+                Texture2D texture,
+                int x,
+                int y,
+                int width,
+                int height,
+                float range,
+                float offsetX,
+                float offsetY
+            )
             {
                 Texture = texture;
                 X = x;
@@ -29,6 +38,8 @@ namespace Unite.Text
                 W = width;
                 H = height;
                 Range = range;
+                OffsetX = offsetX;
+                OffsetY = offsetY;
             }
 
             public Texture2D Texture { get; }
@@ -37,6 +48,13 @@ namespace Unite.Text
             public int W { get; }
             public int H { get; }
             public float Range { get; }
+
+            /// <summary>
+            /// Pen-relative sprite rect origin in baked pixels: X along the writing
+            /// direction, Y up from the baseline (font orientation, y-up).
+            /// </summary>
+            public float OffsetX { get; }
+            public float OffsetY { get; }
 
             /// <summary>Sprite rect bottom-left in texture UVs.</summary>
             public Vector2 UvMin => new(X / (float)PageSpan, Y / (float)PageSpan);
@@ -54,6 +72,8 @@ namespace Unite.Text
             public int W;
             public int H;
             public float Range;
+            public float OffsetX;
+            public float OffsetY;
             public int LastUsedFrame;
         }
 
@@ -106,9 +126,19 @@ namespace Unite.Text
 
         /// <summary>
         /// Reserves space on a page, uploads the SDF bytes and caches the entry. The
-        /// field buffer must hold width*height bytes (row 0 = bottom).
+        /// field buffer must hold width*height bytes (row 0 = bottom). (offsetX,
+        /// offsetY) is the pen-relative sprite rect origin in baked pixels (y-up).
         /// </summary>
-        public CachedGlyph Reserve(GlyphKey key, int frame, int width, int height, float range, byte[] field)
+        public CachedGlyph Reserve(
+            GlyphKey key,
+            int frame,
+            int width,
+            int height,
+            float range,
+            byte[] field,
+            float offsetX,
+            float offsetY
+        )
         {
             EnsureBuffersMatch(field, width, height);
             EvictIfNeeded(frame);
@@ -151,6 +181,8 @@ namespace Unite.Text
                 W = width,
                 H = height,
                 Range = range,
+                OffsetX = offsetX,
+                OffsetY = offsetY,
                 LastUsedFrame = frame
             };
             _entries.Add(key, entry);
@@ -285,7 +317,9 @@ namespace Unite.Text
             entry.Y,
             entry.W,
             entry.H,
-            entry.Range
+            entry.Range,
+            entry.OffsetX,
+            entry.OffsetY
         );
     }
 }

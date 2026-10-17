@@ -35,7 +35,7 @@ namespace Unite.Text.Tests
         public void ReserveThenCacheHitReturnsSameRect()
         {
             var key = new GlyphKey(0, 42, 64);
-            var baked = _set.Reserve(key, frame: 0, 32, 40, range: 4f, FieldOf(32, 40));
+            var baked = _set.Reserve(key, frame: 0, 32, 40, range: 4f, FieldOf(32, 40), 0f, 0f);
 
             Assert.IsTrue(_set.TryGetCached(key, frame: 1, out var cached));
             Assert.AreEqual(baked.X, cached.X);
@@ -65,7 +65,7 @@ namespace Unite.Text.Tests
                     width,
                     height,
                     4f,
-                    FieldOf(width, height)
+                    FieldOf(width, height), 0f, 0f
                 );
                 rects.Add((IndexOf(_set, baked.Texture), baked.X, baked.Y, baked.W, baked.H));
             }
@@ -108,12 +108,12 @@ namespace Unite.Text.Tests
         public void AgedEntriesAreEvictedAndPagesRelease()
         {
             var key = new GlyphKey(0, 5, 64);
-            _set.Reserve(key, frame: 0, 16, 16, 2f, FieldOf(16, 16));
+            _set.Reserve(key, frame: 0, 16, 16, 2f, FieldOf(16, 16), 0f, 0f);
             Assert.AreEqual(1, _set.LivePageCount);
 
             // A far-future frame ages the entry out on the next sweep; the page becomes
             // empty and its texture is released.
-            _set.Reserve(new GlyphKey(0, 6, 64), frame: 2_000_000, 16, 16, 2f, FieldOf(16, 16));
+            _set.Reserve(new GlyphKey(0, 6, 64), frame: 2_000_000, 16, 16, 2f, FieldOf(16, 16), 0f, 0f);
             Assert.IsFalse(_set.TryGetCached(key, frame: 2_000_000, out _));
 
             int liveCount = 0;
@@ -134,7 +134,9 @@ namespace Unite.Text.Tests
                     32,
                     32,
                     4f,
-                    FieldOf(16, 16) // mismatched length
+                    FieldOf(16, 16), // mismatched length
+                    0f,
+                    0f
                 )
             );
         }
