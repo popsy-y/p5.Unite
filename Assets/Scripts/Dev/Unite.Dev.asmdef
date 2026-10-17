@@ -2,7 +2,8 @@
     "name": "Unite.Dev",
     "rootNamespace": "Dev",
     "references": [
-        "Unite.Runtime"
+        "Unite.Runtime",
+        "Unite.Text"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

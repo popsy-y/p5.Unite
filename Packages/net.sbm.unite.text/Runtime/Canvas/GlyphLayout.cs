@@ -130,8 +130,8 @@ namespace Unite.Text
             float width = MeasureLine(font, line, scaleUnits);
             return state.Align switch
             {
-                TextAlignment.Center => width * 0.5f,
-                TextAlignment.Right => width,
+                TextAlignMode.Center => width * 0.5f,
+                TextAlignMode.Right => width,
                 _ => 0f
             };
         }

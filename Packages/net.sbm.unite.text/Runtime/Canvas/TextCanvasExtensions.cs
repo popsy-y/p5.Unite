@@ -21,7 +21,7 @@ namespace Unite.Text
             => TextStateStore.GetOrCreate(canvas).Size = Mathf.Max(0.001f, size);
 
         /// <summary>Sets the horizontal alignment for subsequent Text calls.</summary>
-        public static void TextAlign(this UCanvas canvas, TextAlignment align)
+        public static void TextAlign(this UCanvas canvas, TextAlignMode align)
             => TextStateStore.GetOrCreate(canvas).Align = align;
 
         /// <summary>

@@ -3,8 +3,12 @@ using Unite.Canvas;
 
 namespace Unite.Text
 {
-    /// <summary>Horizontal text alignment, mirroring p5.js (vertical stays baseline in v1).</summary>
-    public enum TextAlignment
+    /// <summary>
+    /// Horizontal text alignment, mirroring p5.js (vertical stays baseline in v1).
+    /// Deliberately not named TextAlignment to avoid clashing with
+    /// UnityEngine.TextAlignment in files that use both namespaces.
+    /// </summary>
+    public enum TextAlignMode
     {
         Left,
         Center,
@@ -16,7 +20,7 @@ namespace Unite.Text
     {
         public UniteFontAsset Font;
         public float Size = 24f;
-        public TextAlignment Align = TextAlignment.Left;
+        public TextAlignMode Align = TextAlignMode.Left;
         public bool WarnedMissingFont;
     }
 
