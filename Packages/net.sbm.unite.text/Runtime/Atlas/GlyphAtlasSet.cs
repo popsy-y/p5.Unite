@@ -18,6 +18,9 @@ namespace Unite.Text
         /// <summary>Row 0 = bottom; UV space matches the y-up atlas layout.</summary>
         internal const int PageSpan = 1024;
 
+        /// <summary>R8 value of a deep-outside SDF texel; fills untouched page area.</summary>
+        internal const byte OutsideValue = 255;
+
         /// <summary>A baked glyph inside the atlas.</summary>
         internal readonly struct CachedGlyph
         {
@@ -279,9 +282,13 @@ namespace Unite.Text
                 wrapMode = TextureWrapMode.Clamp
             };
 
-            // R8 black maps to a fully-outside SDF (value 0), so untouched page area
-            // never renders a glyph edge.
-            texture.SetPixelData(new byte[PageSpan * PageSpan], 0);
+            // The SDF stores deep outside as 255 (inside is 0). Untouched page area
+            // must read as outside: bilinear sampling at a sprite rect's border mixes in
+            // the neighboring texel, and a 0 neighbor lands on the 128 edge threshold,
+            // drawing a thin line along the glyph quad.
+            var clear = new byte[PageSpan * PageSpan];
+            Array.Fill(clear, OutsideValue);
+            texture.SetPixelData(clear, 0);
             texture.Apply(updateMipmaps: false, makeNoLongerReadable: false);
             return texture;
         }

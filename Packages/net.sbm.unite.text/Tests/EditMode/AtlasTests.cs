@@ -48,6 +48,18 @@ namespace Unite.Text.Tests
         }
 
         [Test]
+        public void UntouchedPageAreaReadsAsOutside()
+        {
+            // Bilinear sampling at a sprite border mixes in neighboring texels; empty
+            // page area must be deep outside or the border lands on the edge threshold.
+            var baked = _set.Reserve(new GlyphKey(0, 1, 64), frame: 0, 8, 8, 4f, FieldOf(8, 8), 0f, 0f);
+
+            var pixels = baked.Texture.GetPixelData<byte>(0);
+            Assert.AreEqual(GlyphAtlasSet.OutsideValue, pixels[pixels.Length - 1]);
+            Assert.AreEqual(GlyphAtlasSet.OutsideValue, pixels[16]);
+        }
+
+        [Test]
         public void ReservedGlyphsDoNotOverlap()
         {
             int frame = 0;

@@ -543,8 +543,9 @@ namespace Dev
             DrawTextAlignmentRow(unit, strokeWeight, accent, textColor, 0.4f);
 
             // 3) Glyph render paths: filled, outline-only and fill+stroke.
-            // The stroke weight stays well inside the glyph SDF range: a stroke wider
-            // than the SDF spread floods the whole quad.
+            // Strokes are centered on the outline, so the weight stays well below the
+            // glyph stem width (and inside the glyph SDF range); a heavier stroke
+            // swallows the whole stem like it would in p5.
             _canvas.TextAlign(TextAlignMode.Left);
             _canvas.NoStroke();
             _canvas.Fill(textColor);
@@ -552,12 +553,12 @@ namespace Dev
 
             _canvas.NoFill();
             _canvas.Stroke(outlineColor);
-            _canvas.StrokeWeight(Mathf.Max(strokeWeight, unit * 0.003f));
+            _canvas.StrokeWeight(Mathf.Max(AntiAliasMinimum(), unit * 0.003f));
             DrawTextSample("outline", 0.07f, 0.28f, 0.6f);
 
             _canvas.Fill(accent);
             _canvas.Stroke(DarkColor());
-            _canvas.StrokeWeight(Mathf.Max(strokeWeight, unit * 0.002f));
+            _canvas.StrokeWeight(Mathf.Max(AntiAliasMinimum(), unit * 0.002f));
             DrawTextSample("both", 0.07f, 0.52f, 0.6f);
             _canvas.NoStroke();
 

@@ -1,27 +1,27 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Unite.Text.Raster
 {
     /// <summary>
-    /// Converts a coverage grid into a single-channel signed distance field.
-    /// Distance is approximated with a (1, sqrt2) chamfer transform (2 passes),
-    /// then the standard half-texel edge correction is applied, then the value is
-    /// normalized so a boundary texel stores ~128, deep inside approaches 0 and deep
-    /// outside approaches 255, at exactly the supplied range.
+    /// Bakes a single-channel signed distance field straight from closed polygon
+    /// contours (pixel space, y-up; texel (i, j) is centered at (i + 0.5, j + 0.5),
+    /// j counting rows from the bottom, so output[j*width+i]).
+    /// The distance is the exact Euclidean distance to the nearest contour segment,
+    /// so offset iso-lines (strokes) stay as smooth as the outline itself. The sign
+    /// comes from the nonzero winding rule, evaluated per row with one sorted list of
+    /// edge crossings. Values are normalized so the outline stores ~128, deep inside
+    /// 0 and deep outside 255, saturating at the supplied range.
     /// </summary>
     public static class SdfEncoder
     {
-        private const float OrthogonalWeight = 1f;
-        private const float DiagonalWeight = 1.41421356237f;
-
-        public static void Encode(byte[] coverage, int width, int height, float range, byte[] output)
+        public static void Encode(Vector2[][] contours, int width, int height, float range, byte[] output)
         {
-            if (coverage == null || output == null ||
-                coverage.Length != width * height || output.Length != width * height)
+            if (output == null || width <= 0 || height <= 0 || output.Length != width * height)
             {
                 throw new ArgumentException(
-                    "p5.Unite: coverage and output must both hold width * height bytes."
+                    "p5.Unite: SDF output must hold width * height bytes."
                 );
             }
 
@@ -30,101 +30,131 @@ namespace Unite.Text.Raster
                 throw new ArgumentException("p5.Unite: SDF range must be positive.");
             }
 
-            int size = width * height;
+            var edges = BuildEdges(contours);
+            var distance = new float[width * height];
+            Array.Fill(distance, range * range);
 
-            var inside = new bool[size];
-            for (int index = 0; index < size; index++)
-                inside[index] = coverage[index] >= 128;
+            foreach (var edge in edges)
+                SplatEdgeDistance(edge, width, height, range, distance);
 
-            // Distance from every cell to the nearest cell with the OPPOSITE mask.
-            var toOutside = DistanceField(inside, width, height, wantInside: false);
-            var toInside = DistanceField(inside, width, height, wantInside: true);
+            // The splat keeps squared distances; one square root per texel.
+            for (int index = 0; index < distance.Length; index++)
+                distance[index] = (float)Math.Sqrt(distance[index]);
 
-            for (int index = 0; index < size; index++)
+            var crossingX = new float[edges.Count];
+            var crossingWinding = new int[edges.Count];
+
+            for (int row = 0; row < height; row++)
             {
-                float distance = inside[index]
-                    ? -(toOutside[index] - 0.5f)
-                    : toInside[index] - 0.5f;
+                float py = row + 0.5f;
+                int crossingCount = 0;
 
-                float normalized = Mathf.Clamp(distance / range, -1f, 1f);
-                output[index] = (byte)Mathf.RoundToInt(
-                    Mathf.Clamp01(0.5f + 0.5f * normalized) * 255f
-                );
+                // Horizontal ray crossings with the standard half-open convention.
+                foreach (var edge in edges)
+                {
+                    if ((edge.Start.y <= py) == (edge.End.y <= py))
+                        continue;
+
+                    float t = (py - edge.Start.y) / (edge.End.y - edge.Start.y);
+                    crossingX[crossingCount] = edge.Start.x + t * (edge.End.x - edge.Start.x);
+                    crossingWinding[crossingCount] = edge.End.y > edge.Start.y ? 1 : -1;
+                    crossingCount++;
+                }
+
+                Array.Sort(crossingX, crossingWinding, 0, crossingCount);
+
+                int winding = 0;
+                int next = 0;
+                for (int column = 0; column < width; column++)
+                {
+                    float px = column + 0.5f;
+                    while (next < crossingCount && crossingX[next] < px)
+                    {
+                        winding += crossingWinding[next];
+                        next++;
+                    }
+
+                    int index = row * width + column;
+                    float signedDistance = winding != 0 ? -distance[index] : distance[index];
+                    float normalized = Mathf.Clamp(signedDistance / range, -1f, 1f);
+                    output[index] = (byte)Mathf.RoundToInt((0.5f + 0.5f * normalized) * 255f);
+                }
             }
         }
 
-        // Chamfer distance transform: for each cell, the distance to the nearest seed
-        // cell (cells matching wantInside). Forward + backward passes over the grid.
-        private static float[] DistanceField(
-            bool[] inside,
+        private struct Edge
+        {
+            public Vector2 Start;
+            public Vector2 End;
+        }
+
+        private static List<Edge> BuildEdges(Vector2[][] contours)
+        {
+            var edges = new List<Edge>(64);
+
+            if (contours == null)
+                return edges;
+
+            foreach (var contour in contours)
+            {
+                if (contour == null || contour.Length < 2)
+                    continue;
+
+                for (int index = 0; index < contour.Length; index++)
+                {
+                    var start = contour[index];
+                    var end = contour[(index + 1) % contour.Length]; // implicitly closed
+
+                    if (start == end)
+                        continue;
+
+                    edges.Add(new Edge { Start = start, End = end });
+                }
+            }
+            return edges;
+        }
+
+        // Distances saturate at the range, so a segment only touches the texels inside
+        // its bounding box grown by the range: the cost scales with the outline length,
+        // not with texel count x segment count. Works on squared distances.
+        private static void SplatEdgeDistance(
+            Edge edge,
             int width,
             int height,
-            bool wantInside
+            float range,
+            float[] distanceSq
         )
         {
-            int size = width * height;
-            var field = new float[size];
+            int minColumn = Mathf.Max(0, Mathf.FloorToInt(Mathf.Min(edge.Start.x, edge.End.x) - range - 0.5f));
+            int maxColumn = Mathf.Min(width - 1, Mathf.CeilToInt(Mathf.Max(edge.Start.x, edge.End.x) + range - 0.5f));
+            int minRow = Mathf.Max(0, Mathf.FloorToInt(Mathf.Min(edge.Start.y, edge.End.y) - range - 0.5f));
+            int maxRow = Mathf.Min(height - 1, Mathf.CeilToInt(Mathf.Max(edge.Start.y, edge.End.y) + range - 0.5f));
 
-            const float infinity = float.MaxValue;
+            float startX = edge.Start.x;
+            float startY = edge.Start.y;
+            float segmentX = edge.End.x - startX;
+            float segmentY = edge.End.y - startY;
+            float inverseLengthSq = 1f / (segmentX * segmentX + segmentY * segmentY);
 
-            for (int index = 0; index < size; index++)
+            for (int row = minRow; row <= maxRow; row++)
             {
-                field[index] = inside[index] == wantInside ? 0f : infinity;
-            }
+                float offsetY = row + 0.5f - startY;
+                int rowStart = row * width;
 
-            // Forward pass (top-left → bottom-right).
-            for (int row = 0; row < height; row++)
-            {
-                for (int column = 0; column < width; column++)
+                for (int column = minColumn; column <= maxColumn; column++)
                 {
-                    int index = row * width + column;
-                    float value = field[index];
+                    float offsetX = column + 0.5f - startX;
+                    float t = (offsetX * segmentX + offsetY * segmentY) * inverseLengthSq;
+                    t = t < 0f ? 0f : (t > 1f ? 1f : t);
+                    float deltaX = offsetX - t * segmentX;
+                    float deltaY = offsetY - t * segmentY;
+                    float candidate = deltaX * deltaX + deltaY * deltaY;
 
-                    if (column > 0)
-                        value = Mathf.Min(value, field[index - 1] + OrthogonalWeight);
-
-                    if (row > 0)
-                    {
-                        int up = index - width;
-                        value = Mathf.Min(value, field[up] + OrthogonalWeight);
-
-                        if (column > 0)
-                            value = Mathf.Min(value, field[up - 1] + DiagonalWeight);
-                        if (column < width - 1)
-                            value = Mathf.Min(value, field[up + 1] + DiagonalWeight);
-                    }
-
-                    field[index] = value;
+                    int index = rowStart + column;
+                    if (candidate < distanceSq[index])
+                        distanceSq[index] = candidate;
                 }
             }
-
-            // Backward pass (bottom-right → top-left).
-            for (int row = height - 1; row >= 0; row--)
-            {
-                for (int column = width - 1; column >= 0; column--)
-                {
-                    int index = row * width + column;
-                    float value = field[index];
-
-                    if (column < width - 1)
-                        value = Mathf.Min(value, field[index + 1] + OrthogonalWeight);
-
-                    if (row < height - 1)
-                    {
-                        int down = index + width;
-                        value = Mathf.Min(value, field[down] + OrthogonalWeight);
-
-                        if (column < width - 1)
-                            value = Mathf.Min(value, field[down + 1] + DiagonalWeight);
-                        if (column > 0)
-                            value = Mathf.Min(value, field[down - 1] + DiagonalWeight);
-                    }
-
-                    field[index] = value;
-                }
-            }
-
-            return field;
         }
     }
 }

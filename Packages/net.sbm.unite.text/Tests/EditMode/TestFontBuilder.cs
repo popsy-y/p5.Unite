@@ -194,11 +194,11 @@ namespace Unite.Text.Tests
             writer.WriteU16(2);  // entrySelector
             writer.WriteU16(0);  // rangeShift (ignored)
 
-            writer.WriteU16('A');   writer.WriteU16('B');  writer.WriteU16(0xFFFF); // endCode
+            writer.WriteU16('A'); writer.WriteU16('B'); writer.WriteU16(0xFFFF); // endCode
             writer.WriteU16(0);     // reserved pad
-            writer.WriteU16('A');   writer.WriteU16('B');  writer.WriteU16(0xFFFF); // startCode
-            writer.WriteI16(-64);   writer.WriteI16(-64); writer.WriteI16(1);      // idDelta
-            writer.WriteU16(0);     writer.WriteU16(0);    writer.WriteU16(0);      // idRangeOffset
+            writer.WriteU16('A'); writer.WriteU16('B'); writer.WriteU16(0xFFFF); // startCode
+            writer.WriteI16(-64); writer.WriteI16(-64); writer.WriteI16(1);      // idDelta
+            writer.WriteU16(0); writer.WriteU16(0); writer.WriteU16(0);      // idRangeOffset
             return table;
         }
 
@@ -220,16 +220,17 @@ namespace Unite.Text.Tests
                 writer.WriteU8(0x01); // on-curve; both cursors use full int16 deltas
             }
 
-            writer.WriteI16(0);  writer.WriteI16(600); writer.WriteI16(0);   writer.WriteI16(-600);
-            writer.WriteI16(0);  writer.WriteI16(0);   writer.WriteI16(600); writer.WriteI16(0);
+            // The first delta is the absolute coordinate (deltas start at the origin).
+            writer.WriteI16(100); writer.WriteI16(600); writer.WriteI16(0); writer.WriteI16(-600);
+            writer.WriteI16(100); writer.WriteI16(0); writer.WriteI16(600); writer.WriteI16(0);
 
             // glyph 0 is a blank (zero-length) record: loca[0] == loca[1] == 0.
             var composite = new byte[20];
             var compositeWriter = new BigEndianWriter(composite);
 
             compositeWriter.WriteI16(-1); // numberOfContours < 0 → composite
-            compositeWriter.WriteI16(0);  compositeWriter.WriteI16(0);
-            compositeWriter.WriteI16(0);  compositeWriter.WriteI16(0); // bbox placeholder
+            compositeWriter.WriteI16(0); compositeWriter.WriteI16(0);
+            compositeWriter.WriteI16(0); compositeWriter.WriteI16(0); // bbox placeholder
             compositeWriter.WriteU16(0x0002); // ARGS_ARE_XY_VALUES, byte args
             compositeWriter.WriteU16(1);      // component glyph id
             compositeWriter.WriteU8(100);     // dx (fits a signed byte)

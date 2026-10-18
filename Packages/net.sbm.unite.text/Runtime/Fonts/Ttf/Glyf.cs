@@ -37,13 +37,9 @@ namespace Unite.Text.Fonts
             if (numContours == 0)
                 return null; // blank glyph
 
-            // TrueType stores the first x/y delta relative to the bbox minimum, so
-            // the deltas' cursor seeds come from the header.
-            int boundsMinX = reader.ReadI16();
-            int boundsMinY = reader.ReadI16();
-            reader.Skip(4); // xMax, yMax
+            reader.Skip(8); // bbox header: bounds are recomputed from the points
 
-            return ParseSimple(reader, numContours, boundsMinX, boundsMinY).ToOutline();
+            return ParseSimple(reader, numContours).ToOutline();
         }
 
         private sealed class Result
@@ -83,7 +79,7 @@ namespace Unite.Text.Fonts
             public bool On;
         }
 
-        private static Result ParseSimple(TtfReader reader, int numContours, int boundsMinX, int boundsMinY)
+        private static Result ParseSimple(TtfReader reader, int numContours)
         {
             var result = new Result();
             var endPoints = new int[numContours];
@@ -95,7 +91,7 @@ namespace Unite.Text.Fonts
             reader.Skip(instructionLength);
 
             int numPoints = endPoints[numContours - 1] + 1;
-            var points = DecodeCoordinates(reader, numPoints, boundsMinX, boundsMinY);
+            var points = DecodeCoordinates(reader, numPoints);
 
             for (int contour = 0; contour < numContours; contour++)
             {
@@ -108,16 +104,11 @@ namespace Unite.Text.Fonts
 
         // Flags: bit0 on-curve, bit1 x-short, bit2 y-short, bit3 repeat,
         // bit4 x-same-or-positive, bit5 y-same-or-positive.
-        private static OnCurve[] DecodeCoordinates(
-            TtfReader reader,
-            int numPoints,
-            int boundsMinX,
-            int boundsMinY
-        )
+        private static OnCurve[] DecodeCoordinates(TtfReader reader, int numPoints)
         {
             var flags = new byte[numPoints];
 
-            for (int index = 0; index < numPoints; )
+            for (int index = 0; index < numPoints;)
             {
                 byte flag = reader.ReadU8();
                 flags[index++] = flag;
@@ -132,9 +123,10 @@ namespace Unite.Text.Fonts
 
             var points = new OnCurve[numPoints];
 
-            // The deltas accumulate on a cursor seeded with the header's bbox minimum
-            // (the stored first delta is relative to that minimum).
-            int cursorX = boundsMinX;
+            // The deltas accumulate from the glyph origin (0, 0): the first stored
+            // delta is the first point's absolute coordinate, not an offset from the
+            // bbox minimum.
+            int cursorX = 0;
             for (int index = 0; index < numPoints; index++)
             {
                 byte flag = flags[index];
@@ -153,7 +145,7 @@ namespace Unite.Text.Fonts
                 points[index].Position = new Vector2(cursorX, 0f);
             }
 
-            int cursorY = boundsMinY;
+            int cursorY = 0;
             for (int index = 0; index < numPoints; index++)
             {
                 byte flag = flags[index];
@@ -181,8 +173,8 @@ namespace Unite.Text.Fonts
             if (count < 2)
                 return new Vector2[0];
 
-            var rotated = new OnCurve[count];
-            int pivot = 0;
+            var output = new List<Vector2>(count * QuadraticSubdivisions);
+            int pivot = -1;
 
             for (int index = 0; index < count; index++)
             {
@@ -192,25 +184,29 @@ namespace Unite.Text.Fonts
                     break;
                 }
             }
+
+            if (pivot < 0)
+            {
+                // No on-curve point anywhere (common for round glyphs such as 'o'):
+                // every point is a control and the curve starts on the implied on-curve
+                // midpoint between the last and the first control.
+                var controlPoints = new List<Vector2>(count);
+                for (int index = 0; index < count; index++)
+                    controlPoints.Add(points[from + index].Position);
+
+                var start = Midpoint(points[from + count - 1].Position, points[from].Position);
+                output.Add(start);
+                EmitQuadraticChain(output, start, controlPoints, start, emitFinalVertex: false);
+                return output.ToArray();
+            }
+
+            var rotated = new OnCurve[count];
             for (int index = 0; index < count; index++)
             {
                 rotated[index] = points[from + (pivot + index) % count];
             }
 
-            var output = new List<Vector2>(count * QuadraticSubdivisions);
-
-            if (rotated[0].On)
-            {
-                output.Add(rotated[0].Position);
-            }
-            else
-            {
-                // No on-curve point anywhere: anchor on the midpoint between the two
-                // ends so the closure walk below terminates.
-                var synthetic = Midpoint(rotated[0].Position, rotated[count - 1].Position);
-                output.Add(synthetic);
-                rotated[0] = new OnCurve { Position = synthetic, On = true };
-            }
+            output.Add(rotated[0].Position);
 
             for (int index = 0; index < count; index++)
             {
@@ -264,7 +260,10 @@ namespace Unite.Text.Fonts
                     ? end
                     : Midpoint(control, controls[index + 1]);
 
-                EmitQuadratic(output, cursor, control, next, emitFinalVertex);
+                // Only the chain's very last vertex may already be present; the implied
+                // on-curve midpoints inside the chain are always emitted.
+                bool lastQuad = index == controls.Count - 1;
+                EmitQuadratic(output, cursor, control, next, emitFinalVertex || !lastQuad);
                 cursor = next;
             }
         }

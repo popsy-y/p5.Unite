@@ -224,9 +224,10 @@ namespace Unite.Text
             float glyphScale
         )
         {
-            // Spread proportional to the bucket, clamped so small glyphs stay crisp and
-            // huge glyphs keep the sprite padding bounded.
-            float range = Mathf.Clamp(Mathf.RoundToInt(emBucket * 0.06f), 2, 12);
+            // Spread proportional to the bucket (1/8 em), clamped so tiny buckets keep
+            // room for strokes and huge glyphs keep the sprite padding bounded. Strokes
+            // wider than the spread saturate, so it errs on the generous side.
+            float range = Mathf.Clamp(Mathf.RoundToInt(emBucket * 0.125f), 4, 24);
             int pad = Mathf.CeilToInt(range) + 2;
 
             float minX = outline.BoundsMin.x * glyphScale;
@@ -239,7 +240,6 @@ namespace Unite.Text
             int issueX = Mathf.FloorToInt(minX) - pad;
             int issueY = Mathf.FloorToInt(minY) - pad;
 
-            var coverage = new byte[width * height];
             var local = new Vector2[outline.Contours.Length][];
             for (int contour = 0; contour < outline.Contours.Length; contour++)
             {
@@ -255,10 +255,8 @@ namespace Unite.Text
                 local[contour] = target;
             }
 
-            GlyphRasterizer.Rasterize(local, width, height, coverage);
-
             var field = new byte[width * height];
-            SdfEncoder.Encode(coverage, width, height, range, field);
+            SdfEncoder.Encode(local, width, height, range, field);
 
             // (issueX, issueY) is the pen-relative sprite rect origin: the glyph's
             // baked pixel box measured from the pen origin / baseline (y-up).

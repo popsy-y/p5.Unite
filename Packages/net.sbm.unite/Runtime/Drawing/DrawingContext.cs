@@ -466,13 +466,12 @@ namespace Unite.Drawing
         // The binding is re-asserted on every acquire: the page texture can be replaced
         // (eviction + page reuse) or destroyed across play sessions, and a stale bind
         // makes every glyph quad sample the empty page (solid rectangles).
+        // _GlyphAtlas is not a declared shader property, so it is only ever set:
+        // Material.GetTexture logs an error for undeclared properties.
         private Material GetGlyphMaterial(Texture atlas)
         {
             if (_glyphMaterials.TryGetValue(atlas, out var material) && material != null)
             {
-                if (material.GetTexture(PID.GlyphAtlas) == atlas)
-                    return material;
-
                 material.SetTexture(PID.GlyphAtlas, atlas);
                 return material;
             }
