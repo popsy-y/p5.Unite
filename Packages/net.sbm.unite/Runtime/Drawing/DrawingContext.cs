@@ -24,6 +24,12 @@ namespace Unite.Drawing
         private int _frameCommandCount;
         private ShapeData[] _shapeDataScratch = Array.Empty<ShapeData>();
 
+        // Property blocks are recycled frame to frame instead of allocating one per draw
+        // call. Within a frame every draw gets its own block, so it does not matter whether
+        // a submitted draw still refers to its block until the camera renders.
+        private readonly List<MaterialPropertyBlock> _propertyBlocks = new();
+        private int _propertyBlocksInUse;
+
         public DrawingMode DrawingMode { get; private set; }
         public DrawingExecutionMode ExecutionMode { get; set; }
         public bool DebugShapeBounds { get; set; }
@@ -162,6 +168,7 @@ namespace Unite.Drawing
             if (_frameCommands.Length < count)
                 _frameCommands = new DrawCommand[Mathf.NextPowerOfTwo(Mathf.Max(count, 64))];
 
+            _propertyBlocksInUse = 0;
             _commandQueue.CopyTo(_frameCommands, 0);
             _commandQueue.Clear();
             _frameCommandCount = count;
@@ -436,7 +443,7 @@ namespace Unite.Drawing
             Texture atlas = null
         )
         {
-            var properties = new MaterialPropertyBlock();
+            var properties = RentPropertyBlock();
             properties.SetBuffer(PID.ShapeDataBuffer, _shapeDataBuffer);
             properties.SetBuffer(PID.PolygonPoints, _polygonPointBuffer);
             properties.SetInt(PID.DrawingMode, (int)DrawingMode);
@@ -464,6 +471,16 @@ namespace Unite.Drawing
                 camera = cam,
                 matProps = properties
             };
+        }
+
+        private MaterialPropertyBlock RentPropertyBlock()
+        {
+            if (_propertyBlocksInUse == _propertyBlocks.Count)
+                _propertyBlocks.Add(new MaterialPropertyBlock());
+
+            var block = _propertyBlocks[_propertyBlocksInUse++];
+            block.Clear();
+            return block;
         }
 
         private void ApplyDepthState()

@@ -17,7 +17,7 @@ namespace Unite.Text
         // Raster sizes are quantized to powers of two so text seen at different sizes
         // and camera configs reuses bake results (p5.Unite-Text plan: pow2 em buckets).
         private const int MinBucketPx = 16;
-        private const int MaxBucketPx = 512;
+        private const int MaxBucketPx = 1024;
 
         // World text rasterizes at this many pixels per world unit when no camera is
         // available to measure the on-screen size.
@@ -213,7 +213,7 @@ namespace Unite.Text
             int issueX = Mathf.FloorToInt(minX) - pad;
             int issueY = Mathf.FloorToInt(minY) - pad;
 
-            if (width > GlyphAtlasSet.PageSpan || height > GlyphAtlasSet.PageSpan)
+            if (width > GlyphAtlasSet.LargePageSpan || height > GlyphAtlasSet.LargePageSpan)
             {
                 glyph = default;
                 return false;

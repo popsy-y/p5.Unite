@@ -1,10 +1,12 @@
 // Dev only: shows a single-channel glyph atlas page as gray (the R8 texture would
-// otherwise render as red). Used by CanvasTester's atlas viewer.
+// otherwise render as red), dimmed by _Brightness for spare pages. Used by
+// CanvasTester's atlas viewer.
 Shader "Hidden/Dev/AtlasPreview"
 {
     Properties
     {
         _MainTex ("Texture", 2D) = "white" {}
+        _Brightness ("Brightness", Range(0, 1)) = 1
     }
 
     SubShader
@@ -21,6 +23,7 @@ Shader "Hidden/Dev/AtlasPreview"
             #include "UnityCG.cginc"
 
             sampler2D _MainTex;
+            fixed _Brightness;
 
             struct Attributes
             {
@@ -44,7 +47,7 @@ Shader "Hidden/Dev/AtlasPreview"
 
             fixed4 frag(Varyings input) : SV_Target
             {
-                fixed value = tex2D(_MainTex, input.uv).r;
+                fixed value = tex2D(_MainTex, input.uv).r * _Brightness;
                 return fixed4(value, value, value, 1);
             }
             ENDCG

@@ -20,8 +20,9 @@ namespace Unite.Text.Fonts
         private readonly ushort[] _advances;
         private readonly IOutlineSource _outlines;
         private readonly FontVariations _variations;
-        private readonly Dictionary<string, FontInstance> _instances = new();
-        private readonly Dictionary<string, int> _instanceIds = new();
+        private readonly Dictionary<CoordinateKey, FontInstance> _instances = new();
+        private readonly Dictionary<CoordinateKey, int> _instanceIds = new();
+        private float[] _coordinateScratch;
 
         private FontFace(
             CharacterMap characters,
@@ -79,11 +80,14 @@ namespace Unite.Text.Fonts
             if (_variations == null || settings == null || settings.Count == 0)
                 return Default;
 
-            var coordinates = _variations.Normalize(settings);
-            if (FontVariations.IsDefault(coordinates))
+            // Looking up an instance that already exists allocates nothing: the key wraps a
+            // scratch array and is copied only when a new instance is stored.
+            _coordinateScratch ??= new float[_variations.Axes.Length];
+            _variations.Normalize(settings, _coordinateScratch);
+            if (FontVariations.IsDefault(_coordinateScratch))
                 return Default;
 
-            string key = CoordinateKey(coordinates);
+            var key = new CoordinateKey(_coordinateScratch);
             if (_instances.TryGetValue(key, out var instance))
             {
                 instance.Touch();
@@ -92,6 +96,9 @@ namespace Unite.Text.Fonts
 
             if (_instances.Count >= MaxCachedInstances)
                 EvictLeastRecentInstance();
+
+            var coordinates = (float[])_coordinateScratch.Clone();
+            key = new CoordinateKey(coordinates);
 
             // The id depends on the coordinates only, so a re-created instance finds its
             // glyphs still baked in the atlas.
@@ -233,7 +240,7 @@ namespace Unite.Text.Fonts
 
         private void EvictLeastRecentInstance()
         {
-            string oldest = null;
+            CoordinateKey? oldest = null;
             long oldestUse = long.MaxValue;
             foreach (var pair in _instances)
             {
@@ -245,17 +252,42 @@ namespace Unite.Text.Fonts
             }
 
             if (oldest != null)
-                _instances.Remove(oldest);
+                _instances.Remove(oldest.Value);
         }
 
         private static int NewInstanceId() => ++_nextInstanceId;
 
-        private static string CoordinateKey(float[] coordinates)
+        /// <summary>Normalized axis coordinates as a dictionary key, compared by value.</summary>
+        private readonly struct CoordinateKey : IEquatable<CoordinateKey>
         {
-            var parts = new string[coordinates.Length];
-            for (int index = 0; index < coordinates.Length; index++)
-                parts[index] = BitConverter.SingleToInt32Bits(coordinates[index]).ToString();
-            return string.Join(",", parts);
+            private readonly float[] _values;
+            private readonly int _hash;
+
+            public CoordinateKey(float[] values)
+            {
+                _values = values;
+                int hash = 17;
+                foreach (float value in values)
+                    hash = hash * 31 + value.GetHashCode();
+                _hash = hash;
+            }
+
+            public bool Equals(CoordinateKey other)
+            {
+                if (_hash != other._hash || _values.Length != other._values.Length)
+                    return false;
+
+                for (int index = 0; index < _values.Length; index++)
+                {
+                    if (_values[index] != other._values[index])
+                        return false;
+                }
+                return true;
+            }
+
+            public override bool Equals(object obj) => obj is CoordinateKey other && Equals(other);
+
+            public override int GetHashCode() => _hash;
         }
     }
 }

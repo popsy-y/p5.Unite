@@ -120,11 +120,20 @@ namespace Unite.Text.Fonts
         public float[] Normalize(IReadOnlyList<AxisSetting> settings)
         {
             var coordinates = new float[Axes.Length];
-            if (settings == null)
-                return coordinates;
+            Normalize(settings, coordinates);
+            return coordinates;
+        }
 
-            foreach (var setting in settings)
+        /// <summary>Writes the normalized coordinates (one per axis) into <paramref name="coordinates"/>.</summary>
+        public void Normalize(IReadOnlyList<AxisSetting> settings, float[] coordinates)
+        {
+            Array.Clear(coordinates, 0, coordinates.Length);
+            if (settings == null)
+                return;
+
+            for (int index = 0; index < settings.Count; index++)
             {
+                var setting = settings[index];
                 int axis = IndexOfAxis(setting.Tag);
                 if (axis < 0)
                     continue;
@@ -139,7 +148,6 @@ namespace Unite.Text.Fonts
 
                 coordinates[axis] = MapAvar(axis, normalized);
             }
-            return coordinates;
         }
 
         public static bool IsDefault(float[] coordinates)

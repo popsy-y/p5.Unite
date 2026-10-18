@@ -30,6 +30,14 @@ namespace Unite.Text.Fonts
         }
 
         /// <summary>
+        /// Textures of atlas pages that currently hold no glyphs but are kept for reuse,
+        /// indexed like <see cref="AtlasPages"/> (null where a page is in use or gone).
+        /// For inspection and debugging.
+        /// </summary>
+        public IReadOnlyList<Texture2D> SpareAtlasPages
+            => AtlasRegistry.TryGet(this, out var set) ? set.SpareTextures : Array.Empty<Texture2D>();
+
+        /// <summary>
         /// Creates a font from raw font file bytes (.ttf, .otf, .woff or .woff2; static or
         /// variable). Throws when the bytes cannot be parsed.
         /// </summary>

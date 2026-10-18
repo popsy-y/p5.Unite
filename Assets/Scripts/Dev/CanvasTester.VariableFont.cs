@@ -14,6 +14,15 @@ namespace Dev
         private static readonly float[] WeightRamp = { 100f, 200f, 300f, 400f, 500f, 600f, 700f };
         private static readonly float[] WidthRamp = { 75f, 82.5f, 90f, 100f };
 
+        // Labels are built once (or once per value) so the page itself allocates nothing per frame.
+        private static readonly string[] WeightLabels = Array.ConvertAll(WeightRamp, weight => $"wght {weight:0}  Hamburgefonstiv");
+        private static readonly string[] WidthLabels = Array.ConvertAll(WidthRamp, width => $"wdth {width:0.#}  Hamburgefonstiv");
+        private static readonly System.Collections.Generic.Dictionary<int, string> WeightValueLabels = new();
+        private static readonly System.Collections.Generic.Dictionary<int, string> WidthValueLabels = new();
+
+        private string _axesDescription;
+        private string _loadedLabel;
+
         [Header("Font")]
         [SerializeField] private string _fontPath = "Assets/DevResources/Fonts/IBMPlexSans-VariableFont_wdth,wght.bytes";
 
@@ -55,7 +64,7 @@ namespace Dev
                 float y = 0.14f + index * 0.075f;
                 _canvas.Push();
                 _canvas.TextVariation("wght", weight);
-                DrawVariableLabel($"wght {weight:0}  Hamburgefonstiv", 0.05f, 0.04f, y);
+                DrawVariableLabel(WeightLabels[index], 0.05f, 0.04f, y);
                 _canvas.Pop();
             }
 
@@ -66,7 +75,7 @@ namespace Dev
                 float y = 0.14f + index * 0.075f;
                 _canvas.Push();
                 _canvas.TextVariation("wdth", width);
-                DrawVariableLabel($"wdth {width:0.#}  Hamburgefonstiv", 0.05f, 0.58f, y);
+                DrawVariableLabel(WidthLabels[index], 0.05f, 0.58f, y);
                 _canvas.Pop();
             }
 
@@ -88,8 +97,8 @@ namespace Dev
             _canvas.Pop();
 
             _canvas.Fill(textColor);
-            DrawVariableLabel($"wght {animatedWeight:0}", 0.035f, 0.04f, 0.85f);
-            DrawVariableLabel($"wdth {animatedWidth:0}", 0.035f, 0.3f, 0.85f);
+            DrawVariableLabel(ValueLabel(WeightValueLabels, "wght", animatedWeight), 0.035f, 0.04f, 0.85f);
+            DrawVariableLabel(ValueLabel(WidthValueLabels, "wdth", animatedWidth), 0.035f, 0.3f, 0.85f);
 
             // 4) Style and weight API on a variable font: bold follows the weight axis,
             // italic is synthesized (the font has no ital / slnt axis).
@@ -105,7 +114,8 @@ namespace Dev
             _canvas.Pop();
 
             _canvas.Fill(accent);
-            DrawVariableLabel($"loaded in {_fontLoadMilliseconds:0.0} ms", 0.03f, 0.04f, 0.94f);
+            _loadedLabel ??= $"loaded in {_fontLoadMilliseconds:0.0} ms";
+            DrawVariableLabel(_loadedLabel, 0.03f, 0.04f, 0.94f);
         }
 
         private void DrawVariableLabel(string text, float sizeFactor, float xNorm, float yNorm)
@@ -117,13 +127,28 @@ namespace Dev
             _canvas.Pop();
         }
 
+        private static string ValueLabel(System.Collections.Generic.Dictionary<int, string> cache, string tag, float value)
+        {
+            int rounded = Mathf.RoundToInt(value);
+            if (!cache.TryGetValue(rounded, out string label))
+            {
+                label = $"{tag} {rounded}";
+                cache.Add(rounded, label);
+            }
+            return label;
+        }
+
         private string AxesDescription()
         {
+            if (_axesDescription != null)
+                return _axesDescription;
+
             var axes = _canvas.TextAxes();
             var description = new System.Text.StringBuilder(_font.Name);
             foreach (var axis in axes)
                 description.Append($"   {axis.Tag} {axis.Minimum:0.#}..{axis.Default:0.#}..{axis.Maximum:0.#}");
-            return description.ToString();
+            _axesDescription = description.ToString();
+            return _axesDescription;
         }
 
         // Loads the font file through LoadFontAsync (UnityWebRequest + parse) and logs how

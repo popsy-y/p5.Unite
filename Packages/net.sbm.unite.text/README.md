@@ -60,7 +60,7 @@ moves to the long-lived pages), so the atlas does not grow while an axis animate
 is that glyphs of an animated axis are re-baked every frame (Burst-compiled and parallel,
 a fraction of a millisecond per glyph). `FontFace.AtlasPages` exposes the baked atlas textures
 for inspection. World and CanvasLocal text is baked at the size it covers on screen (up to
-512 px per em), so it stays sharp when the camera moves closer.
+1024 px per em; the largest sizes use 2048 px pages), so it stays sharp when the camera moves closer.
 
 ## Current limitations (v1)
 

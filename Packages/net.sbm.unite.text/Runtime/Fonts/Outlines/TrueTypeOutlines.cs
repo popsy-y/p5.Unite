@@ -22,6 +22,17 @@ namespace Unite.Text.Fonts
         private readonly float _flatness;
         private readonly Dictionary<int, RawGlyph> _glyphs = new();
 
+        // Scratch memory: outlines are built on the main thread, one glyph at a time
+        // (composites nest, so builders come from a small pool).
+        private readonly Stack<OutlineBuilder> _builders = new();
+        private readonly List<Vector2> _controls = new();
+        private float[] _pointX = new float[64];
+        private float[] _pointY = new float[64];
+        private float[] _deltaX = new float[64];
+        private float[] _deltaY = new float[64];
+        private float[] _variedX = new float[64];
+        private float[] _variedY = new float[64];
+
         private TrueTypeOutlines(
             byte[] data,
             int glyfStart,
@@ -90,15 +101,13 @@ namespace Unite.Text.Fonts
 
             var glyph = GetGlyph(glyphId);
             int pointCount = glyph == null ? 0 : (glyph.IsComposite ? glyph.Components.Count : glyph.X.Length);
-            var (x, y) = WithPhantomPoints(glyphId, glyph, pointCount);
-            var deltaX = new float[x.Length];
-            var deltaY = new float[x.Length];
+            WithPhantomPoints(glyphId, glyph, pointCount);
 
             int[] endPoints = glyph != null && !glyph.IsComposite ? glyph.EndPoints : null;
-            if (!_gvar.TryGetDeltas(glyphId, coordinates, x, y, endPoints, deltaX, deltaY))
+            if (!_gvar.TryGetDeltas(glyphId, coordinates, _pointX, _pointY, pointCount + PhantomPointCount, endPoints, _deltaX, _deltaY))
                 return 0f;
 
-            return deltaX[pointCount + 1] - deltaX[pointCount];
+            return _deltaX[pointCount + 1] - _deltaX[pointCount];
         }
 
         /// <summary>Parses a standalone simple glyph record (used by tests).</summary>
@@ -109,7 +118,7 @@ namespace Unite.Text.Fonts
                 return null;
 
             var builder = new OutlineBuilder(OutlineFlatness.For(1000));
-            EmitContours(builder, glyph, glyph.X, glyph.Y);
+            EmitContours(builder, glyph, glyph.X, glyph.Y, new List<Vector2>());
             return builder.ToOutline();
         }
 
@@ -155,24 +164,25 @@ namespace Unite.Text.Fonts
 
             if (coordinates != null)
             {
-                var (phantomX, phantomY) = WithPhantomPoints(glyphId, glyph, x.Length);
-                var deltaX = new float[phantomX.Length];
-                var deltaY = new float[phantomX.Length];
-                if (_gvar.TryGetDeltas(glyphId, coordinates, phantomX, phantomY, glyph.EndPoints, deltaX, deltaY))
+                int count = glyph.X.Length;
+                WithPhantomPoints(glyphId, glyph, count);
+                if (_gvar.TryGetDeltas(glyphId, coordinates, _pointX, _pointY, count + PhantomPointCount, glyph.EndPoints, _deltaX, _deltaY))
                 {
-                    x = new float[x.Length];
-                    y = new float[y.Length];
-                    for (int index = 0; index < x.Length; index++)
+                    x = _variedX;
+                    y = _variedY;
+                    for (int index = 0; index < count; index++)
                     {
-                        x[index] = glyph.X[index] + deltaX[index];
-                        y[index] = glyph.Y[index] + deltaY[index];
+                        x[index] = glyph.X[index] + _deltaX[index];
+                        y[index] = glyph.Y[index] + _deltaY[index];
                     }
                 }
             }
 
-            var builder = new OutlineBuilder(_flatness);
-            EmitContours(builder, glyph, x, y);
-            return builder.ToOutline();
+            var builder = RentBuilder();
+            EmitContours(builder, glyph, x, y, _controls);
+            var outline = builder.ToOutline();
+            _builders.Push(builder);
+            return outline;
         }
 
         private GlyphOutline BuildComposite(int glyphId, RawGlyph glyph, float[] coordinates, int depth)
@@ -189,26 +199,24 @@ namespace Unite.Text.Fonts
             if (coordinates != null)
             {
                 // Component offsets are the "points" of a composite glyph.
-                var (x, y) = WithPhantomPoints(glyphId, glyph, components.Count);
+                WithPhantomPoints(glyphId, glyph, components.Count);
                 for (int index = 0; index < components.Count; index++)
                 {
-                    x[index] = offsetX[index];
-                    y[index] = offsetY[index];
+                    _pointX[index] = offsetX[index];
+                    _pointY[index] = offsetY[index];
                 }
 
-                var deltaX = new float[x.Length];
-                var deltaY = new float[x.Length];
-                if (_gvar.TryGetDeltas(glyphId, coordinates, x, y, null, deltaX, deltaY))
+                if (_gvar.TryGetDeltas(glyphId, coordinates, _pointX, _pointY, components.Count + PhantomPointCount, null, _deltaX, _deltaY))
                 {
                     for (int index = 0; index < components.Count; index++)
                     {
-                        offsetX[index] += deltaX[index];
-                        offsetY[index] += deltaY[index];
+                        offsetX[index] += _deltaX[index];
+                        offsetY[index] += _deltaY[index];
                     }
                 }
             }
 
-            var builder = new OutlineBuilder(_flatness);
+            var builder = RentBuilder();
             for (int index = 0; index < components.Count; index++)
             {
                 var component = components[index];
@@ -221,15 +229,44 @@ namespace Unite.Text.Fonts
                 }
             }
 
-            return builder.ToOutline();
+            var outline = builder.ToOutline();
+            _builders.Push(builder);
+            return outline;
         }
 
-        // Default point positions followed by the four phantom points: horizontal origin
-        // and advance (the vertical pair is unused for horizontal text).
-        private (float[] X, float[] Y) WithPhantomPoints(int glyphId, RawGlyph glyph, int pointCount)
+        private OutlineBuilder RentBuilder()
         {
-            var x = new float[pointCount + PhantomPointCount];
-            var y = new float[pointCount + PhantomPointCount];
+            if (_builders.Count == 0)
+                return new OutlineBuilder(_flatness);
+
+            var builder = _builders.Pop();
+            builder.Reset();
+            return builder;
+        }
+
+        private void EnsurePoints(int count)
+        {
+            if (_pointX.Length >= count)
+                return;
+
+            int size = Mathf.Max(count, _pointX.Length * 2);
+            _pointX = new float[size];
+            _pointY = new float[size];
+            _deltaX = new float[size];
+            _deltaY = new float[size];
+            _variedX = new float[size];
+            _variedY = new float[size];
+        }
+
+        // Default point positions followed by the four phantom points (horizontal origin
+        // and advance; the vertical pair is unused for horizontal text), in _pointX/Y.
+        private void WithPhantomPoints(int glyphId, RawGlyph glyph, int pointCount)
+        {
+            EnsurePoints(pointCount + PhantomPointCount);
+            var x = _pointX;
+            var y = _pointY;
+            System.Array.Clear(x, 0, pointCount + PhantomPointCount);
+            System.Array.Clear(y, 0, pointCount + PhantomPointCount);
             if (glyph != null && !glyph.IsComposite)
             {
                 System.Array.Copy(glyph.X, x, pointCount);
@@ -240,22 +277,29 @@ namespace Unite.Text.Fonts
             float origin = (glyph != null ? glyph.XMin : 0) - _bearings[index];
             x[pointCount] = origin;
             x[pointCount + 1] = origin + _advances[index];
-            return (x, y);
         }
 
-        private static void EmitContours(OutlineBuilder builder, RawGlyph glyph, float[] x, float[] y)
+        private static void EmitContours(OutlineBuilder builder, RawGlyph glyph, float[] x, float[] y, List<Vector2> controls)
         {
             int start = 0;
             foreach (int end in glyph.EndPoints)
             {
-                EmitContour(builder, glyph.OnCurve, x, y, start, end);
+                EmitContour(builder, glyph.OnCurve, x, y, start, end, controls);
                 start = end + 1;
             }
         }
 
         // One closed TrueType contour: on-curve points are line vertices, runs of
         // off-curve points are quadratic controls with implied on-curve midpoints.
-        private static void EmitContour(OutlineBuilder builder, bool[] onCurve, float[] x, float[] y, int start, int end)
+        private static void EmitContour(
+            OutlineBuilder builder,
+            bool[] onCurve,
+            float[] x,
+            float[] y,
+            int start,
+            int end,
+            List<Vector2> controls
+        )
         {
             int count = end - start + 1;
             if (count < 2)
@@ -271,20 +315,18 @@ namespace Unite.Text.Fonts
                 }
             }
 
-            Vector2 Point(int offset) => new(x[start + (pivot + offset) % count], y[start + (pivot + offset) % count]);
-
             if (pivot < 0)
             {
                 // No on-curve point at all (round glyphs such as 'o'): start on the
                 // implied midpoint between the last and the first control.
                 pivot = 0;
-                var first = Point(0);
-                var last = Point(count - 1);
+                var first = Point(x, y, start, pivot, count, 0);
+                var last = Point(x, y, start, pivot, count, count - 1);
                 var begin = (first + last) * 0.5f;
 
-                var controls = new List<Vector2>(count);
+                controls.Clear();
                 for (int index = 0; index < count; index++)
-                    controls.Add(Point(index));
+                    controls.Add(Point(x, y, start, pivot, count, index));
 
                 builder.MoveTo(begin);
                 EmitChain(builder, controls, begin, closing: true);
@@ -292,21 +334,21 @@ namespace Unite.Text.Fonts
                 return;
             }
 
-            builder.MoveTo(Point(0));
+            builder.MoveTo(Point(x, y, start, pivot, count, 0));
 
             for (int index = 0; index < count;)
             {
-                var run = new List<Vector2>(4);
+                controls.Clear();
                 int scan = index + 1;
                 while (scan < count && !onCurve[start + (pivot + scan) % count])
                 {
-                    run.Add(Point(scan));
+                    controls.Add(Point(x, y, start, pivot, count, scan));
                     scan++;
                 }
 
                 bool closing = scan == count;
-                var target = closing ? Point(0) : Point(scan);
-                EmitChain(builder, run, target, closing);
+                var target = Point(x, y, start, pivot, count, closing ? 0 : scan);
+                EmitChain(builder, controls, target, closing);
 
                 if (closing)
                     break;
@@ -315,6 +357,13 @@ namespace Unite.Text.Fonts
             }
 
             builder.Close();
+        }
+
+        // Point of a contour, counted from its first on-curve point.
+        private static Vector2 Point(float[] x, float[] y, int start, int pivot, int count, int offset)
+        {
+            int index = start + (pivot + offset) % count;
+            return new Vector2(x[index], y[index]);
         }
 
         private static void EmitChain(OutlineBuilder builder, List<Vector2> controls, Vector2 end, bool closing)

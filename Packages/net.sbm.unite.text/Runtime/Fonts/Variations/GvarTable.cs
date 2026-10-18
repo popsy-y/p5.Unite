@@ -23,6 +23,20 @@ namespace Unite.Text.Fonts
         private readonly int[] _glyphOffsets;
         private readonly int _dataArrayOffset;
 
+        // Scratch memory for TryGetDeltas (outlines are loaded on the main thread).
+        private readonly FontReader _headerReader;
+        private readonly FontReader _dataReader;
+        private readonly float[] _peak;
+        private readonly float[] _start;
+        private readonly float[] _end;
+        private float[] _tupleDeltaX = Array.Empty<float>();
+        private float[] _tupleDeltaY = Array.Empty<float>();
+        private bool[] _touched = Array.Empty<bool>();
+        private float[] _packedX = Array.Empty<float>();
+        private float[] _packedY = Array.Empty<float>();
+        private int[] _sharedPoints = Array.Empty<int>();
+        private int[] _privatePoints = Array.Empty<int>();
+
         private GvarTable(
             byte[] data,
             int tableOffset,
@@ -38,6 +52,11 @@ namespace Unite.Text.Fonts
             _sharedTuples = sharedTuples;
             _glyphOffsets = glyphOffsets;
             _dataArrayOffset = dataArrayOffset;
+            _headerReader = new FontReader(data);
+            _dataReader = new FontReader(data);
+            _peak = new float[axisCount];
+            _start = new float[axisCount];
+            _end = new float[axisCount];
         }
 
         public static GvarTable TryRead(byte[] data, SfntDirectory directory)
@@ -69,16 +88,18 @@ namespace Unite.Text.Fonts
 
         /// <summary>
         /// Accumulates the point deltas of a glyph. <paramref name="x"/> / <paramref name="y"/>
-        /// are the default coordinates of all points (phantom points included);
-        /// <paramref name="endPoints"/> gives the contours for interpolation (null for
-        /// composites, whose "points" are component offsets). Returns false when the
-        /// glyph has no variation data for these coordinates.
+        /// are the default coordinates of the first <paramref name="pointCount"/> points
+        /// (phantom points included); <paramref name="endPoints"/> gives the contours for
+        /// interpolation (null for composites, whose "points" are component offsets).
+        /// Returns false when the glyph has no variation data for these coordinates.
+        /// Reuses scratch memory, so it must not be called from several threads at once.
         /// </summary>
         public bool TryGetDeltas(
             int glyphId,
             float[] coordinates,
             float[] x,
             float[] y,
+            int pointCount,
             int[] endPoints,
             float[] deltaX,
             float[] deltaY
@@ -92,101 +113,119 @@ namespace Unite.Text.Fonts
             if (end <= start)
                 return false;
 
-            Array.Clear(deltaX, 0, deltaX.Length);
-            Array.Clear(deltaY, 0, deltaY.Length);
+            Array.Clear(deltaX, 0, pointCount);
+            Array.Clear(deltaY, 0, pointCount);
+            EnsureScratch(pointCount);
 
             int glyphOffset = _tableOffset + _dataArrayOffset + start;
-            var reader = new FontReader(_data, glyphOffset);
-            int countField = reader.ReadU16();
+            var header = _headerReader;
+            header.Position = glyphOffset;
+            int countField = header.ReadU16();
             int tupleCount = countField & CountMask;
-            int dataOffset = reader.ReadU16();
+            int dataOffset = header.ReadU16();
 
-            var headers = new TupleHeader[tupleCount];
-            for (int index = 0; index < tupleCount; index++)
-            {
-                int size = reader.ReadU16();
-                int tupleIndex = reader.ReadU16();
-                float[] peak = (tupleIndex & EmbeddedPeak) != 0
-                    ? ReadTuple(reader, _axisCount)
-                    : _sharedTuples[tupleIndex & TupleIndexMask];
-
-                float[] intermediateStart = null;
-                float[] intermediateEnd = null;
-                if ((tupleIndex & IntermediateRegion) != 0)
-                {
-                    intermediateStart = ReadTuple(reader, _axisCount);
-                    intermediateEnd = ReadTuple(reader, _axisCount);
-                }
-
-                headers[index] = new TupleHeader(size, tupleIndex, peak, intermediateStart, intermediateEnd);
-            }
-
-            reader.Seek(glyphOffset + dataOffset);
-            int[] sharedPoints = null;
-            bool hasSharedPoints = (countField & SharedPointNumbers) != 0;
-            if (hasSharedPoints)
-                sharedPoints = ReadPackedPoints(reader, x.Length);
+            // Tuple headers and their serialized data are walked side by side.
+            var data = _dataReader;
+            data.Seek(glyphOffset + dataOffset);
+            int sharedCount = -1;
+            if ((countField & SharedPointNumbers) != 0)
+                sharedCount = ReadPackedPoints(data, ref _sharedPoints);
 
             bool applied = false;
-            var tupleDeltaX = new float[x.Length];
-            var tupleDeltaY = new float[x.Length];
-            var touched = new bool[x.Length];
-
-            foreach (var header in headers)
+            for (int index = 0; index < tupleCount; index++)
             {
-                int tupleStart = reader.Position;
-                float scalar = header.Scalar(coordinates);
+                int size = header.ReadU16();
+                int tupleIndex = header.ReadU16();
+
+                float[] peak;
+                if ((tupleIndex & EmbeddedPeak) != 0)
+                {
+                    ReadTuple(header, _peak);
+                    peak = _peak;
+                }
+                else
+                {
+                    peak = _sharedTuples[tupleIndex & TupleIndexMask];
+                }
+
+                bool intermediate = (tupleIndex & IntermediateRegion) != 0;
+                if (intermediate)
+                {
+                    ReadTuple(header, _start);
+                    ReadTuple(header, _end);
+                }
+
+                int tupleStart = data.Position;
+                float scalar = Scalar(coordinates, peak, intermediate ? _start : null, intermediate ? _end : null);
                 if (scalar != 0f)
                 {
-                    int[] points = (header.TupleIndex & PrivatePointNumbers) != 0
-                        ? ReadPackedPoints(reader, x.Length)
-                        : sharedPoints;
+                    int[] points = _sharedPoints;
+                    int listed = sharedCount;
+                    if ((tupleIndex & PrivatePointNumbers) != 0)
+                    {
+                        points = _privatePoints;
+                        listed = ReadPackedPoints(data, ref _privatePoints);
+                    }
 
-                    ApplyTuple(
-                        reader, points, scalar, x, y, endPoints,
-                        tupleDeltaX, tupleDeltaY, touched, deltaX, deltaY
-                    );
+                    ApplyTuple(data, listed < 0 ? null : points, listed < 0 ? pointCount : listed, scalar, x, y, pointCount, endPoints, deltaX, deltaY);
                     applied = true;
                 }
 
-                reader.Seek(tupleStart + header.Size);
+                data.Seek(tupleStart + size);
             }
 
             return applied;
         }
 
-        private static void ApplyTuple(
+        private void EnsureScratch(int pointCount)
+        {
+            if (_tupleDeltaX.Length >= pointCount)
+                return;
+
+            int size = Math.Max(pointCount, _tupleDeltaX.Length * 2);
+            _tupleDeltaX = new float[size];
+            _tupleDeltaY = new float[size];
+            _touched = new bool[size];
+            _packedX = new float[size];
+            _packedY = new float[size];
+            _sharedPoints = new int[size];
+            _privatePoints = new int[size];
+        }
+
+        private void ApplyTuple(
             FontReader reader,
             int[] points,
+            int listed,
             float scalar,
             float[] x,
             float[] y,
+            int pointCount,
             int[] endPoints,
-            float[] tupleDeltaX,
-            float[] tupleDeltaY,
-            bool[] touched,
             float[] deltaX,
             float[] deltaY
         )
         {
-            int pointCount = x.Length;
-            int listed = points == null ? pointCount : points.Length;
+            Array.Clear(_tupleDeltaX, 0, pointCount);
+            Array.Clear(_tupleDeltaY, 0, pointCount);
+            Array.Clear(_touched, 0, pointCount);
 
-            Array.Clear(tupleDeltaX, 0, pointCount);
-            Array.Clear(tupleDeltaY, 0, pointCount);
-            Array.Clear(touched, 0, pointCount);
+            if (_packedX.Length < listed)
+            {
+                _packedX = new float[listed];
+                _packedY = new float[listed];
+            }
 
-            var packedX = ReadPackedDeltas(reader, listed);
-            var packedY = ReadPackedDeltas(reader, listed);
+            ReadPackedDeltas(reader, _packedX, listed);
+            ReadPackedDeltas(reader, _packedY, listed);
             for (int index = 0; index < listed; index++)
             {
                 int point = points == null ? index : points[index];
                 if (point >= pointCount)
                     continue;
 
-                tupleDeltaX[point] = packedX[index];
-                tupleDeltaY[point] = packedY[index];
-                touched[point] = true;
+                _tupleDeltaX[point] = _packedX[index];
+                _tupleDeltaY[point] = _packedY[index];
+                _touched[point] = true;
             }
 
             if (points != null && endPoints != null)
@@ -194,17 +233,33 @@ namespace Unite.Text.Fonts
                 int contourStart = 0;
                 foreach (int contourEnd in endPoints)
                 {
-                    InterpolateUntouched(x, touched, tupleDeltaX, contourStart, contourEnd);
-                    InterpolateUntouched(y, touched, tupleDeltaY, contourStart, contourEnd);
+                    InterpolateUntouched(x, _touched, _tupleDeltaX, contourStart, contourEnd);
+                    InterpolateUntouched(y, _touched, _tupleDeltaY, contourStart, contourEnd);
                     contourStart = contourEnd + 1;
                 }
             }
 
             for (int point = 0; point < pointCount; point++)
             {
-                deltaX[point] += tupleDeltaX[point] * scalar;
-                deltaY[point] += tupleDeltaY[point] * scalar;
+                deltaX[point] += _tupleDeltaX[point] * scalar;
+                deltaY[point] += _tupleDeltaY[point] * scalar;
             }
+        }
+
+        private static float Scalar(float[] coordinates, float[] peaks, float[] starts, float[] ends)
+        {
+            float scalar = 1f;
+            for (int axis = 0; axis < peaks.Length && axis < coordinates.Length; axis++)
+            {
+                float peak = peaks[axis];
+                float start = starts != null ? starts[axis] : Math.Min(0f, peak);
+                float end = ends != null ? ends[axis] : Math.Max(0f, peak);
+
+                scalar *= VariationMath.AxisScalar(coordinates[axis], start, peak, end);
+                if (scalar == 0f)
+                    return 0f;
+            }
+            return scalar;
         }
 
         // IUP: untouched points of a contour follow the nearest touched ones, linearly
@@ -277,22 +332,30 @@ namespace Unite.Text.Fonts
         private static float[] ReadTuple(FontReader reader, int axisCount)
         {
             var tuple = new float[axisCount];
-            for (int axis = 0; axis < axisCount; axis++)
-                tuple[axis] = reader.ReadF2Dot14();
+            ReadTuple(reader, tuple);
             return tuple;
         }
 
-        // Packed point numbers; null means every point.
-        private static int[] ReadPackedPoints(FontReader reader, int pointCount)
+        private static void ReadTuple(FontReader reader, float[] tuple)
+        {
+            for (int axis = 0; axis < tuple.Length; axis++)
+                tuple[axis] = reader.ReadF2Dot14();
+        }
+
+        // Packed point numbers into points (grown as needed); returns the count, or -1
+        // for "every point".
+        private static int ReadPackedPoints(FontReader reader, ref int[] points)
         {
             int count = reader.ReadU8();
             if ((count & 0x80) != 0)
                 count = ((count & 0x7F) << 8) | reader.ReadU8();
 
             if (count == 0)
-                return null;
+                return -1;
 
-            var points = new int[count];
+            if (points.Length < count)
+                points = new int[count];
+
             int read = 0;
             int value = 0;
             while (read < count)
@@ -307,12 +370,11 @@ namespace Unite.Text.Fonts
                 }
             }
 
-            return points;
+            return count;
         }
 
-        private static float[] ReadPackedDeltas(FontReader reader, int count)
+        private static void ReadPackedDeltas(FontReader reader, float[] deltas, int count)
         {
-            var deltas = new float[count];
             int read = 0;
             while (read < count)
             {
@@ -324,43 +386,6 @@ namespace Unite.Text.Fonts
                 {
                     deltas[read++] = zeros ? 0f : (words ? reader.ReadI16() : reader.ReadI8());
                 }
-            }
-
-            return deltas;
-        }
-
-        private readonly struct TupleHeader
-        {
-            private readonly float[] _peak;
-            private readonly float[] _start;
-            private readonly float[] _end;
-
-            public TupleHeader(int size, int tupleIndex, float[] peak, float[] start, float[] end)
-            {
-                Size = size;
-                TupleIndex = tupleIndex;
-                _peak = peak;
-                _start = start;
-                _end = end;
-            }
-
-            public int Size { get; }
-            public int TupleIndex { get; }
-
-            public float Scalar(float[] coordinates)
-            {
-                float scalar = 1f;
-                for (int axis = 0; axis < _peak.Length && axis < coordinates.Length; axis++)
-                {
-                    float peak = _peak[axis];
-                    float start = _start != null ? _start[axis] : Math.Min(0f, peak);
-                    float end = _end != null ? _end[axis] : Math.Max(0f, peak);
-
-                    scalar *= VariationMath.AxisScalar(coordinates[axis], start, peak, end);
-                    if (scalar == 0f)
-                        return 0f;
-                }
-                return scalar;
             }
         }
     }

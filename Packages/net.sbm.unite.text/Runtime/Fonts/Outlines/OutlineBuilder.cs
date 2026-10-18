@@ -29,6 +29,15 @@ namespace Unite.Text.Fonts
 
         public int ContourCount => _contours.Count;
 
+        /// <summary>Forgets everything collected so far, keeping the list capacity for the next glyph.</summary>
+        public void Reset()
+        {
+            _contours.Clear();
+            _commands.Clear();
+            _current.Clear();
+            _open = false;
+        }
+
         public void MoveTo(Vector2 point)
         {
             Close();

@@ -28,8 +28,6 @@ namespace Unite.Text
             public byte[] Field;
         }
 
-        private static byte[] _clearField;
-
         private readonly List<PendingBake> _pending = new();
         private readonly List<Page> _dirtyPages = new();
         private readonly List<Page> _batchPages = new();
@@ -166,7 +164,7 @@ namespace Unite.Text
                     for (int row = 0; row < job.Height; row++)
                     {
                         NativeArray<byte>.Copy(
-                            job.Field, row * job.Width, raw, (job.Y + row) * PageSpan + job.X, job.Width
+                            job.Field, row * job.Width, raw, (job.Y + row) * page.Span + job.X, job.Width
                         );
                     }
                     continue;
@@ -190,7 +188,7 @@ namespace Unite.Text
                     Range = job.Range,
                     DistanceStart = distanceTotal,
                     CrossingStart = crossingTotal,
-                    OutputStart = job.Y * PageSpan + job.X
+                    OutputStart = job.Y * page.Span + job.X
                 };
                 distanceTotal += job.Width * job.Height;
                 crossingTotal += edgeCount;
@@ -215,7 +213,7 @@ namespace Unite.Text
                     CrossingX = crossingX,
                     CrossingWinding = crossingWinding,
                     Output = raw,
-                    OutputStride = PageSpan
+                    OutputStride = page.Span
                 }.Schedule(taskCount, 1).Complete();
             }
 
@@ -236,7 +234,7 @@ namespace Unite.Text
             int y = 0;
             foreach (var candidate in _pages)
             {
-                if (candidate.InUse && !candidate.Volatile
+                if (candidate.InUse && !candidate.Volatile && candidate.Span == source.Span
                     && candidate.Allocator.TryPlace(entry.W, entry.H, out x, out y))
                 {
                     target = candidate;
@@ -246,7 +244,7 @@ namespace Unite.Text
 
             if (target == null)
             {
-                target = AcquirePage(false);
+                target = AcquirePage(false, source.Span);
                 if (!target.Allocator.TryPlace(entry.W, entry.H, out x, out y))
                     return;
             }
@@ -256,7 +254,7 @@ namespace Unite.Text
             for (int row = 0; row < entry.H; row++)
             {
                 NativeArray<byte>.Copy(
-                    from, (entry.Y + row) * PageSpan + entry.X, to, (y + row) * PageSpan + x, entry.W
+                    from, (entry.Y + row) * source.Span + entry.X, to, (y + row) * target.Span + x, entry.W
                 );
             }
             MarkDirty(target);
@@ -279,21 +277,6 @@ namespace Unite.Text
             _dirtyPages.Add(page);
         }
 
-        // Untouched page area must read as outside: bilinear sampling at a sprite rect's
-        // border mixes in the neighboring texel, and a 0 neighbor lands on the 128 edge
-        // threshold, drawing a thin line along the glyph quad.
-        private void ClearPage(Page page)
-        {
-            if (_clearField == null)
-            {
-                _clearField = new byte[PageSpan * PageSpan];
-                Array.Fill(_clearField, OutsideValue);
-            }
-
-            NativeArray<byte>.Copy(_clearField, page.Texture.GetRawTextureData<byte>());
-            MarkDirty(page);
-        }
-
         private void ClearPending()
         {
             _pending.Clear();
@@ -312,13 +295,14 @@ namespace Unite.Text
         )
         {
             _currentFrame = frame;
+            int span = SpanFor(width, height);
 
             Page page = null;
             int x = 0;
             int y = 0;
             foreach (var candidate in _pages)
             {
-                if (candidate.InUse && candidate.Volatile == isVolatile
+                if (candidate.InUse && candidate.Volatile == isVolatile && candidate.Span == span
                     && candidate.Allocator.TryPlace(width, height, out x, out y))
                 {
                     page = candidate;
@@ -328,9 +312,9 @@ namespace Unite.Text
 
             if (page == null)
             {
-                page = AcquirePage(isVolatile);
+                page = AcquirePage(isVolatile, span);
 
-                // Glyph rects are bounded well below PageSpan by the layout bucket clamps.
+                // Glyph rects are bounded by LargePageSpan through the layout bucket clamps.
                 if (!page.Allocator.TryPlace(width, height, out x, out y))
                 {
                     throw new ArgumentException(
@@ -339,20 +323,18 @@ namespace Unite.Text
                 }
             }
 
-            var entry = new Entry
-            {
-                Page = page,
-                X = x,
-                Y = y,
-                W = width,
-                H = height,
-                Range = range,
-                OffsetX = offsetX,
-                OffsetY = offsetY,
-                CreatedFrame = frame,
-                LastUsedFrame = frame,
-                Volatile = isVolatile
-            };
+            var entry = RentEntry();
+            entry.Page = page;
+            entry.X = x;
+            entry.Y = y;
+            entry.W = width;
+            entry.H = height;
+            entry.Range = range;
+            entry.OffsetX = offsetX;
+            entry.OffsetY = offsetY;
+            entry.CreatedFrame = frame;
+            entry.LastUsedFrame = frame;
+            entry.Volatile = isVolatile;
             _entries.Add(key, entry);
             if (isVolatile)
                 _volatileEntries.Add(key, entry);

@@ -139,11 +139,7 @@ namespace Unite.Text
         /// </summary>
         public static void TextVariation(this UCanvas canvas, string axis, float value)
         {
-            var state = State(canvas);
-            var settings = new List<AxisSetting>(state.Variations ?? Array.Empty<AxisSetting>());
-            settings.RemoveAll(setting => setting.Tag == axis);
-            settings.Add(new AxisSetting(axis, value));
-            state.Variations = settings.ToArray();
+            State(canvas).SetVariation(axis, value);
         }
 
         /// <summary>The value explicitly set for an axis with TextVariation(), or null.</summary>

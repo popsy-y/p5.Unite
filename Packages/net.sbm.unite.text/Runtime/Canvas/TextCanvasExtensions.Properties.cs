@@ -10,6 +10,9 @@ namespace Unite.Text
 {
     public static partial class TextCanvasExtensions
     {
+        private static string _lastSettingsText;
+        private static AxisSetting[] _lastSettings;
+
         private static readonly Regex AxisPattern = new(@"[""']?([A-Za-z0-9 ]{4})[""']?\s+(-?[0-9]*\.?[0-9]+)", RegexOptions.Compiled);
 
         // Canonical property names (p5.js / canvas text property spelling) and aliases.
@@ -134,7 +137,7 @@ namespace Unite.Text
                 ["direction"] = state.Direction,
                 ["letterSpacing"] = state.LetterSpacing,
                 ["wordSpacing"] = state.WordSpacing,
-                ["fontVariationSettings"] = state.Variations ?? Array.Empty<AxisSetting>()
+                ["fontVariationSettings"] = state.Variations != null ? new List<AxisSetting>(state.Variations).ToArray() : Array.Empty<AxisSetting>()
             };
         }
 
@@ -149,14 +152,19 @@ namespace Unite.Text
         }
 
         // Accepts a CSS font-variation-settings string or axis settings; null / empty clears.
+        // The last parsed string is remembered: sketches tend to pass the same one every frame.
         private static AxisSetting[] ToAxisSettings(object value)
         {
+            if (value is string repeated && repeated == _lastSettingsText)
+                return _lastSettings;
+
             var settings = new List<AxisSetting>();
             switch (value)
             {
                 case null:
                     return null;
                 case string text:
+                    _lastSettingsText = null;
                     foreach (Match match in AxisPattern.Matches(text))
                     {
                         settings.Add(new AxisSetting(
@@ -172,7 +180,13 @@ namespace Unite.Text
                     throw new InvalidCastException();
             }
 
-            return settings.Count == 0 ? null : settings.ToArray();
+            var result = settings.Count == 0 ? null : settings.ToArray();
+            if (value is string parsed)
+            {
+                _lastSettingsText = parsed;
+                _lastSettings = result;
+            }
+            return result;
         }
 
         private static T ToEnum<T>(object value) where T : struct, Enum

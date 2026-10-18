@@ -1,22 +1,22 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
-using Object = UnityEngine.Object;
 
 namespace Unite.Text
 {
     /// <summary>
-    /// Atlas for one font: fixed-size R8 pages, glyph entries keyed by (font id, glyph
-    /// id, em bucket, instance) and age accounting. Glyph rects are never re-placed in
-    /// place, so a frame's captured commands always find their atlas rects intact.
+    /// Atlas for one font: R8 pages, glyph entries keyed by (font id, glyph id, em
+    /// bucket, instance) and age accounting. Glyph rects are never re-placed in place, so
+    /// a frame's captured commands always find their atlas rects intact.
     /// <para>
     /// Glyphs of variable-font instances other than the default are "volatile": axis
     /// values that animate would otherwise fill the atlas with outdated glyphs, so
     /// those start on their own pages and expire a few frames after their last use. A
     /// volatile glyph that is still in use after <c>PromoteAfterFrames</c> (static text
     /// at a fixed weight, say) moves to the long-lived pages, so it cannot pin a page
-    /// that animated glyphs keep refilling. A page whose entries have all expired is
-    /// recycled instead of reallocated.
+    /// that animated glyphs keep refilling. A page whose entries have all expired keeps
+    /// its texture as a spare for a while, so pages that come and go reuse textures
+    /// instead of allocating them.
     /// </para>
     /// <para>
     /// New glyphs are placed immediately (the quad only needs the rect) and their pixels
@@ -26,8 +26,11 @@ namespace Unite.Text
     /// </summary>
     internal sealed partial class GlyphAtlasSet : IDisposable
     {
-        /// <summary>Row 0 = bottom; UV space matches the y-up atlas layout.</summary>
+        /// <summary>Side of a regular page. Row 0 = bottom; UV space matches the y-up atlas layout.</summary>
         internal const int PageSpan = 1024;
+
+        /// <summary>Side of the pages that hold glyph rects too large for a regular page (1024 px buckets).</summary>
+        internal const int LargePageSpan = 2048;
 
         /// <summary>R8 value of a deep-outside SDF texel; fills untouched page area.</summary>
         internal const byte OutsideValue = 255;
@@ -36,13 +39,13 @@ namespace Unite.Text
         private const int EvictAfterFrames = 1800;
         private const int VolatileEvictAfterFrames = 2;
         private const int PromoteAfterFrames = 24;
-        private const int MaxSparePages = 2;
 
         /// <summary>A baked glyph inside the atlas.</summary>
         internal readonly struct CachedGlyph
         {
             public CachedGlyph(
                 Texture2D texture,
+                int span,
                 int x,
                 int y,
                 int width,
@@ -53,6 +56,7 @@ namespace Unite.Text
             )
             {
                 Texture = texture;
+                Span = span;
                 X = x;
                 Y = y;
                 W = width;
@@ -63,6 +67,10 @@ namespace Unite.Text
             }
 
             public Texture2D Texture { get; }
+
+            /// <summary>Side of the page texture in texels.</summary>
+            public int Span { get; }
+
             public int X { get; }
             public int Y { get; }
             public int W { get; }
@@ -77,21 +85,10 @@ namespace Unite.Text
             public float OffsetY { get; }
 
             /// <summary>Sprite rect bottom-left in texture UVs.</summary>
-            public Vector2 UvMin => new(X / (float)PageSpan, Y / (float)PageSpan);
+            public Vector2 UvMin => new(X / (float)Span, Y / (float)Span);
 
             /// <summary>Sprite rect top-right in texture UVs.</summary>
-            public Vector2 UvMax =>
-                new((X + W) / (float)PageSpan, (Y + H) / (float)PageSpan);
-        }
-
-        private sealed class Page
-        {
-            public Texture2D Texture;
-            public readonly SkylineAllocator Allocator = new(PageSpan, PageSpan);
-            public int Live;
-            public bool InUse;
-            public bool Volatile;
-            public bool Dirty;
+            public Vector2 UvMax => new((X + W) / (float)Span, (Y + H) / (float)Span);
         }
 
         private sealed class Entry
@@ -111,8 +108,7 @@ namespace Unite.Text
 
         private readonly Dictionary<GlyphKey, Entry> _entries = new();
         private readonly Dictionary<GlyphKey, Entry> _volatileEntries = new();
-        private readonly List<Page> _pages = new();
-        private readonly List<Texture2D> _pageTextures = new();
+        private readonly Stack<Entry> _entryPool = new();
         private readonly List<GlyphKey> _stale = new();
         private readonly List<KeyValuePair<GlyphKey, Entry>> _promote = new();
 
@@ -126,23 +122,6 @@ namespace Unite.Text
 
         /// <summary>Registry-wide id; part of every cache key.</summary>
         public int FontId { get; }
-
-        /// <summary>Number of live atlas pages (recycled and destroyed pages excluded).</summary>
-        public int LivePageCount
-        {
-            get
-            {
-                int count = 0;
-                foreach (var page in _pages)
-                {
-                    if (page.InUse) count++;
-                }
-                return count;
-            }
-        }
-
-        /// <summary>Page textures by page index; null for pages that are not in use.</summary>
-        public IReadOnlyList<Texture2D> PageTextures => _pageTextures;
 
         public bool TryGetCached(GlyphKey key, int frame, out CachedGlyph glyph)
         {
@@ -165,6 +144,7 @@ namespace Unite.Text
 
             _pages.Clear();
             _pageTextures.Clear();
+            _spareTextures.Clear();
             _entries.Clear();
             _volatileEntries.Clear();
             ClearPending();
@@ -174,7 +154,7 @@ namespace Unite.Text
         /// Housekeeping after the frame's glyphs are baked: expires old entries, promotes
         /// volatile glyphs that stay in use and recycles pages without live glyphs. Pages
         /// referenced by this frame's commands are never recycled here, because entries
-        /// expire several frames after their last use.
+        /// expire frames after their last use.
         /// </summary>
         private void Maintain()
         {
@@ -205,6 +185,8 @@ namespace Unite.Text
                 _entries.Remove(key);
                 _volatileEntries.Remove(key);
                 entry.Page.Live--;
+                entry.Page = null;
+                _entryPool.Push(entry);
             }
             _stale.Clear();
 
@@ -218,8 +200,10 @@ namespace Unite.Text
             foreach (var page in _pages)
             {
                 if (page.InUse && page.Live <= 0)
-                    ReleasePage(page);
+                    ReleasePage(page, frame);
             }
+
+            DestroyIdleSpares(frame);
         }
 
         private void CollectStale(Dictionary<GlyphKey, Entry> entries, int frame, int maxAge)
@@ -231,86 +215,11 @@ namespace Unite.Text
             }
         }
 
-        private void ReleasePage(Page page)
-        {
-            page.InUse = false;
-            _pageTextures[_pages.IndexOf(page)] = null;
-
-            int spare = 0;
-            foreach (var other in _pages)
-            {
-                if (!other.InUse && other.Texture != null)
-                    spare++;
-            }
-
-            if (spare > MaxSparePages)
-            {
-                DestroyTexture(page.Texture);
-                page.Texture = null;
-            }
-        }
-
-        private Page AcquirePage(bool isVolatile)
-        {
-            Page page = null;
-
-            // A spare page keeps its texture; reuse it before allocating another.
-            foreach (var candidate in _pages)
-            {
-                if (!candidate.InUse && candidate.Texture != null)
-                {
-                    page = candidate;
-                    break;
-                }
-            }
-
-            if (page == null)
-            {
-                foreach (var candidate in _pages)
-                {
-                    if (!candidate.InUse)
-                    {
-                        page = candidate;
-                        break;
-                    }
-                }
-
-                if (page == null)
-                {
-                    page = new Page();
-                    _pages.Add(page);
-                    _pageTextures.Add(null);
-                }
-
-                page.Texture = new Texture2D(PageSpan, PageSpan, TextureFormat.R8, mipChain: false, linear: true)
-                {
-                    filterMode = FilterMode.Bilinear,
-                    wrapMode = TextureWrapMode.Clamp
-                };
-            }
-
-            page.InUse = true;
-            page.Volatile = isVolatile;
-            page.Live = 0;
-            page.Allocator.Reset();
-            ClearPage(page);
-            _pageTextures[_pages.IndexOf(page)] = page.Texture;
-            return page;
-        }
-
-        private static void DestroyTexture(Texture2D texture)
-        {
-            if (texture == null)
-                return;
-#if UNITY_EDITOR
-            Object.DestroyImmediate(texture);
-#else
-            Object.Destroy(texture);
-#endif
-        }
+        private Entry RentEntry() => _entryPool.Count > 0 ? _entryPool.Pop() : new Entry();
 
         private CachedGlyph ToCachedGlyph(Entry entry) => new(
             entry.Page.Texture,
+            entry.Page.Span,
             entry.X,
             entry.Y,
             entry.W,

@@ -69,7 +69,10 @@ namespace Unite.Text
         private FontFace _font;
         private TextStyleMode _style = TextStyleMode.Normal;
         private float _weight = NormalWeight;
-        private AxisSetting[] _variations;
+
+        // Explicit axis values, owned by this state (Push copies them into the saved state).
+        private readonly List<AxisSetting> _variations = new();
+        private readonly List<AxisSetting> _resolvedAxes = new();
 
         // Cached resolution of the font + style + axes into a font instance.
         private bool _resolved;
@@ -117,18 +120,40 @@ namespace Unite.Text
             }
         }
 
-        /// <summary>
-        /// Explicit axis values (copy-on-write, so saved Push() states stay intact).
-        /// Null when none were set.
-        /// </summary>
-        public AxisSetting[] Variations
+        /// <summary>Explicit axis values; null when none were set.</summary>
+        public IReadOnlyList<AxisSetting> Variations
         {
-            get => _variations;
+            get => _variations.Count == 0 ? null : _variations;
             set
             {
-                _variations = value;
+                _variations.Clear();
+                if (value != null)
+                {
+                    for (int index = 0; index < value.Count; index++)
+                        _variations.Add(value[index]);
+                }
                 _resolved = false;
             }
+        }
+
+        /// <summary>Sets one axis value; setting the value it already has keeps the resolved instance.</summary>
+        public void SetVariation(string tag, float value)
+        {
+            for (int index = 0; index < _variations.Count; index++)
+            {
+                if (_variations[index].Tag != tag)
+                    continue;
+
+                if (_variations[index].Value == value)
+                    return;
+
+                _variations[index] = new AxisSetting(tag, value);
+                _resolved = false;
+                return;
+            }
+
+            _variations.Add(new AxisSetting(tag, value));
+            _resolved = false;
         }
 
         public float EffectiveLeading => Leading ?? Size * DefaultLeadingFactor;
@@ -137,7 +162,35 @@ namespace Unite.Text
 
         public bool IsBold => Style is TextStyleMode.Bold or TextStyleMode.BoldItalic;
 
-        public TextState Clone() => (TextState)MemberwiseClone();
+        public TextState Clone()
+        {
+            var copy = new TextState();
+            copy.CopyFrom(this);
+            return copy;
+        }
+
+        /// <summary>Makes this state equal to another one (including its resolved instance) without allocating.</summary>
+        public void CopyFrom(TextState other)
+        {
+            _font = other._font;
+            _style = other._style;
+            _weight = other._weight;
+            _variations.Clear();
+            _variations.AddRange(other._variations);
+            _resolved = other._resolved;
+            _instance = other._instance;
+            _synthesizeWeight = other._synthesizeWeight;
+            _synthesizeItalic = other._synthesizeItalic;
+            Size = other.Size;
+            Leading = other.Leading;
+            Align = other.Align;
+            VerticalAlign = other.VerticalAlign;
+            Wrap = other.Wrap;
+            Direction = other.Direction;
+            LetterSpacing = other.LetterSpacing;
+            WordSpacing = other.WordSpacing;
+            WarnedMissingFont = other.WarnedMissingFont;
+        }
 
         /// <summary>
         /// The font instance for the current font, style, weight and axes. For variable
@@ -166,28 +219,29 @@ namespace Unite.Text
         public IReadOnlyList<AxisSetting> ResolveAxes()
         {
             if (_font == null)
-                return _variations;
+                return Variations;
 
-            return BuildAxes(_font, out _, out _);
+            var axes = new List<AxisSetting>();
+            BuildAxes(_font, axes, out _, out _);
+            return axes;
         }
 
         private void Resolve(FontFace face)
         {
-            var axes = BuildAxes(face, out _synthesizeWeight, out _synthesizeItalic);
-            _instance = face.GetInstance(axes);
+            BuildAxes(face, _resolvedAxes, out _synthesizeWeight, out _synthesizeItalic);
+            _instance = face.GetInstance(_resolvedAxes);
             _resolved = true;
         }
 
-        private List<AxisSetting> BuildAxes(FontFace face, out bool synthesizeWeight, out bool synthesizeItalic)
+        private void BuildAxes(FontFace face, List<AxisSetting> axes, out bool synthesizeWeight, out bool synthesizeItalic)
         {
-            var axes = new List<AxisSetting>();
-            if (_variations != null)
-                axes.AddRange(_variations);
+            axes.Clear();
+            axes.AddRange(_variations);
 
             synthesizeWeight = true;
             synthesizeItalic = true;
             if (!face.IsVariable)
-                return axes;
+                return;
 
             if (HasAxis(face, "wght"))
             {
@@ -208,15 +262,14 @@ namespace Unite.Text
                         : new AxisSetting("slnt", ObliqueAngle));
                 }
             }
-
-            return axes;
         }
 
         private static bool HasAxis(FontFace face, string tag)
         {
-            foreach (var axis in face.Axes)
+            var axes = face.Axes;
+            for (int index = 0; index < axes.Count; index++)
             {
-                if (axis.Tag == tag)
+                if (axes[index].Tag == tag)
                     return true;
             }
             return false;
@@ -224,9 +277,9 @@ namespace Unite.Text
 
         private static bool Contains(List<AxisSetting> axes, string tag)
         {
-            foreach (var axis in axes)
+            for (int index = 0; index < axes.Count; index++)
             {
-                if (axis.Tag == tag)
+                if (axes[index].Tag == tag)
                     return true;
             }
             return false;
@@ -245,24 +298,49 @@ namespace Unite.Text
         {
             public TextState Current = new();
             public readonly Stack<TextState> Saved = new();
+
+            // States popped off the stack, reused by later pushes.
+            private readonly Stack<TextState> _spare = new();
+
+            public void Push()
+            {
+                var saved = _spare.Count > 0 ? _spare.Pop() : new TextState();
+                saved.CopyFrom(Current);
+                Saved.Push(saved);
+            }
+
+            public void Pop()
+            {
+                // Pushes made before the text state existed have nothing to restore.
+                if (Saved.Count == 0)
+                    return;
+
+                _spare.Push(Current);
+                Current = Saved.Pop();
+            }
         }
 
         private static readonly ConditionalWeakTable<UCanvas, Holder> Holders = new();
 
+        // The table lookup allocates on Mono; text calls almost always hit the same canvas.
+        private static UCanvas _lastCanvas;
+        private static Holder _lastHolder;
+
         public static TextState GetOrCreate(UCanvas canvas)
         {
-            if (Holders.TryGetValue(canvas, out var holder))
-                return holder.Current;
+            if (ReferenceEquals(canvas, _lastCanvas) && _lastHolder != null)
+                return _lastHolder.Current;
 
-            holder = new Holder();
-            Holders.Add(canvas, holder);
-            canvas.StatePushed += () => holder.Saved.Push(holder.Current.Clone());
-            canvas.StatePopped += () =>
+            if (!Holders.TryGetValue(canvas, out var holder))
             {
-                // Pushes made before the text state existed have nothing to restore.
-                if (holder.Saved.Count > 0)
-                    holder.Current = holder.Saved.Pop();
-            };
+                holder = new Holder();
+                Holders.Add(canvas, holder);
+                canvas.StatePushed += holder.Push;
+                canvas.StatePopped += holder.Pop;
+            }
+
+            _lastCanvas = canvas;
+            _lastHolder = holder;
             return holder.Current;
         }
     }
