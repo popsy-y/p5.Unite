@@ -3,10 +3,9 @@
 Experimental text drawing for [p5.Unite](https://github.com/popsy-y/p5.Unite):
 
 ```csharp
-// Create a font asset: Create > p5.Unite > Unite Font, then assign a TextAsset
-// holding the raw font bytes (a .ttf / .otf / .woff / .woff2 renamed to .bytes),
-// or load one at runtime:
-UniteFontAsset font = await UniteFontAsset.LoadFontAsync("Fonts/MyFont.woff2"); // StreamingAssets
+// Load a .ttf / .otf / .woff / .woff2 file (StreamingAssets, an absolute path or a URL),
+// or parse bytes you already have with FontFace.LoadFont(byte[]):
+FontFace font = await FontFace.LoadFontAsync("Fonts/MyFont.woff2");
 
 canvas.TextFont(font, 24f);
 canvas.TextAlign(TextAlignMode.Center, TextVerticalAlignMode.Top);
@@ -49,15 +48,19 @@ format independent:
 | Outlines | `glyf` (TrueType quadratics, composites, `gvar`), `CFF ` (Type 2 charstrings: cubic curves, subroutines, CID-keyed fonts) |
 | Variations | `fvar` axes, `avar`, `gvar` deltas (with IUP), `HVAR` / `MVAR` (phantom points when HVAR is missing) |
 
-`FontFace` is the parsed font, `FontInstance` the face at one set of axis values
-(the default instance for static fonts). `UniteFontAsset.TryGetFont` /
-`TryGetInstance` give access to them; `FontFace.Axes` lists the variation axes.
+`FontFace` is the font you load and pass to `TextFont` (p5.Font); `FontInstance` is the
+face at one set of axis values (the default instance for static fonts).
+`FontFace.GetInstance` returns it and `FontFace.Axes` lists the variation axes.
+`FontFace.Dispose()` releases the atlas textures baked for the font.
 
-Drawn axis values snap to 1/32 of each axis range: every distinct value bakes its own
-glyphs into the atlas, so animating an axis would otherwise create an endless stream of
-instances. `TextToPoints` and the other outline functions use the exact values
-(`TextPathOptions.Variations`). `UniteFontAsset.AtlasPages` exposes the baked atlas
-textures for inspection.
+Axis values are used exactly as given, so animating an axis is smooth. Every distinct
+value needs its own baked glyphs: those of non-default instances are *volatile*, living on
+separate atlas pages and expiring two frames after their last use (a glyph that stays in use
+moves to the long-lived pages), so the atlas does not grow while an axis animates. The cost
+is that glyphs of an animated axis are re-baked every frame (Burst-compiled and parallel,
+a fraction of a millisecond per glyph). `FontFace.AtlasPages` exposes the baked atlas textures
+for inspection. World and CanvasLocal text is baked at the size it covers on screen (up to
+512 px per em), so it stays sharp when the camera moves closer.
 
 ## Current limitations (v1)
 
@@ -67,5 +70,6 @@ textures for inspection.
 - `TextStyle()` and `TextWeight()` are synthesized (slant and outline offset) only for
   fonts without matching variation axes; they do not affect the p5.Font outline
   functions.
-- First use of a glyph rasterizes synchronously; deferred/async baking is a
-  follow-up item from the planning docs (`.temporal-text-implementation-docs/`).
+- Glyphs are baked once per frame just before the canvases draw (Burst jobs, all cores);
+  a frame that needs many new glyphs at once (first draw of a page of text) still takes
+  a few milliseconds.

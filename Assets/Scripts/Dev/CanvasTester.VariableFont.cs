@@ -2,35 +2,35 @@ using System;
 using System.IO;
 using Unite.Canvas;
 using Unite.Text;
+using Unite.Text.Fonts;
 using UnityEngine;
 
 namespace Dev
 {
-    // Variable font test page: the font is loaded with LoadFontAsync and the time the
-    // load took is logged. Weight and width axes are shown as a ramp and animated.
+    // Font loading for the text pages (LoadFontAsync, with the load time logged) and the
+    // variable font page: weight and width axes are shown as a ramp and animated.
     public sealed partial class CanvasTester
     {
         private static readonly float[] WeightRamp = { 100f, 200f, 300f, 400f, 500f, 600f, 700f };
         private static readonly float[] WidthRamp = { 75f, 82.5f, 90f, 100f };
 
-        [Header("Variable Font Page")]
-        [SerializeField] private string _variableFontPath = "Assets/DevResources/Fonts/IBMPlexSans-VariableFont_wdth,wght.bytes";
+        [Header("Font")]
+        [SerializeField] private string _fontPath = "Assets/DevResources/Fonts/IBMPlexSans-VariableFont_wdth,wght.bytes";
 
-        private UniteFontAsset _variableFont;
-        private bool _variableFontRequested;
-        private string _variableFontStatus = "not loaded";
-        private double _variableFontLoadMilliseconds;
+        private FontFace _font;
+        private bool _fontRequested;
+        private string _fontStatus = "not loaded";
+        private double _fontLoadMilliseconds;
 
         private void DrawVariableFontPage()
         {
             float unit = Unit();
             _canvas.RectMode = ShapeMode.Center;
 
-            if (_variableFont == null)
+            if (_font == null)
             {
                 // One attempt per play session: a failed load is logged, not retried every frame.
-                if (!_variableFontRequested)
-                    _ = LoadVariableFontAsync();
+                EnsureFontLoading();
 
                 _canvas.NoStroke();
                 _canvas.Fill(new Color(1f, 0.25f, 0.55f, 0.5f));
@@ -41,7 +41,7 @@ namespace Dev
             var textColor = new Color(0.04f, 0.07f, 0.12f);
             var accent = new Color(0.0f, 0.45f, 0.7f);
 
-            _canvas.TextFont(_variableFont);
+            _canvas.TextFont(_font);
             _canvas.NoStroke();
             _canvas.Fill(accent);
             _canvas.TextAlign(TextAlignMode.Left, TextVerticalAlignMode.Baseline);
@@ -105,7 +105,7 @@ namespace Dev
             _canvas.Pop();
 
             _canvas.Fill(accent);
-            DrawVariableLabel($"loaded in {_variableFontLoadMilliseconds:0.0} ms", 0.03f, 0.04f, 0.94f);
+            DrawVariableLabel($"loaded in {_fontLoadMilliseconds:0.0} ms", 0.03f, 0.04f, 0.94f);
         }
 
         private void DrawVariableLabel(string text, float sizeFactor, float xNorm, float yNorm)
@@ -120,7 +120,7 @@ namespace Dev
         private string AxesDescription()
         {
             var axes = _canvas.TextAxes();
-            var description = new System.Text.StringBuilder(_variableFont.FamilyName);
+            var description = new System.Text.StringBuilder(_font.Name);
             foreach (var axis in axes)
                 description.Append($"   {axis.Tag} {axis.Minimum:0.#}..{axis.Default:0.#}..{axis.Maximum:0.#}");
             return description.ToString();
@@ -128,34 +128,40 @@ namespace Dev
 
         // Loads the font file through LoadFontAsync (UnityWebRequest + parse) and logs how
         // long the whole load took.
-        private async Awaitable LoadVariableFontAsync()
+        private void EnsureFontLoading()
         {
-            _variableFontRequested = true;
-            _variableFontStatus = "loading";
+            if (!_fontRequested)
+                _ = LoadFontAsync();
+        }
 
-            string path = Path.IsPathRooted(_variableFontPath)
-                ? _variableFontPath
-                : Path.GetFullPath(Path.Combine(Application.dataPath, "..", _variableFontPath));
+        private async Awaitable LoadFontAsync()
+        {
+            _fontRequested = true;
+            _fontStatus = "loading";
+
+            string path = Path.IsPathRooted(_fontPath)
+                ? _fontPath
+                : Path.GetFullPath(Path.Combine(Application.dataPath, "..", _fontPath));
 
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
             try
             {
-                var font = await UniteFontAsset.LoadFontAsync(path, "IBM Plex Sans");
+                var font = await FontFace.LoadFontAsync(path, "IBM Plex Sans");
                 stopwatch.Stop();
-                _variableFontLoadMilliseconds = stopwatch.Elapsed.TotalMilliseconds;
-                _variableFont = font;
-                _variableFontStatus = "loaded";
+                _fontLoadMilliseconds = stopwatch.Elapsed.TotalMilliseconds;
+                _font = font;
+                _fontStatus = "loaded";
 
-                font.TryGetFont(out var face);
+                var face = font;
                 Debug.Log(
                     $"CanvasTester: LoadFontAsync loaded '{Path.GetFileName(path)}' in "
-                    + $"{_variableFontLoadMilliseconds:0.0} ms ({face.GlyphCount} glyphs, {face.Axes.Count} axes)."
+                    + $"{_fontLoadMilliseconds:0.0} ms ({face.GlyphCount} glyphs, {face.Axes.Count} axes)."
                 );
             }
             catch (Exception exception)
             {
                 stopwatch.Stop();
-                _variableFontStatus = exception.Message;
+                _fontStatus = exception.Message;
                 Debug.LogError($"CanvasTester: could not load the variable font '{path}' ({stopwatch.Elapsed.TotalMilliseconds:0.0} ms): {exception.Message}");
             }
         }

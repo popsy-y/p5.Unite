@@ -2,7 +2,6 @@ using System.Runtime.CompilerServices;
 using Unite.Canvas;
 using Unite.Drawing;
 using Unite.Text.Fonts;
-using Unite.Text.Raster;
 using UnityEngine;
 using CachedGlyph = Unite.Text.GlyphAtlasSet.CachedGlyph;
 
@@ -18,14 +17,16 @@ namespace Unite.Text
         // Raster sizes are quantized to powers of two so text seen at different sizes
         // and camera configs reuses bake results (p5.Unite-Text plan: pow2 em buckets).
         private const int MinBucketPx = 16;
-        private const int MaxBucketPx = 256;
+        private const int MaxBucketPx = 512;
 
-        // World/CanvasLocal modes have no cheap pre-GPU pixel density, so text rasterizes
-        // at this many pixels per world unit (bucketed). Exposed as a knob for the future
-        // per-camera density pass.
-        private const float PixelsPerWorldUnit = 64f;
+        // World text rasterizes at this many pixels per world unit when no camera is
+        // available to measure the on-screen size.
+        private const float FallbackPixelsPerWorldUnit = 64f;
 
         private static readonly ConditionalWeakTable<UCanvas, object> WarnedCanvases = new();
+
+        // Drawing is not re-entrant, so one layout buffer serves every Draw call.
+        private static readonly TextLayoutResult LayoutBuffer = new();
 
         public static void Draw(UCanvas canvas, TextState state, string text, float x, float y, TextBox? box = null)
         {
@@ -40,9 +41,9 @@ namespace Unite.Text
                 return;
 
             var settings = SettingsFor(canvas, state);
-            var layout = TextLayout.Layout(font, settings, text, x, y, box);
+            var layout = TextLayout.Layout(font, settings, text, x, y, box, LayoutBuffer);
 
-            ResolveRaster(canvas, state, font, out int em, out float glyphScale, out float unitsPerPx);
+            ResolveRaster(canvas, state, font, x, y, out int em, out float glyphScale, out float unitsPerPx);
             var atlas = AtlasRegistry.GetOrCreate(state.Font);
             int frame = GetCurrentFrame();
 
@@ -57,8 +58,9 @@ namespace Unite.Text
                     continue;
 
                 var key = new GlyphKey(atlas.FontId, placed.GlyphId, em, font.Id);
-                if (!atlas.TryGetCached(key, frame, out var glyph))
-                    glyph = BakeGlyph(atlas, key, frame, outline, em, glyphScale);
+                if (!atlas.TryGetCached(key, frame, out var glyph) &&
+                    !TryAllocateGlyph(atlas, key, frame, !font.IsDefault, outline, em, glyphScale, out glyph))
+                    continue;
 
                 // Sprite rect: pen-relative origin (OffsetX/Y, font orientation y-up) +
                 // size in baked pixels, mapped into drawing space around the pen.
@@ -113,7 +115,7 @@ namespace Unite.Text
                 Debug.LogWarning(
                     state.Font == null
                         ? "p5.Unite: set a font with canvas.TextFont(...) before drawing text."
-                        : $"p5.Unite: font '{state.Font.FamilyName}' cannot be used for text "
+                        : $"p5.Unite: font '{state.Font.Name}' cannot be used for text "
                             + "(it failed to load; see the font warning above).",
                     canvas
                 );
@@ -125,6 +127,8 @@ namespace Unite.Text
             UCanvas canvas,
             TextState state,
             FontInstance font,
+            float x,
+            float y,
             out int emBucket,
             out float glyphScale,
             out float unitsPerPx
@@ -135,7 +139,7 @@ namespace Unite.Text
             {
                 DrawingMode.NormalizedScreen or DrawingMode.NormalizedScreenOverlay
                     => state.Size * Mathf.Max(1f, canvas.Height),
-                DrawingMode.World or DrawingMode.CanvasLocal => state.Size * PixelsPerWorldUnit,
+                DrawingMode.World or DrawingMode.CanvasLocal => WorldPixelSize(canvas, state.Size, x, y),
                 _ => state.Size // Screen / ScreenOverlay: drawing units are already pixels.
             };
 
@@ -144,19 +148,53 @@ namespace Unite.Text
             unitsPerPx = state.Size / emBucket;
         }
 
+        // On-screen height in pixels of an em of the given size in the canvas's units: the
+        // text's world scale times the pixels one world unit covers at its distance from
+        // the camera. Text close to the camera gets a larger bucket, so it stays sharp.
+        private static float WorldPixelSize(UCanvas canvas, float size, float x, float y)
+        {
+            var camera = canvas.ActiveCamera;
+            if (camera == null)
+                return size * FallbackPixelsPerWorldUnit;
+
+            var matrix = canvas.CurrentDrawingMode == DrawingMode.CanvasLocal
+                ? canvas.transform.localToWorldMatrix * canvas.CurrentTransform
+                : canvas.CurrentTransform;
+
+            float worldSize = size * Mathf.Max(matrix.GetColumn(0).magnitude, matrix.GetColumn(1).magnitude);
+            float pixelsPerUnit;
+            if (camera.orthographic)
+            {
+                pixelsPerUnit = camera.pixelHeight / (2f * Mathf.Max(0.0001f, camera.orthographicSize));
+            }
+            else
+            {
+                var position = matrix.MultiplyPoint3x4(new Vector3(x, y, 0f));
+                var cameraTransform = camera.transform;
+                float depth = Vector3.Dot(position - cameraTransform.position, cameraTransform.forward);
+                depth = Mathf.Max(depth, camera.nearClipPlane);
+                pixelsPerUnit = camera.pixelHeight / (2f * depth * Mathf.Tan(camera.fieldOfView * 0.5f * Mathf.Deg2Rad));
+            }
+
+            return worldSize * pixelsPerUnit;
+        }
+
         private static int QuantizeBucket(float pixelSize)
         {
             pixelSize = Mathf.Clamp(pixelSize, MinBucketPx, MaxBucketPx);
             return Mathf.NextPowerOfTwo(Mathf.Max(MinBucketPx, Mathf.CeilToInt(pixelSize)));
         }
 
-        private static CachedGlyph BakeGlyph(
+        // Reserves the glyph's atlas rect now; its pixels are encoded at the frame's flush.
+        private static bool TryAllocateGlyph(
             GlyphAtlasSet atlas,
             GlyphKey key,
             int frame,
+            bool isVolatile,
             GlyphOutline outline,
             int emBucket,
-            float glyphScale
+            float glyphScale,
+            out CachedGlyph glyph
         )
         {
             // Spread proportional to the bucket (1/8 em), clamped so tiny buckets keep
@@ -175,27 +213,18 @@ namespace Unite.Text
             int issueX = Mathf.FloorToInt(minX) - pad;
             int issueY = Mathf.FloorToInt(minY) - pad;
 
-            var local = new Vector2[outline.Contours.Length][];
-            for (int contour = 0; contour < outline.Contours.Length; contour++)
+            if (width > GlyphAtlasSet.PageSpan || height > GlyphAtlasSet.PageSpan)
             {
-                var source = outline.Contours[contour];
-                var target = new Vector2[source.Length];
-                for (int point = 0; point < source.Length; point++)
-                {
-                    target[point] = new Vector2(
-                        source[point].x * glyphScale - issueX,
-                        source[point].y * glyphScale - issueY
-                    );
-                }
-                local[contour] = target;
+                glyph = default;
+                return false;
             }
-
-            var field = new byte[width * height];
-            SdfEncoder.Encode(local, width, height, range, field);
 
             // (issueX, issueY) is the pen-relative sprite rect origin: the glyph's
             // baked pixel box measured from the pen origin / baseline (y-up).
-            return atlas.Reserve(key, frame, width, height, range, field, issueX, issueY);
+            glyph = atlas.Allocate(
+                key, frame, isVolatile, width, height, range, issueX, issueY, outline, glyphScale, issueX, issueY
+            );
+            return true;
         }
 
         private static int GetCurrentFrame()

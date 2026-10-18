@@ -14,25 +14,45 @@ namespace Unite.Text
             in TextLayoutSettings settings,
             string text,
             float maxWidth,
-            float scale
+            float scale,
+            TextLayoutResult result
         )
         {
-            var lines = new List<List<int>>();
-            foreach (var paragraph in text.Replace("\r\n", "\n").Split('\n'))
-            {
-                var codePoints = TextLayout.CodePoints(paragraph);
-                if (maxWidth <= 0f)
-                {
-                    lines.Add(codePoints);
-                    continue;
-                }
+            var lines = result.BrokenLines;
 
-                if (settings.Wrap == TextWrapMode.Char)
-                    WrapChars(font, settings, codePoints, maxWidth, scale, lines);
-                else
-                    WrapWords(font, settings, codePoints, maxWidth, scale, lines);
+            // Single-line text (the common case) needs no splitting.
+            if (text.IndexOf('\n') < 0 && text.IndexOf('\r') < 0)
+            {
+                BreakParagraph(font, settings, text, maxWidth, scale, result, lines);
+                return lines;
             }
+
+            foreach (var paragraph in text.Replace("\r\n", "\n").Split('\n'))
+                BreakParagraph(font, settings, paragraph, maxWidth, scale, result, lines);
             return lines;
+        }
+
+        private static void BreakParagraph(
+            FontInstance font,
+            in TextLayoutSettings settings,
+            string paragraph,
+            float maxWidth,
+            float scale,
+            TextLayoutResult result,
+            List<List<int>> lines
+        )
+        {
+            var codePoints = TextLayout.CodePoints(paragraph, result.RentCodePoints());
+            if (maxWidth <= 0f)
+            {
+                lines.Add(codePoints);
+                return;
+            }
+
+            if (settings.Wrap == TextWrapMode.Char)
+                WrapChars(font, settings, codePoints, maxWidth, scale, lines, result);
+            else
+                WrapWords(font, settings, codePoints, maxWidth, scale, lines, result);
         }
 
         // WORD: breaks at spaces; a single word wider than the box overflows it.
@@ -42,11 +62,12 @@ namespace Unite.Text
             List<int> codePoints,
             float maxWidth,
             float scale,
-            List<List<int>> lines
+            List<List<int>> lines,
+            TextLayoutResult result
         )
         {
-            var current = new List<int>();
-            var word = new List<int>();
+            var current = result.RentCodePoints();
+            var word = result.RentCodePoints();
 
             for (int index = 0; index <= codePoints.Count; index++)
             {
@@ -57,7 +78,8 @@ namespace Unite.Text
                     continue;
                 }
 
-                var candidate = new List<int>(current);
+                var candidate = result.RentCodePoints();
+                candidate.AddRange(current);
                 if (candidate.Count > 0)
                     candidate.Add(' ');
                 candidate.AddRange(word);
@@ -69,7 +91,8 @@ namespace Unite.Text
                 else
                 {
                     lines.Add(current);
-                    current = new List<int>(word);
+                    current = result.RentCodePoints();
+                    current.AddRange(word);
                 }
                 word.Clear();
             }
@@ -84,10 +107,11 @@ namespace Unite.Text
             List<int> codePoints,
             float maxWidth,
             float scale,
-            List<List<int>> lines
+            List<List<int>> lines,
+            TextLayoutResult result
         )
         {
-            var current = new List<int>();
+            var current = result.RentCodePoints();
             float width = 0f;
 
             foreach (int codePoint in codePoints)
@@ -96,7 +120,7 @@ namespace Unite.Text
                 if (current.Count > 0 && width + advance > maxWidth)
                 {
                     lines.Add(current);
-                    current = new List<int>();
+                    current = result.RentCodePoints();
                     width = 0f;
                 }
 

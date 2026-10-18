@@ -13,14 +13,14 @@
 - [x] [fontBounds()](https://p5js.org/reference/p5/fontBounds/) — `UCanvas.FontBounds(str, x, y, [maxWidth], [maxHeight])`（`Rect` を返す。min = 最小の x / y）
 - [x] [fontDescent()](https://p5js.org/reference/p5/fontDescent/) — `UCanvas.FontDescent()`
 - [x] [fontWidth()](https://p5js.org/reference/p5/fontWidth/) — `UCanvas.FontWidth()`
-- [ ] [loadFont()](https://p5js.org/reference/p5/loadFont/) — 部分対応: `UniteFontAsset.LoadFont(path | bytes)` / `UniteFontAsset.LoadFontAsync(path)`（`Awaitable<UniteFontAsset>`）、`UCanvas.LoadFont()` / `UCanvas.LoadFontAsync()`。.ttf / .otf（TrueType・CFF）/ .woff / .woff2 / コレクション（先頭のフォント）とバリアブルフォント（gvar）に対応。CFF2、CSS ファイル / `@font-face` 文字列、`options` 引数は未対応
+- [ ] [loadFont()](https://p5js.org/reference/p5/loadFont/) — 部分対応: `FontFace.LoadFont(path | bytes)` / `FontFace.LoadFontAsync(path)`（`Awaitable<FontFace>`）、`UCanvas.LoadFont()` / `UCanvas.LoadFontAsync()`。.ttf / .otf（TrueType・CFF）/ .woff / .woff2 / コレクション（先頭のフォント）とバリアブルフォント（gvar）に対応。CFF2、CSS ファイル / `@font-face` 文字列、`options` 引数は未対応
 - [x] [text()](https://p5js.org/reference/p5/text/) — `UCanvas.Text(str, x, y, [maxWidth], [maxHeight])`（テキストボックスは `RectMode` に従い、ボックス外の行は描画しない）
 - [x] [textAlign()](https://p5js.org/reference/p5/textAlign/) — `UCanvas.TextAlign(TextAlignMode, [TextVerticalAlignMode])` / `UCanvas.TextAlign()`
 - [x] [textAscent()](https://p5js.org/reference/p5/textAscent/) — `UCanvas.TextAscent([text])`
 - [x] [textBounds()](https://p5js.org/reference/p5/textBounds/) — `UCanvas.TextBounds(str, x, y, [maxWidth], [maxHeight])`（`Rect` を返す）
 - [x] [textDescent()](https://p5js.org/reference/p5/textDescent/) — `UCanvas.TextDescent([text])`
 - [ ] [textDirection()](https://p5js.org/reference/p5/textDirection/) — 部分対応: `UCanvas.TextDirection(TextDirectionMode)` / `UCanvas.TextDirection()`。RTL は各行のグリフの並びを反転するだけで、Bidi の並べ替えやシェーピングは行わない
-- [x] [textFont()](https://p5js.org/reference/p5/textFont/) — `UCanvas.TextFont(UniteFontAsset, [size])` / `UCanvas.TextFont()`
+- [x] [textFont()](https://p5js.org/reference/p5/textFont/) — `UCanvas.TextFont(FontFace, [size])` / `UCanvas.TextFont()`
 - [x] [textLeading()](https://p5js.org/reference/p5/textLeading/) — `UCanvas.TextLeading(leading)` / `UCanvas.TextLeading()`（未設定時は textSize × 1.25）
 - [ ] [textProperties()](https://p5js.org/reference/p5/textProperties/) — 部分対応: `UCanvas.TextProperties(IReadOnlyDictionary<string, object>)` / `UCanvas.TextProperties()`。対応プロパティは textProperty() と同じ
 - [ ] [textProperty()](https://p5js.org/reference/p5/textProperty/) — 部分対応: `UCanvas.TextProperty(name, value)` / `UCanvas.TextProperty(name)`。textFont / textSize (fontSize) / textLeading (lineHeight) / textAlign / textBaseline / textStyle (fontStyle) / textWeight (fontWeight) / textWrap / direction / letterSpacing / wordSpacing / fontVariationSettings のみ
@@ -32,8 +32,8 @@
 
 ## p5.Font
 
-- [x] [p5.Font](https://p5js.org/reference/p5/p5.Font/) — `UniteFontAsset`（解析済みデータは `FontFace`、軸の値ごとの描画用データは `FontInstance`）
-- [x] [textToContours()](https://p5js.org/reference/p5.Font/textToContours/) — `UniteFontAsset.TextToContours(str, x, y, [TextPathOptions])`（`List<List<TextPoint>>`）
-- [x] [textToModel()](https://p5js.org/reference/p5.Font/textToModel/) — `UniteFontAsset.TextToModel(str, x, y, width, height, [TextPathOptions])`（`UnityEngine.Mesh` を返す。`Extrude` で押し出し）
-- [x] [textToPaths()](https://p5js.org/reference/p5.Font/textToPaths/) — `UniteFontAsset.TextToPaths(str, x, y, [width, height], [TextPathOptions])`（`List<PathCommand>`: MoveTo / LineTo / QuadraticTo / Close）
-- [x] [textToPoints()](https://p5js.org/reference/p5.Font/textToPoints/) — `UniteFontAsset.TextToPoints(str, x, y, [TextPathOptions])`（`List<TextPoint>`。`TextPathOptions.FromCanvas(canvas)` でキャンバスの textSize / textAlign などを引き継ぐ）
+- [x] [p5.Font](https://p5js.org/reference/p5/p5.Font/) — `FontFace`（軸の値ごとの描画用データは `FontInstance`）
+- [x] [textToContours()](https://p5js.org/reference/p5.Font/textToContours/) — `FontFace.TextToContours(str, x, y, [TextPathOptions])`（`List<List<TextPoint>>`）
+- [x] [textToModel()](https://p5js.org/reference/p5.Font/textToModel/) — `FontFace.TextToModel(str, x, y, width, height, [TextPathOptions])`（`UnityEngine.Mesh` を返す。`Extrude` で押し出し）
+- [x] [textToPaths()](https://p5js.org/reference/p5.Font/textToPaths/) — `FontFace.TextToPaths(str, x, y, [width, height], [TextPathOptions])`（`List<PathCommand>`: MoveTo / LineTo / QuadraticTo / Close）
+- [x] [textToPoints()](https://p5js.org/reference/p5.Font/textToPoints/) — `FontFace.TextToPoints(str, x, y, [TextPathOptions])`（`List<TextPoint>`。`TextPathOptions.FromCanvas(canvas)` でキャンバスの textSize / textAlign などを引き継ぐ）

@@ -55,7 +55,7 @@ namespace Unite.Text
                 switch (key)
                 {
                     case "textFont":
-                        state.Font = (UniteFontAsset)value;
+                        state.Font = (FontFace)value;
                         break;
                     case "textSize":
                         canvas.TextSize(Convert.ToSingle(value));

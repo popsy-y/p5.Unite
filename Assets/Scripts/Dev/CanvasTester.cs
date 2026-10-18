@@ -49,8 +49,6 @@ namespace Dev
         [Header("Stress Test")]
         [SerializeField][Min(1)] private int _stressShapeCount = 1000;
 
-        [Header("Text Page")]
-        [SerializeField] private UniteFontAsset _textFont;
 
         private UCanvas _canvas;
         private DrawingMode _currentMode;

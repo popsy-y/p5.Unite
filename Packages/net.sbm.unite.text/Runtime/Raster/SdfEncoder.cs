@@ -1,5 +1,6 @@
 using System;
-using System.Collections.Generic;
+using Unity.Collections;
+using Unity.Mathematics;
 using UnityEngine;
 
 namespace Unite.Text.Raster
@@ -10,15 +11,33 @@ namespace Unite.Text.Raster
     /// j counting rows from the bottom, so output[j*width+i]).
     /// The distance is the exact Euclidean distance to the nearest contour segment,
     /// so offset iso-lines (strokes) stay as smooth as the outline itself. The sign
-    /// comes from the nonzero winding rule, evaluated per row with one sorted list of
-    /// edge crossings. Values are normalized so the outline stores ~128, deep inside
-    /// 0 and deep outside 255, saturating at the supplied range.
+    /// comes from the nonzero winding rule. Values are normalized so the outline
+    /// stores ~128, deep inside 0 and deep outside 255, saturating at the supplied
+    /// range. This is the single-glyph, synchronous entry point; the atlas bakes whole
+    /// frames of glyphs through <see cref="SdfBakeJob"/>.
     /// </summary>
     public static class SdfEncoder
     {
         public static void Encode(Vector2[][] contours, int width, int height, float range, byte[] output)
+            => Encode(contours, 1f, 0f, 0f, width, height, range, output);
+
+        /// <summary>
+        /// Encodes contours given in glyph units: each point is multiplied by scale and
+        /// moved by (-originX, -originY) into texel space first. The output buffer may be
+        /// larger than width * height; only the first width * height bytes are written.
+        /// </summary>
+        public static void Encode(
+            Vector2[][] contours,
+            float scale,
+            float originX,
+            float originY,
+            int width,
+            int height,
+            float range,
+            byte[] output
+        )
         {
-            if (output == null || width <= 0 || height <= 0 || output.Length != width * height)
+            if (output == null || width <= 0 || height <= 0 || output.Length < width * height)
             {
                 throw new ArgumentException(
                     "p5.Unite: SDF output must hold width * height bytes."
@@ -30,70 +49,51 @@ namespace Unite.Text.Raster
                 throw new ArgumentException("p5.Unite: SDF range must be positive.");
             }
 
-            var edges = BuildEdges(contours);
-            var distance = new float[width * height];
-            Array.Fill(distance, range * range);
+            var edges = new float4[0];
+            int edgeCount = EdgeBuilder.Append(ref edges, 0, contours, scale, originX, originY);
 
-            foreach (var edge in edges)
-                SplatEdgeDistance(edge, width, height, range, distance);
+            int texels = width * height;
+            using var nativeEdges = new NativeArray<float4>(Math.Max(1, edgeCount), Allocator.Temp);
+            NativeArray<float4>.Copy(edges, nativeEdges, edgeCount);
+            using var distance = new NativeArray<float>(texels, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
+            using var crossingX = new NativeArray<float>(Math.Max(1, edgeCount), Allocator.Temp, NativeArrayOptions.UninitializedMemory);
+            using var crossingWinding = new NativeArray<int>(Math.Max(1, edgeCount), Allocator.Temp, NativeArrayOptions.UninitializedMemory);
+            using var result = new NativeArray<byte>(texels, Allocator.Temp, NativeArrayOptions.UninitializedMemory);
 
-            // The splat keeps squared distances; one square root per texel.
-            for (int index = 0; index < distance.Length; index++)
-                distance[index] = (float)Math.Sqrt(distance[index]);
+            SdfKernel.Encode(
+                nativeEdges, 0, edgeCount, width, height, range,
+                distance, 0, crossingX, crossingWinding, 0, result, 0, width
+            );
 
-            var crossingX = new float[edges.Count];
-            var crossingWinding = new int[edges.Count];
-
-            for (int row = 0; row < height; row++)
-            {
-                float py = row + 0.5f;
-                int crossingCount = 0;
-
-                // Horizontal ray crossings with the standard half-open convention.
-                foreach (var edge in edges)
-                {
-                    if ((edge.Start.y <= py) == (edge.End.y <= py))
-                        continue;
-
-                    float t = (py - edge.Start.y) / (edge.End.y - edge.Start.y);
-                    crossingX[crossingCount] = edge.Start.x + t * (edge.End.x - edge.Start.x);
-                    crossingWinding[crossingCount] = edge.End.y > edge.Start.y ? 1 : -1;
-                    crossingCount++;
-                }
-
-                Array.Sort(crossingX, crossingWinding, 0, crossingCount);
-
-                int winding = 0;
-                int next = 0;
-                for (int column = 0; column < width; column++)
-                {
-                    float px = column + 0.5f;
-                    while (next < crossingCount && crossingX[next] < px)
-                    {
-                        winding += crossingWinding[next];
-                        next++;
-                    }
-
-                    int index = row * width + column;
-                    float signedDistance = winding != 0 ? -distance[index] : distance[index];
-                    float normalized = Mathf.Clamp(signedDistance / range, -1f, 1f);
-                    output[index] = (byte)Mathf.RoundToInt((0.5f + 0.5f * normalized) * 255f);
-                }
-            }
+            NativeArray<byte>.Copy(result, 0, output, 0, texels);
         }
+    }
 
-        private struct Edge
+    /// <summary>Turns closed contours into the (x0, y0, x1, y1) edge list the kernel reads.</summary>
+    internal static class EdgeBuilder
+    {
+        /// <summary>
+        /// Appends the edges of the contours (each point scaled, then moved by -origin)
+        /// to <paramref name="edges"/>, growing the array as needed, and returns the new count.
+        /// </summary>
+        public static int Append(
+            ref float4[] edges,
+            int count,
+            Vector2[][] contours,
+            float scale,
+            float originX,
+            float originY
+        )
         {
-            public Vector2 Start;
-            public Vector2 End;
-        }
-
-        private static List<Edge> BuildEdges(Vector2[][] contours)
-        {
-            var edges = new List<Edge>(64);
-
             if (contours == null)
-                return edges;
+                return count;
+
+            int total = 0;
+            foreach (var contour in contours)
+                total += contour != null && contour.Length >= 2 ? contour.Length : 0;
+
+            if (edges.Length < count + total)
+                Array.Resize(ref edges, Math.Max(count + total, edges.Length * 2));
 
             foreach (var contour in contours)
             {
@@ -103,58 +103,19 @@ namespace Unite.Text.Raster
                 for (int index = 0; index < contour.Length; index++)
                 {
                     var start = contour[index];
-                    var end = contour[(index + 1) % contour.Length]; // implicitly closed
-
+                    var end = contour[index + 1 == contour.Length ? 0 : index + 1]; // implicitly closed
                     if (start == end)
                         continue;
 
-                    edges.Add(new Edge { Start = start, End = end });
+                    edges[count++] = new float4(
+                        start.x * scale - originX,
+                        start.y * scale - originY,
+                        end.x * scale - originX,
+                        end.y * scale - originY
+                    );
                 }
             }
-            return edges;
-        }
-
-        // Distances saturate at the range, so a segment only touches the texels inside
-        // its bounding box grown by the range: the cost scales with the outline length,
-        // not with texel count x segment count. Works on squared distances.
-        private static void SplatEdgeDistance(
-            Edge edge,
-            int width,
-            int height,
-            float range,
-            float[] distanceSq
-        )
-        {
-            int minColumn = Mathf.Max(0, Mathf.FloorToInt(Mathf.Min(edge.Start.x, edge.End.x) - range - 0.5f));
-            int maxColumn = Mathf.Min(width - 1, Mathf.CeilToInt(Mathf.Max(edge.Start.x, edge.End.x) + range - 0.5f));
-            int minRow = Mathf.Max(0, Mathf.FloorToInt(Mathf.Min(edge.Start.y, edge.End.y) - range - 0.5f));
-            int maxRow = Mathf.Min(height - 1, Mathf.CeilToInt(Mathf.Max(edge.Start.y, edge.End.y) + range - 0.5f));
-
-            float startX = edge.Start.x;
-            float startY = edge.Start.y;
-            float segmentX = edge.End.x - startX;
-            float segmentY = edge.End.y - startY;
-            float inverseLengthSq = 1f / (segmentX * segmentX + segmentY * segmentY);
-
-            for (int row = minRow; row <= maxRow; row++)
-            {
-                float offsetY = row + 0.5f - startY;
-                int rowStart = row * width;
-
-                for (int column = minColumn; column <= maxColumn; column++)
-                {
-                    float offsetX = column + 0.5f - startX;
-                    float t = (offsetX * segmentX + offsetY * segmentY) * inverseLengthSq;
-                    t = t < 0f ? 0f : (t > 1f ? 1f : t);
-                    float deltaX = offsetX - t * segmentX;
-                    float deltaY = offsetY - t * segmentY;
-                    float candidate = deltaX * deltaX + deltaY * deltaY;
-
-                    int index = rowStart + column;
-                    if (candidate < distanceSq[index])
-                        distanceSq[index] = candidate;
-                }
-            }
+            return count;
         }
     }
 }

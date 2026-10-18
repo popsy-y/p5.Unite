@@ -10,25 +10,21 @@ namespace Unite.Text.Fonts
     /// WOFF, WOFF2) the face looks the same. Drawing goes through a
     /// <see cref="FontInstance"/>: the default instance, or one per set of axis values.
     /// </summary>
-    public sealed class FontFace
+    public sealed partial class FontFace
     {
         private const int MaxCachedInstances = 64;
 
         private static int _nextInstanceId;
 
-        private readonly byte[] _data;
-        private readonly int _cmapOffset;
-        private readonly int _cmapLength;
+        private readonly CharacterMap _characters;
         private readonly ushort[] _advances;
         private readonly IOutlineSource _outlines;
         private readonly FontVariations _variations;
         private readonly Dictionary<string, FontInstance> _instances = new();
-        private readonly Queue<string> _instanceOrder = new();
+        private readonly Dictionary<string, int> _instanceIds = new();
 
         private FontFace(
-            byte[] data,
-            int cmapOffset,
-            int cmapLength,
+            CharacterMap characters,
             ushort[] advances,
             IOutlineSource outlines,
             FontVariations variations,
@@ -37,9 +33,7 @@ namespace Unite.Text.Fonts
             int descender
         )
         {
-            _data = data;
-            _cmapOffset = cmapOffset;
-            _cmapLength = cmapLength;
+            _characters = characters;
             _advances = advances;
             _outlines = outlines;
             _variations = variations;
@@ -77,9 +71,8 @@ namespace Unite.Text.Fonts
 
         /// <summary>
         /// The instance for the given axis values (user-space units, e.g. wght 700). Axes
-        /// that are not mentioned keep their default; unknown axes are ignored. Up to 64
-        /// instances are cached, so callers that animate axes should snap their values
-        /// (text drawing does).
+        /// that are not mentioned keep their default; unknown axes are ignored. The 64 most
+        /// recently used instances are cached.
         /// </summary>
         public FontInstance GetInstance(IReadOnlyList<AxisSetting> settings)
         {
@@ -92,20 +85,30 @@ namespace Unite.Text.Fonts
 
             string key = CoordinateKey(coordinates);
             if (_instances.TryGetValue(key, out var instance))
+            {
+                instance.Touch();
                 return instance;
+            }
 
             if (_instances.Count >= MaxCachedInstances)
-                _instances.Remove(_instanceOrder.Dequeue());
+                EvictLeastRecentInstance();
 
-            instance = new FontInstance(this, coordinates, NewInstanceId());
+            // The id depends on the coordinates only, so a re-created instance finds its
+            // glyphs still baked in the atlas.
+            if (!_instanceIds.TryGetValue(key, out int id))
+            {
+                id = NewInstanceId();
+                _instanceIds.Add(key, id);
+            }
+
+            instance = new FontInstance(this, coordinates, id);
             _instances.Add(key, instance);
-            _instanceOrder.Enqueue(key);
             return instance;
         }
 
         /// <summary>Character-to-glyph lookup (cmap only, no shaping); 0 (.notdef) when unmapped.</summary>
         public int GetGlyphId(int codePoint)
-            => CmapTables.Lookup(new FontReader(_data), _cmapOffset, _cmapLength, codePoint);
+            => _characters.Lookup(codePoint);
 
         internal float BaseAdvance(int glyphId)
             => _advances[Mathf.Clamp(glyphId, 0, _advances.Length - 1)];
@@ -162,14 +165,15 @@ namespace Unite.Text.Fonts
             ReadHmtx(sfnt, directory.Get("hmtx"), glyphCount, metricCount, out var advances, out var bearings);
 
             var cmap = directory.Get("cmap");
-            if (!CmapTables.HasSupportedSubtable(sfnt, cmap.Offset, cmap.Length))
+            var characters = CharacterMap.Read(sfnt, cmap.Offset);
+            if (characters == null)
                 throw new FontFormatException("the font has no supported character map (cmap format 4, 12 or 0).");
 
             var variations = FontVariations.TryRead(sfnt, directory);
             var outlines = CreateOutlines(sfnt, directory, glyphCount, indexToLocFormat, advances, bearings, unitsPerEm);
 
             return new FontFace(
-                sfnt, cmap.Offset, cmap.Length, advances, outlines, variations, unitsPerEm, ascender, descender
+                characters, advances, outlines, variations, unitsPerEm, ascender, descender
             );
         }
 
@@ -225,6 +229,23 @@ namespace Unite.Text.Fonts
                 advances[index] = index < metricCount ? reader.ReadU16() : advances[metricCount - 1];
                 bearings[index] = reader.ReadI16();
             }
+        }
+
+        private void EvictLeastRecentInstance()
+        {
+            string oldest = null;
+            long oldestUse = long.MaxValue;
+            foreach (var pair in _instances)
+            {
+                if (pair.Value.LastUse < oldestUse)
+                {
+                    oldestUse = pair.Value.LastUse;
+                    oldest = pair.Key;
+                }
+            }
+
+            if (oldest != null)
+                _instances.Remove(oldest);
         }
 
         private static int NewInstanceId() => ++_nextInstanceId;

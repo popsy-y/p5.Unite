@@ -1,5 +1,6 @@
 using Unite.Canvas;
 using Unite.Text;
+using Unite.Text.Fonts;
 using UnityEngine;
 
 namespace Dev
@@ -7,7 +8,7 @@ namespace Dev
     // Text test pages: rendering paths (Text) and layout / metrics / outline APIs (TextLayout).
     public sealed partial class CanvasTester
     {
-        private bool _textFontWarned;
+        private bool _fontWarned;
 
         // Exercises every text feature: TextFont, TextSize (pow2 raster buckets),
         // TextAlign (left/center/right on reference lines), fill-only / outline-only /
@@ -178,18 +179,19 @@ namespace Dev
         // makes the tester font current.
         private bool RequireTextFont(float unit)
         {
-            if (_textFont != null)
+            if (_font != null)
             {
-                _canvas.TextFont(_textFont);
+                _canvas.TextFont(_font);
                 return true;
             }
 
-            if (!_textFontWarned)
+            EnsureFontLoading();
+
+            if (!_fontWarned)
             {
-                _textFontWarned = true;
+                _fontWarned = true;
                 Debug.LogWarning(
-                    "CanvasTester: assign a UniteFontAsset (Create > p5.Unite > Unite Font "
-                    + "with a .ttf renamed to .bytes as its TextAsset) to see the text pages.",
+                    $"CanvasTester: the text pages need a font; loading '{_fontPath}' (see the Font header).",
                     this
                 );
             }
@@ -285,7 +287,7 @@ namespace Dev
             _canvas.TextSize(unit * 0.2f);
             var options = TextPathOptions.FromCanvas(_canvas);
             options.SampleFactor = 0.08f;
-            var points = _textFont.TextToPoints("p5", 0f, 0f, options);
+            var points = _font.TextToPoints("p5", 0f, 0f, options);
             _canvas.Push();
             _canvas.Translate(Position(0.62f, 0.9f));
             _canvas.Fill(warm);

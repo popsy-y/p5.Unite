@@ -2,7 +2,9 @@
     "name": "Unite.Text",
     "rootNamespace": "Unite",
     "references": [
-        "Unite.Runtime"
+        "Unite.Runtime",
+        "Unity.Burst",
+        "Unity.Mathematics"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

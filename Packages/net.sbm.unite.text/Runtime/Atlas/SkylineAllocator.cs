@@ -18,6 +18,7 @@ namespace Unite.Text
         }
 
         private readonly List<Node> _nodes = new() { new Node { X = 0, Height = 0 } };
+        private List<Node> _spare = new();
 
         public SkylineAllocator(int width, int height)
         {
@@ -28,6 +29,14 @@ namespace Unite.Text
         public int Width { get; }
         public int Height { get; }
         public long UsedArea { get; private set; }
+
+        /// <summary>Forgets every placed rect: the whole page is free again.</summary>
+        public void Reset()
+        {
+            _nodes.Clear();
+            _nodes.Add(new Node { X = 0, Height = 0 });
+            UsedArea = 0;
+        }
 
         /// <summary>
         /// Places a rect at the (lowest, then left-most) skyline spot. (x, y) is the
@@ -87,7 +96,8 @@ namespace Unite.Text
         private void RaiseSkyline(int x, int top, int width)
         {
             int end = x + width;
-            var replaced = new List<Node>(_nodes.Count + 2);
+            var replaced = _spare;
+            replaced.Clear();
 
             for (int index = 0; index < _nodes.Count; index++)
             {
@@ -133,6 +143,8 @@ namespace Unite.Text
                 _nodes.Add(node);
                 previousHeight = node.Height;
             }
+
+            _spare = replaced;
         }
     }
 }

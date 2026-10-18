@@ -16,26 +16,26 @@ namespace Unite.Text
         #region Font
 
         /// <summary>Sets the font asset used by subsequent text calls on this canvas.</summary>
-        public static void TextFont(this UCanvas canvas, UniteFontAsset font)
+        public static void TextFont(this UCanvas canvas, FontFace font)
             => State(canvas).Font = font;
 
         /// <summary>Sets the font asset and the text size at once, like p5 textFont(font, size).</summary>
-        public static void TextFont(this UCanvas canvas, UniteFontAsset font, float size)
+        public static void TextFont(this UCanvas canvas, FontFace font, float size)
         {
             canvas.TextFont(font);
             canvas.TextSize(size);
         }
 
         /// <summary>Returns the current font asset (null until TextFont() is called).</summary>
-        public static UniteFontAsset TextFont(this UCanvas canvas) => State(canvas).Font;
+        public static FontFace TextFont(this UCanvas canvas) => State(canvas).Font;
 
-        /// <summary>Loads a font file synchronously. See <see cref="UniteFontAsset.LoadFont(string, string)"/>.</summary>
-        public static UniteFontAsset LoadFont(this UCanvas canvas, string path, string name = null)
-            => UniteFontAsset.LoadFont(path, name);
+        /// <summary>Loads a font file synchronously. See <see cref="FontFace.LoadFont(string, string)"/>.</summary>
+        public static FontFace LoadFont(this UCanvas canvas, string path, string name = null)
+            => FontFace.LoadFont(path, name);
 
-        /// <summary>Loads a font file asynchronously. See <see cref="UniteFontAsset.LoadFontAsync"/>.</summary>
-        public static Awaitable<UniteFontAsset> LoadFontAsync(this UCanvas canvas, string path, string name = null)
-            => UniteFontAsset.LoadFontAsync(path, name);
+        /// <summary>Loads a font file asynchronously. See <see cref="FontFace.LoadFontAsync"/>.</summary>
+        public static Awaitable<FontFace> LoadFontAsync(this UCanvas canvas, string path, string name = null)
+            => FontFace.LoadFontAsync(path, name);
 
         #endregion
 
@@ -164,7 +164,7 @@ namespace Unite.Text
         public static IReadOnlyList<VariationAxis> TextAxes(this UCanvas canvas)
         {
             var font = State(canvas).Font;
-            return font != null && font.TryGetFont(out var face) ? face.Axes : Array.Empty<VariationAxis>();
+            return font != null ? font.Axes : Array.Empty<VariationAxis>();
         }
 
         #endregion

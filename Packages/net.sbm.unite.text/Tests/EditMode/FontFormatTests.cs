@@ -211,55 +211,58 @@ namespace Unite.Text.Tests
         }
 
         [Test]
-        public void TextStateSnapsAxisValuesAndMapsStyleOntoAxes()
+        public void TextStateMapsStyleOntoAxesWithoutSnapping()
         {
-            var asset = UniteFontAsset.LoadFont(TestFontData.Variable, "variable");
-            try
-            {
-                var state = new TextState { Font = asset, Weight = 651f };
-                Assert.IsTrue(state.TryGetInstance(out var first, out bool synthesizeWeight, out _));
-                Assert.IsFalse(synthesizeWeight); // the wght axis draws the weight
+            var face = FontFace.LoadFont(TestFontData.Variable, "variable");
+            var state = new TextState { Font = face, Weight = 651f };
+            Assert.IsTrue(state.TryGetInstance(out var first, out bool synthesizeWeight, out _));
+            Assert.IsFalse(synthesizeWeight); // the wght axis draws the weight
 
-                // Nearby weights share an instance; distant ones do not (axis range / 32 grid).
-                state.Weight = 653f;
-                state.TryGetInstance(out var neighbor, out _, out _);
-                state.Weight = 700f;
-                state.TryGetInstance(out var distant, out _, out _);
-                Assert.AreSame(first, neighbor);
-                Assert.AreNotSame(first, distant);
+            // Axis values are used as given: a nearby weight is a different instance.
+            state.Weight = 653f;
+            state.TryGetInstance(out var neighbor, out _, out _);
+            Assert.AreNotSame(first, neighbor);
+            Assert.AreNotEqual(first.Id, neighbor.Id);
 
-                // Bold maps onto the weight axis too; an explicit axis wins over TextWeight.
-                state.Weight = 400f;
-                state.Style = TextStyleMode.Bold;
-                state.TryGetInstance(out var bold, out _, out _);
-                Assert.AreEqual(bold.Advance(GlyphA), asset.TryGetInstance(new[] { new AxisSetting("wght", 700f) }, out var expected)
-                    ? expected.Advance(GlyphA) : -1f, 4f);
+            // Going back finds the same instance and the same id (glyphs stay baked).
+            state.Weight = 651f;
+            state.TryGetInstance(out var again, out _, out _);
+            Assert.AreSame(first, again);
 
-                state.Variations = new[] { new AxisSetting("wght", 400f) };
-                state.TryGetInstance(out var explicitInstance, out _, out _);
-                Assert.AreSame(asset.TryGetFont(out var face) ? face.Default : null, explicitInstance);
-            }
-            finally
-            {
-                Object.DestroyImmediate(asset);
-            }
+            // Bold maps onto the weight axis too; an explicit axis wins over TextWeight.
+            state.Weight = 400f;
+            state.Style = TextStyleMode.Bold;
+            state.TryGetInstance(out var bold, out _, out _);
+            Assert.AreSame(face.GetInstance(new[] { new AxisSetting("wght", 700f) }), bold);
+
+            state.Variations = new[] { new AxisSetting("wght", 400f) };
+            state.TryGetInstance(out var explicitInstance, out _, out _);
+            Assert.AreSame(face.Default, explicitInstance);
+        }
+
+        [Test]
+        public void EvictedInstancesComeBackWithTheirIds()
+        {
+            var face = FontFace.LoadFont(TestFontData.Variable, "variable");
+            var first = face.GetInstance(new[] { new AxisSetting("wght", 500f) });
+            int id = first.Id;
+
+            for (int weight = 0; weight < 100; weight++)
+                face.GetInstance(new[] { new AxisSetting("wght", 600f + weight) });
+
+            var recreated = face.GetInstance(new[] { new AxisSetting("wght", 500f) });
+            Assert.AreNotSame(first, recreated);
+            Assert.AreEqual(id, recreated.Id);
         }
 
         [Test]
         public void StaticFontsSynthesizeStyles()
         {
-            var asset = UniteFontAsset.LoadFont(TestFontData.StaticTtf, "static");
-            try
-            {
-                var state = new TextState { Font = asset, Style = TextStyleMode.BoldItalic };
-                Assert.IsTrue(state.TryGetInstance(out _, out bool synthesizeWeight, out bool synthesizeItalic));
-                Assert.IsTrue(synthesizeWeight);
-                Assert.IsTrue(synthesizeItalic);
-            }
-            finally
-            {
-                Object.DestroyImmediate(asset);
-            }
+            var face = FontFace.LoadFont(TestFontData.StaticTtf, "static");
+            var state = new TextState { Font = face, Style = TextStyleMode.BoldItalic };
+            Assert.IsTrue(state.TryGetInstance(out _, out bool synthesizeWeight, out bool synthesizeItalic));
+            Assert.IsTrue(synthesizeWeight);
+            Assert.IsTrue(synthesizeItalic);
         }
 
         [Test]
@@ -293,7 +296,7 @@ namespace Unite.Text.Tests
         }
 
         [Test]
-        public void FontAssetsLoadEveryFormatAtRuntime()
+        public void FontsLoadEveryFormatAtRuntime()
         {
             foreach (var data in new[]
             {
@@ -301,19 +304,10 @@ namespace Unite.Text.Tests
                 TestFontData.Cff, TestFontData.CffWoff2, TestFontData.Variable, TestFontData.VariableWoff2
             })
             {
-                var asset = UniteFontAsset.LoadFont(data, "test");
-                try
-                {
-                    Assert.IsTrue(asset.TryGetFont(out var face));
-                    Assert.AreEqual(1000, face.UnitsPerEm);
-                }
-                finally
-                {
-                    Object.DestroyImmediate(asset);
-                }
+                Assert.AreEqual(1000, FontFace.LoadFont(data, "test").UnitsPerEm);
             }
 
-            Assert.Throws<System.IO.InvalidDataException>(() => UniteFontAsset.LoadFont(new byte[100], "broken"));
+            Assert.Throws<System.IO.InvalidDataException>(() => FontFace.LoadFont(new byte[100], "broken"));
         }
     }
 }

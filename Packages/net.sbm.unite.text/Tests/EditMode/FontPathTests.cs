@@ -9,18 +9,12 @@ namespace Unite.Text.Tests
     public class FontPathTests
     {
         private const float Tolerance = 0.01f;
-        private UniteFontAsset _font;
+        private FontFace _font;
 
         [SetUp]
         public void SetUp()
         {
-            _font = UniteFontAsset.LoadFont(TestFontBuilder.Build(), "TestFont");
-        }
-
-        [TearDown]
-        public void TearDown()
-        {
-            Object.DestroyImmediate(_font);
+            _font = FontFace.LoadFont(TestFontBuilder.Build(), "TestFont");
         }
 
         private static TextPathOptions Options(float sampleFactor = 0.1f, float extrude = 0f) => new()
@@ -33,9 +27,8 @@ namespace Unite.Text.Tests
         [Test]
         public void LoadFontRejectsInvalidBytes()
         {
-            Assert.AreEqual("TestFont", _font.name);
-            Assert.IsTrue(_font.TryGetFont(out _));
-            Assert.Throws<InvalidDataException>(() => UniteFontAsset.LoadFont(new byte[] { 1, 2, 3, 4 }));
+            Assert.AreEqual("TestFont", _font.Name);
+            Assert.Throws<InvalidDataException>(() => FontFace.LoadFont(new byte[] { 1, 2, 3, 4 }));
         }
 
         [Test]

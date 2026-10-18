@@ -1,4 +1,4 @@
-using Unite.Text;
+using Unite.Text.Fonts;
 using UnityEngine;
 
 namespace Dev
@@ -17,15 +17,12 @@ namespace Dev
 
         private bool IsTextPage => _page is TestPage.Text or TestPage.TextLayout or TestPage.VariableFont;
 
-        private UniteFontAsset CurrentTextPageFont()
-            => _page == TestPage.VariableFont ? _variableFont : _textFont;
-
         private void OnGUI()
         {
             if (!_showAtlas || !IsTextPage)
                 return;
 
-            var font = CurrentTextPageFont();
+            var font = _font;
             if (font == null)
                 return;
 
@@ -52,7 +49,7 @@ namespace Dev
 
                 x -= size;
                 var area = new Rect(x, top, size, size + AtlasLabelHeight);
-                DrawAtlasPage(area, texture, $"{font.FamilyName} {index + 1}/{pages.Count}");
+                DrawAtlasPage(area, texture, $"{font.Name} {index + 1}/{pages.Count}");
                 x -= AtlasMargin;
             }
         }
@@ -97,8 +94,7 @@ namespace Dev
             if (_atlasMaterial != null)
                 Destroy(_atlasMaterial);
 
-            if (_variableFont != null)
-                Destroy(_variableFont);
+            _font?.Dispose();
         }
     }
 }

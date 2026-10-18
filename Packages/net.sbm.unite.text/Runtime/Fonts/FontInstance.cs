@@ -12,6 +12,7 @@ namespace Unite.Text.Fonts
         private readonly float[] _coordinates; // normalized axis coordinates; null = defaults
         private readonly Dictionary<int, float> _advances = new();
         private readonly Dictionary<int, GlyphOutline> _outlines = new();
+        private static long _useCounter;
 
         internal FontInstance(FontFace face, float[] coordinates, int id)
         {
@@ -24,6 +25,13 @@ namespace Unite.Text.Fonts
         }
 
         public FontFace Face { get; }
+
+        /// <summary>True for the default instance, whose baked glyphs live as long as the font.</summary>
+        public bool IsDefault => _coordinates == null;
+
+        internal long LastUse { get; private set; } = ++_useCounter;
+
+        internal void Touch() => LastUse = ++_useCounter;
 
         /// <summary>Process-wide unique id; part of every atlas cache key.</summary>
         public int Id { get; }

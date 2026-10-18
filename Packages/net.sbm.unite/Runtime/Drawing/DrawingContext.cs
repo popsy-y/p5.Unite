@@ -17,7 +17,12 @@ namespace Unite.Drawing
         private Material _depthPrepassMaterial;
 
         private Queue<DrawCommand> _commandQueue;
+
+        // Frame buffers are reused every frame (and only ever grow): per-frame arrays of a
+        // few hundred commands would land on the large object heap and keep the GC busy.
         private DrawCommand[] _frameCommands = Array.Empty<DrawCommand>();
+        private int _frameCommandCount;
+        private ShapeData[] _shapeDataScratch = Array.Empty<ShapeData>();
 
         public DrawingMode DrawingMode { get; private set; }
         public DrawingExecutionMode ExecutionMode { get; set; }
@@ -144,34 +149,43 @@ namespace Unite.Drawing
 
         public void Draw(Camera cam)
         {
-            if (_frameCommands.Length == 0) return;
+            if (_frameCommandCount == 0) return;
 
-            LayoutShapes(cam, _frameCommands);
+            LayoutShapes(cam);
         }
 
         public void CaptureCommands()
         {
-            if (_commandQueue.Count == 0)
-            {
-                _frameCommands = Array.Empty<DrawCommand>();
-                return;
-            }
+            int previousCount = _frameCommandCount;
+            int count = _commandQueue.Count;
 
-            _frameCommands = _commandQueue.ToArray();
+            if (_frameCommands.Length < count)
+                _frameCommands = new DrawCommand[Mathf.NextPowerOfTwo(Mathf.Max(count, 64))];
+
+            _commandQueue.CopyTo(_frameCommands, 0);
             _commandQueue.Clear();
+            _frameCommandCount = count;
+
+            // Drop the references (atlas textures, polygon points) of last frame's tail.
+            if (previousCount > count)
+                Array.Clear(_frameCommands, count, previousCount - count);
         }
 
-        private void LayoutShapes(Camera cam, IReadOnlyList<DrawCommand> commands)
+        private void LayoutShapes(Camera cam)
         {
-            int count = commands.Count;
+            int count = _frameCommandCount;
             EnsureBuffers(count);
 
-            var shapeDataArray = new ShapeData[count];
+            if (_shapeDataScratch.Length < count)
+                _shapeDataScratch = new ShapeData[Mathf.NextPowerOfTwo(Mathf.Max(count, 64))];
+
+            var shapeDataArray = _shapeDataScratch;
             _polygonPoints.Clear();
             int index = 0;
 
-            foreach (var cmd in commands)
+            for (int commandIndex = 0; commandIndex < count; commandIndex++)
             {
+                var cmd = _frameCommands[commandIndex];
                 var transform = cmd.Transform == Matrix4x4.zero
                     ? Matrix4x4.TRS(cmd.Position, Quaternion.Euler(cmd.Rotation), Vector3.one)
                     : cmd.Transform;
@@ -265,7 +279,7 @@ namespace Unite.Drawing
                 index++;
             }
 
-            _shapeDataBuffer.SetData(shapeDataArray);
+            _shapeDataBuffer.SetData(shapeDataArray, 0, 0, count);
             EnsurePolygonPointBuffer(_polygonPoints.Count);
             if (_polygonPoints.Count > 0)
                 _polygonPointBuffer.SetData(_polygonPoints);
@@ -394,7 +408,7 @@ namespace Unite.Drawing
         private void CollectAtlasRuns()
         {
             _runs.Clear();
-            int count = _frameCommands.Length;
+            int count = _frameCommandCount;
             Texture current = null;
             int start = 0;
 
@@ -527,8 +541,10 @@ namespace Unite.Drawing
 
             if (_shapeDataBuffer == null || _shapeDataBuffer.count < count)
             {
+                // Grows geometrically: the glyph count of a text page changes every frame.
+                int capacity = Mathf.NextPowerOfTwo(Mathf.Max(count, 64));
                 _shapeDataBuffer?.Dispose();
-                _shapeDataBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, count, stride);
+                _shapeDataBuffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, capacity, stride);
             }
 
             if (_commandBuffer == null)

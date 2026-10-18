@@ -2,11 +2,11 @@ using System.Collections.Generic;
 using Unite.Text.Fonts;
 using UnityEngine;
 
-namespace Unite.Text
+namespace Unite.Text.Fonts
 {
     // p5.Font outline functions. Coordinates are laid out exactly like Text() with the
     // given options (alignment, leading, wrapping), in output units.
-    public sealed partial class UniteFontAsset
+    public sealed partial class FontFace
     {
         /// <summary>
         /// Points sampled evenly along the outlines of the text (p5 font.textToPoints()).
@@ -73,19 +73,19 @@ namespace Unite.Text
             => width > 0f ? new TextBox(x, y, width, height > 0f ? height : float.PositiveInfinity) : null;
 
         /// <summary>Every flattened contour of the text, in output units.</summary>
-        public static List<Vector2[]> Polygons(UniteFontAsset asset, string text, float x, float y, TextBox? box, TextPathOptions options)
+        public static List<Vector2[]> Polygons(FontFace face, string text, float x, float y, TextBox? box, TextPathOptions options)
         {
             var polygons = new List<Vector2[]>();
-            foreach (var glyph in GlyphPolygons(asset, text, x, y, box, options))
+            foreach (var glyph in GlyphPolygons(face, text, x, y, box, options))
                 polygons.AddRange(glyph);
             return polygons;
         }
 
         /// <summary>Flattened contours grouped per glyph (holes stay with their glyph).</summary>
-        public static List<List<Vector2[]>> GlyphPolygons(UniteFontAsset asset, string text, float x, float y, TextBox? box, TextPathOptions options)
+        public static List<List<Vector2[]>> GlyphPolygons(FontFace face, string text, float x, float y, TextBox? box, TextPathOptions options)
         {
             var result = new List<List<Vector2[]>>();
-            if (!TryLayout(asset, text, x, y, box, options, out var font, out var settings, out var layout))
+            if (!TryLayout(face, text, x, y, box, options, out var font, out var settings, out var layout))
                 return result;
 
             float scale = settings.Size / font.UnitsPerEm;
@@ -107,10 +107,10 @@ namespace Unite.Text
             return result;
         }
 
-        public static List<PathCommand> Paths(UniteFontAsset asset, string text, float x, float y, TextBox? box, TextPathOptions options)
+        public static List<PathCommand> Paths(FontFace face, string text, float x, float y, TextBox? box, TextPathOptions options)
         {
             var commands = new List<PathCommand>();
-            if (!TryLayout(asset, text, x, y, box, options, out var font, out var settings, out var layout))
+            if (!TryLayout(face, text, x, y, box, options, out var font, out var settings, out var layout))
                 return commands;
 
             float scale = settings.Size / font.UnitsPerEm;
@@ -204,7 +204,7 @@ namespace Unite.Text
             => new(glyph.PenX + point.x * scale, glyph.Baseline - ySign * point.y * scale);
 
         private static bool TryLayout(
-            UniteFontAsset asset,
+            FontFace face,
             string text,
             float x,
             float y,
@@ -217,7 +217,8 @@ namespace Unite.Text
         {
             settings = options.ToSettings();
             layout = null;
-            if (!asset.TryGetInstance(options.Variations, out font) || string.IsNullOrEmpty(text))
+            font = face.GetInstance(options.Variations);
+            if (string.IsNullOrEmpty(text))
                 return false;
 
             layout = TextLayout.Layout(font, settings, text, x, y, box);

@@ -158,8 +158,16 @@ namespace Unite.Canvas
             _drawingContext?.Dispose();
         }
 
+        /// <summary>
+        /// Raised at the start of every canvas LateUpdate, before the frame's commands are
+        /// captured. Optional packages (p5.Unite Text) use it to finish per-frame work the
+        /// queued commands depend on, such as uploading glyph atlas pages.
+        /// </summary>
+        internal static event Action FrameCapturing;
+
         private void LateUpdate()
         {
+            FrameCapturing?.Invoke();
             _drawingContext?.CaptureCommands();
 
             if (_drawingContext?.ExecutionMode != DrawingExecutionMode.Sequential)
@@ -220,6 +228,10 @@ namespace Unite.Canvas
         #region Camera Management
 
         private Camera _currentCamera;
+
+        /// <summary>The camera the canvas last rendered with, or the main camera before the first frame.</summary>
+        internal Camera ActiveCamera => _currentCamera ? _currentCamera : Camera.main;
+
         private void CheckCurrentCamera(Camera cam)
         {
             if (!Equals(_currentCamera, cam))

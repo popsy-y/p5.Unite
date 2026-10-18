@@ -99,10 +99,37 @@ namespace Unite.Text
         public int GlyphCount;
     }
 
+    /// <summary>
+    /// Output of <see cref="TextLayout.Layout"/>. Instances can be passed back into the
+    /// layout to reuse their lists, which keeps per-frame drawing free of garbage.
+    /// </summary>
     internal sealed class TextLayoutResult
     {
         public readonly List<PlacedGlyph> Glyphs = new();
         public readonly List<LayoutLine> Lines = new();
+
+        internal readonly List<List<int>> BrokenLines = new();
+        private readonly List<List<int>> _codePointLists = new();
+        private int _codePointListsInUse;
+
+        /// <summary>A cleared code point list that stays valid until the next <see cref="Reset"/>.</summary>
+        internal List<int> RentCodePoints()
+        {
+            if (_codePointListsInUse == _codePointLists.Count)
+                _codePointLists.Add(new List<int>());
+
+            var list = _codePointLists[_codePointListsInUse++];
+            list.Clear();
+            return list;
+        }
+
+        internal void Reset()
+        {
+            Glyphs.Clear();
+            Lines.Clear();
+            BrokenLines.Clear();
+            _codePointListsInUse = 0;
+        }
     }
 
     /// <summary>
@@ -118,15 +145,17 @@ namespace Unite.Text
             string text,
             float x,
             float y,
-            TextBox? box = null
+            TextBox? box = null,
+            TextLayoutResult reuse = null
         )
         {
-            var result = new TextLayoutResult();
+            var result = reuse ?? new TextLayoutResult();
+            result.Reset();
             if (font == null || string.IsNullOrEmpty(text))
                 return result;
 
             float scale = settings.Size / font.UnitsPerEm;
-            var lines = TextLineBreaker.BreakLines(font, settings, text, box?.Width ?? 0f, scale);
+            var lines = TextLineBreaker.BreakLines(font, settings, text, box?.Width ?? 0f, scale, result);
 
             float ascent = font.Ascender * scale;
             float descent = -font.Descender * scale;
@@ -223,9 +252,10 @@ namespace Unite.Text
             return true;
         }
 
-        public static List<int> CodePoints(string text)
+        public static List<int> CodePoints(string text) => CodePoints(text, new List<int>(text.Length));
+
+        public static List<int> CodePoints(string text, List<int> codePoints)
         {
-            var codePoints = new List<int>(text.Length);
             for (int index = 0; index < text.Length; index++)
             {
                 if (char.IsHighSurrogate(text[index]) &&

@@ -66,19 +66,13 @@ namespace Unite.Text
         // Italic slant (degrees, negative leans right) requested of a "slnt" axis.
         private const float ObliqueAngle = -12f;
 
-        // Axis values drawn as text snap to this many steps per axis range: every distinct
-        // value bakes its own glyphs into the atlas, so animated axes must not produce an
-        // endless stream of new instances.
-        private const float AxisSteps = 32f;
-
-        private UniteFontAsset _font;
+        private FontFace _font;
         private TextStyleMode _style = TextStyleMode.Normal;
         private float _weight = NormalWeight;
         private AxisSetting[] _variations;
 
-        // Cached resolution of the font asset + style + axes into a font instance.
+        // Cached resolution of the font + style + axes into a font instance.
         private bool _resolved;
-        private FontFace _resolvedFace;
         private FontInstance _instance;
         private bool _synthesizeWeight = true;
         private bool _synthesizeItalic = true;
@@ -93,7 +87,7 @@ namespace Unite.Text
         public float WordSpacing;
         public bool WarnedMissingFont;
 
-        public UniteFontAsset Font
+        public FontFace Font
         {
             get => _font;
             set
@@ -156,11 +150,11 @@ namespace Unite.Text
             synthesizeWeight = true;
             synthesizeItalic = true;
 
-            if (_font == null || !_font.TryGetFont(out var face))
+            if (_font == null)
                 return false;
 
-            if (!_resolved || _resolvedFace != face)
-                Resolve(face);
+            if (!_resolved)
+                Resolve(_font);
 
             instance = _instance;
             synthesizeWeight = _synthesizeWeight;
@@ -171,17 +165,16 @@ namespace Unite.Text
         /// <summary>The axis values actually applied (explicit axes plus weight / italic mapped onto axes).</summary>
         public IReadOnlyList<AxisSetting> ResolveAxes()
         {
-            if (_font == null || !_font.TryGetFont(out var face))
+            if (_font == null)
                 return _variations;
 
-            return BuildAxes(face, out _, out _);
+            return BuildAxes(_font, out _, out _);
         }
 
         private void Resolve(FontFace face)
         {
             var axes = BuildAxes(face, out _synthesizeWeight, out _synthesizeItalic);
-            _instance = face.GetInstance(Snap(face, axes));
-            _resolvedFace = face;
+            _instance = face.GetInstance(axes);
             _resolved = true;
         }
 
@@ -216,25 +209,6 @@ namespace Unite.Text
                 }
             }
 
-            return axes;
-        }
-
-        // Rounds each axis value to AxisSteps steps of the axis range, anchored at the default.
-        private static List<AxisSetting> Snap(FontFace face, List<AxisSetting> axes)
-        {
-            for (int index = 0; index < axes.Count; index++)
-            {
-                foreach (var axis in face.Axes)
-                {
-                    if (axis.Tag != axes[index].Tag)
-                        continue;
-
-                    float step = (axis.Maximum - axis.Minimum) / AxisSteps;
-                    float steps = Mathf.Round((axes[index].Value - axis.Default) / step);
-                    axes[index] = new AxisSetting(axis.Tag, axis.Clamp(axis.Default + steps * step));
-                    break;
-                }
-            }
             return axes;
         }
 
