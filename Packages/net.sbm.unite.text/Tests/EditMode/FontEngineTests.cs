@@ -7,10 +7,10 @@ namespace Unite.Text.Tests
 {
     public class FontEngineTests
     {
-        private static TtfFont BuildTestFont()
+        private static FontInstance BuildTestFont()
         {
-            Assert.IsTrue(TtfFont.TryParse(TestFontBuilder.Build(), out var font));
-            return font;
+            Assert.IsTrue(FontFace.TryParse(TestFontBuilder.Build(), out var face));
+            return face.Default;
         }
 
         [Test]
@@ -87,8 +87,8 @@ namespace Unite.Text.Tests
         [Test]
         public void ParseRejectsGarbageWithoutThrowing()
         {
-            Assert.IsFalse(TtfFont.TryParse(new byte[] { 0, 0, 1, 0 }, out _));
-            Assert.IsFalse(TtfFont.TryParse(null, out _));
+            Assert.IsFalse(FontFace.TryParse(new byte[] { 0, 0, 1, 0 }, out _));
+            Assert.IsFalse(FontFace.TryParse(null, out _));
         }
 
         [Test]
@@ -108,7 +108,7 @@ namespace Unite.Text.Tests
                 0, 0, 0, 0, 0, 100, 0, 0        // y deltas: 0, 0, +100, 0
             };
 
-            var outline = GlyfTables.ParseOutline(new TtfReader(record), record.Length, null);
+            var outline = TrueTypeOutlines.ParseSimpleRecord(record);
 
             Assert.AreEqual(1, outline.Contours.Length);
             Assert.AreEqual(0f, outline.BoundsMin.x, 1e-3);

@@ -354,7 +354,8 @@ half4 ComputeShapeColor(float2 shapePosition, ShapeData data)
 
 // Glyph quads (Style.x == 9) sample a prebaked signed distance field from an atlas
 // texture. Point2/Point3 carry the sprite's UV rect, Parameters0.x the SDF range in
-// texels and Parameters0.y the texel width of that rect. The quad is exactly the
+// texels, Parameters0.y the texel width of that rect and Parameters0.z an outward
+// outline offset in drawing units (synthetic bold / weight). The quad is exactly the
 // sprite rect scaled into drawing-space units, so units per texel is uniform.
 // The sampler is declared explicitly: the implicit sampler_<texture> generation does
 // not fire for this include on all targets.
@@ -367,7 +368,7 @@ float4 ComputeGlyphColor(float2 shapePosition, ShapeData data)
     float2 uv = lerp(data.Point2.xy, data.Point3.xy, saturate(shapePosition / size + 0.5));
     float signedField = SAMPLE_TEXTURE2D(_GlyphAtlas, sampler_GlyphAtlas, uv).r - 0.5;
     float unitsPerTexel = size.x / max(data.Parameters0.y, 1e-6);
-    float distance = signedField * 2.0 * data.Parameters0.x * unitsPerTexel;
+    float distance = signedField * 2.0 * data.Parameters0.x * unitsPerTexel - data.Parameters0.z;
     return CompositeShape(distance, data);
 }
 

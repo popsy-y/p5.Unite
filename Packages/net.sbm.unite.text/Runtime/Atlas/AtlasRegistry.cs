@@ -31,6 +31,13 @@ namespace Unite.Text
             return set;
         }
 
+        /// <summary>The atlas set of a font asset, if one has been created by drawing text with it.</summary>
+        public static bool TryGet(UniteFontAsset fontAsset, out GlyphAtlasSet set)
+        {
+            set = null;
+            return fontAsset != null && Sets.TryGetValue(fontAsset, out set) && set != null;
+        }
+
         /// <summary>Destroys every atlas page. Also used by tests and on domain reload.</summary>
         public static void Clear()
         {

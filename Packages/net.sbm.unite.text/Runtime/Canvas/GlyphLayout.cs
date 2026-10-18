@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using Unite.Canvas;
 using Unite.Drawing;
 using Unite.Text.Fonts;
@@ -9,9 +9,9 @@ using CachedGlyph = Unite.Text.GlyphAtlasSet.CachedGlyph;
 namespace Unite.Text
 {
     /// <summary>
-    /// Turns text into glyph quads: maps code points to glyph ids (no shaping in v1),
-    /// looks up or bakes the SDF in the font's atlas, and enqueues one draw command
-    /// per glyph through the canvas command queue.
+    /// Turns laid-out text into glyph quads: looks up or bakes each glyph's SDF in the
+    /// font's atlas and enqueues one draw command per glyph through the canvas command
+    /// queue, applying the synthetic italic slant and weight offset.
     /// </summary>
     internal static class GlyphLayout
     {
@@ -25,57 +25,96 @@ namespace Unite.Text
         // per-camera density pass.
         private const float PixelsPerWorldUnit = 64f;
 
-        public static void Draw(UCanvas canvas, TextState state, string text, float x, float y)
+        private static readonly ConditionalWeakTable<UCanvas, object> WarnedCanvases = new();
+
+        public static void Draw(UCanvas canvas, TextState state, string text, float x, float y, TextBox? box = null)
         {
             var font = RequireFont(canvas, state);
             if (font == null || text == null)
                 return;
 
+            var style = canvas.StyleState;
+            bool fillEnabled = style.FillEnabled;
+            bool strokeEnabled = style.StrokeEnabled && Mathf.Max(0f, style.StrokeWeight) > 0f;
+            if (!fillEnabled && !strokeEnabled)
+                return;
+
+            var settings = SettingsFor(canvas, state);
+            var layout = TextLayout.Layout(font, settings, text, x, y, box);
+
             ResolveRaster(canvas, state, font, out int em, out float glyphScale, out float unitsPerPx);
             var atlas = AtlasRegistry.GetOrCreate(state.Font);
+            int frame = GetCurrentFrame();
 
-            // Text draws in p5 canvas orientation: +y is DOWN on screen, while font
-            // space is y-up — glyphs flip vertically and successive lines advance
-            // toward +y (down), like p5's leading behavior.
-            float lineAdvance = (font.Ascender - font.Descender) * glyphScale * unitsPerPx;
-            float baseline = y;
+            // Synthetic italic: x shifts right with the height above the baseline. In
+            // y-down drawing space "up" is -y, in y-up space it is +y.
+            var slant = Matrix4x4.identity;
+            slant.m01 = -settings.YSign * settings.Slant;
 
-            foreach (var line in SplitLines(text))
+            foreach (var placed in layout.Glyphs)
             {
-                if (line.Length > 0)
+                if (!font.TryGetOutline(placed.GlyphId, out var outline))
+                    continue;
+
+                var key = new GlyphKey(atlas.FontId, placed.GlyphId, em, font.Id);
+                if (!atlas.TryGetCached(key, frame, out var glyph))
+                    glyph = BakeGlyph(atlas, key, frame, outline, em, glyphScale);
+
+                // Sprite rect: pen-relative origin (OffsetX/Y, font orientation y-up) +
+                // size in baked pixels, mapped into drawing space around the pen.
+                var local = new Vector3(
+                    (glyph.OffsetX + glyph.W * 0.5f) * unitsPerPx,
+                    -settings.YSign * (glyph.OffsetY + glyph.H * 0.5f) * unitsPerPx,
+                    0f
+                );
+
+                // The quad's -y half must sample the sprite's top in y-down space and its
+                // bottom in y-up space.
+                bool yDown = settings.YSign > 0f;
+                canvas.EnqueueRawCommand(new DrawCommand
                 {
-                    float startX = x - AlignmentOffset(state, line, font, glyphScale * unitsPerPx);
-                    DrawLine(canvas, atlas, font, line, startX, baseline, em, glyphScale, unitsPerPx);
-                }
-                baseline += lineAdvance;
+                    Transform = canvas.CurrentTransform
+                        * Matrix4x4.Translate(new Vector3(placed.PenX, placed.Baseline, 0f))
+                        * slant
+                        * Matrix4x4.Translate(local),
+                    Size = new Vector2(glyph.W * unitsPerPx, glyph.H * unitsPerPx),
+                    ShapeType = Shape.Text,
+                    Point2 = new Vector2(glyph.UvMin.x, yDown ? glyph.UvMax.y : glyph.UvMin.y),
+                    Point3 = new Vector2(glyph.UvMax.x, yDown ? glyph.UvMin.y : glyph.UvMax.y),
+                    Parameters0 = new Vector4(glyph.Range, glyph.W, settings.Embolden, 0f),
+                    GlyphAtlas = glyph.Texture,
+                    FillColor = style.FillColor,
+                    StrokeColor = style.StrokeColor,
+                    StrokeWeight = Mathf.Max(0f, style.StrokeWeight),
+                    FillEnabled = fillEnabled,
+                    StrokeEnabled = strokeEnabled
+                });
             }
         }
 
-        public static float Measure(UCanvas canvas, TextState state, string text)
+        /// <summary>Layout settings for the canvas's current text state and drawing mode.</summary>
+        public static TextLayoutSettings SettingsFor(UCanvas canvas, TextState state)
+            => TextLayoutSettings.FromState(state, IsYUp(canvas.CurrentDrawingMode));
+
+        /// <summary>
+        /// World and CanvasLocal drawing space is y-up, so text keeps glyphs upright and
+        /// advances lines toward -y there; the screen modes follow p5's y-down canvas.
+        /// </summary>
+        public static bool IsYUp(DrawingMode mode) => mode is DrawingMode.World or DrawingMode.CanvasLocal;
+
+        public static FontInstance RequireFont(UCanvas canvas, TextState state)
         {
-            var font = RequireFont(canvas, state);
-            if (font == null || text == null)
-                return 0f;
+            if (state.TryGetInstance(out var instance, out _, out _))
+                return instance;
 
-            ResolveRaster(canvas, state, font, out _, out float glyphScale, out float unitsPerPx);
-            float scaleUnits = glyphScale * unitsPerPx;
-
-            float widest = 0f;
-            foreach (var line in SplitLines(text))
-                widest = Mathf.Max(widest, MeasureLine(font, line, scaleUnits));
-            return widest;
-        }
-
-        private static TtfFont RequireFont(UCanvas canvas, TextState state)
-        {
-            if (state.Font != null && state.Font.TryGetFont(out var font))
-                return font;
-
-            if (!state.WarnedMissingFont)
+            if (!WarnedCanvases.TryGetValue(canvas, out _))
             {
-                state.WarnedMissingFont = true;
+                WarnedCanvases.Add(canvas, null);
                 Debug.LogWarning(
-                    "p5.Unite: set a font with canvas.TextFont(...) before drawing text.",
+                    state.Font == null
+                        ? "p5.Unite: set a font with canvas.TextFont(...) before drawing text."
+                        : $"p5.Unite: font '{state.Font.FamilyName}' cannot be used for text "
+                            + "(it failed to load; see the font warning above).",
                     canvas
                 );
             }
@@ -85,30 +124,20 @@ namespace Unite.Text
         private static void ResolveRaster(
             UCanvas canvas,
             TextState state,
-            TtfFont font,
+            FontInstance font,
             out int emBucket,
             out float glyphScale,
             out float unitsPerPx
         )
         {
             // Pixel size of the requested text size in the mode's raster space.
-            float pixelSize;
-            switch (canvas.CurrentDrawingMode)
+            float pixelSize = canvas.CurrentDrawingMode switch
             {
-                case DrawingMode.NormalizedScreen:
-                    pixelSize = state.Size * Mathf.Max(1f, canvas.Height);
-                    break;
-                case DrawingMode.NormalizedScreenOverlay:
-                    pixelSize = state.Size * Mathf.Max(1f, canvas.Height);
-                    break;
-                case DrawingMode.World:
-                case DrawingMode.CanvasLocal:
-                    pixelSize = state.Size * PixelsPerWorldUnit;
-                    break;
-                default: // Screen / ScreenOverlay: drawing units are already pixels.
-                    pixelSize = state.Size;
-                    break;
-            }
+                DrawingMode.NormalizedScreen or DrawingMode.NormalizedScreenOverlay
+                    => state.Size * Mathf.Max(1f, canvas.Height),
+                DrawingMode.World or DrawingMode.CanvasLocal => state.Size * PixelsPerWorldUnit,
+                _ => state.Size // Screen / ScreenOverlay: drawing units are already pixels.
+            };
 
             emBucket = QuantizeBucket(pixelSize);
             glyphScale = emBucket / (float)font.UnitsPerEm;
@@ -119,100 +148,6 @@ namespace Unite.Text
         {
             pixelSize = Mathf.Clamp(pixelSize, MinBucketPx, MaxBucketPx);
             return Mathf.NextPowerOfTwo(Mathf.Max(MinBucketPx, Mathf.CeilToInt(pixelSize)));
-        }
-
-        private static float AlignmentOffset(
-            TextState state,
-            string line,
-            TtfFont font,
-            float scaleUnits
-        )
-        {
-            float width = MeasureLine(font, line, scaleUnits);
-            return state.Align switch
-            {
-                TextAlignMode.Center => width * 0.5f,
-                TextAlignMode.Right => width,
-                _ => 0f
-            };
-        }
-
-        private static float MeasureLine(TtfFont font, string line, float scaleUnits)
-        {
-            float width = 0f;
-
-            foreach (int codePoint in EnumerateCodePoints(line))
-            {
-                int glyphId = font.GetGlyphId(codePoint);
-                width += font.Advance(glyphId) * scaleUnits;
-            }
-            return width;
-        }
-
-        private static void DrawLine(
-            UCanvas canvas,
-            GlyphAtlasSet atlas,
-            TtfFont font,
-            string line,
-            float startX,
-            float baseline,
-            int emBucket,
-            float glyphScale,
-            float unitsPerPx
-        )
-        {
-            var style = canvas.StyleState;
-            bool fillEnabled = style.FillEnabled;
-            bool strokeEnabled = style.StrokeEnabled && Mathf.Max(0f, style.StrokeWeight) > 0f;
-            if (!fillEnabled && !strokeEnabled)
-                return;
-
-            float scaleUnits = glyphScale * unitsPerPx;
-            int frame = GetCurrentFrame();
-            float penX = startX;
-
-            foreach (int codePoint in EnumerateCodePoints(line))
-            {
-                int glyphId = font.GetGlyphId(codePoint);
-                float scaledAdvance = font.Advance(glyphId) * scaleUnits;
-
-                if (!font.TryGetOutline(glyphId, out var outline))
-                {
-                    penX += scaledAdvance;
-                    continue;
-                }
-
-                var key = new GlyphKey(atlas.FontId, glyphId, emBucket);
-                if (!atlas.TryGetCached(key, frame, out var glyph))
-                    glyph = BakeGlyph(atlas, key, frame, outline, emBucket, glyphScale);
-
-                // Sprite rect: pen-relative origin (OffsetX/Y) + size in baked pixels.
-                // Drawing space is y-down while font space is y-up, so the vertical
-                // axis flips: the quad's top edge samples the sprite rect's TOP.
-                var center = new Vector3(
-                    penX + (glyph.OffsetX + glyph.W * 0.5f) * unitsPerPx,
-                    baseline - (glyph.OffsetY + glyph.H * 0.5f) * unitsPerPx,
-                    0f
-                );
-
-                canvas.EnqueueRawCommand(new DrawCommand
-                {
-                    Transform = canvas.CurrentTransform * Matrix4x4.Translate(center),
-                    Size = new Vector2(glyph.W * unitsPerPx, glyph.H * unitsPerPx),
-                    ShapeType = Shape.Text,
-                    Point2 = new Vector2(glyph.UvMin.x, glyph.UvMax.y),
-                    Point3 = new Vector2(glyph.UvMax.x, glyph.UvMin.y),
-                    Parameters0 = new Vector4(glyph.Range, glyph.W, 0f, 0f),
-                    GlyphAtlas = glyph.Texture,
-                    FillColor = style.FillColor,
-                    StrokeColor = style.StrokeColor,
-                    StrokeWeight = Mathf.Max(0f, style.StrokeWeight),
-                    FillEnabled = fillEnabled,
-                    StrokeEnabled = strokeEnabled
-                });
-
-                penX += scaledAdvance;
-            }
         }
 
         private static CachedGlyph BakeGlyph(
@@ -268,45 +203,6 @@ namespace Unite.Text
             // Edit-mode tests never advance the frame counter; that is fine because the
             // frame value only feeds the age bookkeeping.
             return Time.frameCount;
-        }
-
-        private static IEnumerable<string> SplitLines(string text)
-        {
-            var lines = new List<string>(4);
-            int start = 0;
-
-            for (int index = 0; index < text.Length; index++)
-            {
-                if (text[index] != '\n')
-                    continue;
-
-                int end = index > start && text[index - 1] == '\r' ? index - 1 : index;
-                lines.Add(text.Substring(start, end - start));
-                start = index + 1;
-            }
-
-            lines.Add(text.Substring(start, text.Length - start));
-            return lines;
-        }
-
-        private static IEnumerable<int> EnumerateCodePoints(string text)
-        {
-            int index = 0;
-            while (index < text.Length)
-            {
-                int codePoint = text[index];
-                index++;
-
-                if (char.IsSurrogate(text[index - 1]) &&
-                    index < text.Length &&
-                    char.IsSurrogatePair(text[index - 1], text[index]))
-                {
-                    codePoint = char.ConvertToUtf32(text, index - 1);
-                    index++;
-                }
-
-                yield return codePoint;
-            }
         }
     }
 }

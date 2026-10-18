@@ -105,3 +105,10 @@ graphify-out/memory
 # Samples imported from the embedded package (Package Manager -> Samples -> Import)
 /[Aa]ssets/[Ss]amples/
 /[Aa]ssets/[Ss]amples.meta
+
+# Font files
+/Assets/DevResources/Fonts
+/Assets/DevResources/Fonts.meta
+
+# Uncooperative agent
+.claude

@@ -23,9 +23,24 @@ namespace Unite.Canvas
         public void ResetTransform() => ResetMatrix();
 
         /// <summary>
+        /// Raised after Push() saves the canvas state, so optional packages (e.g.,
+        /// p5.Unite Text) can save their own style state alongside it.
+        /// </summary>
+        internal event Action StatePushed;
+
+        /// <summary>
+        /// Raised after a Pop() that matched a Push() restored the canvas state.
+        /// </summary>
+        internal event Action StatePopped;
+
+        /// <summary>
         /// Begins a nested drawing group with its own transform and drawing style.
         /// </summary>
-        public void Push() => _stateStack.Push(new CanvasState(CurrentTransform, _styleState));
+        public void Push()
+        {
+            _stateStack.Push(new CanvasState(CurrentTransform, _styleState));
+            StatePushed?.Invoke();
+        }
 
         /// <summary>
         /// Restores the transform and drawing style saved by the matching Push().
@@ -41,6 +56,7 @@ namespace Unite.Canvas
             var state = _stateStack.Pop();
             _transformStack.Restore(state.Transform);
             _styleState = state.Style;
+            StatePopped?.Invoke();
         }
 
         public void ApplyMatrix(Matrix4x4 matrix) => _transformStack.ApplyMatrix(matrix);

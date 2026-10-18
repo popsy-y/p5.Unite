@@ -259,7 +259,8 @@
       "depth": 0,
       "source": "embedded",
       "dependencies": {
-        "net.sbm.unite": "0.1.0"
+        "net.sbm.unite": "0.1.0",
+        "com.unity.modules.unitywebrequest": "1.0.0"
       }
     },
     "com.unity.modules.accessibility": {

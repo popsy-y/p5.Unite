@@ -20,14 +20,14 @@ namespace Unite.Text.Fonts
 
         public static bool HasSupportedSubtable(byte[] data, int offset, int length)
         {
-            return Find(new TtfReader(data, offset), offset, length, out _);
+            return Find(new FontReader(data, offset), offset, length, out _);
         }
 
         /// <summary>
         /// Maps a code point through the best available cmap subtable. Returns 0
         /// (.notdef) when the code point is absent or no supported subtable exists.
         /// </summary>
-        public static int Lookup(TtfReader reader, int cmapOffset, int cmapLength, int codePoint)
+        public static int Lookup(FontReader reader, int cmapOffset, int cmapLength, int codePoint)
         {
             if (!Find(reader, cmapOffset, cmapLength, out var subtable))
                 return 0;
@@ -46,7 +46,7 @@ namespace Unite.Text.Fonts
             }
         }
 
-        private static bool Find(TtfReader reader, int offset, int length, out Subtable best)
+        private static bool Find(FontReader reader, int offset, int length, out Subtable best)
         {
             best = default;
             best.Priority = -1;
@@ -75,7 +75,7 @@ namespace Unite.Text.Fonts
                 if (priority < best.Priority || subOffset + 2 > reader.Length)
                     continue;
 
-                var subReader = new TtfReader(reader.Data, subOffset);
+                var subReader = new FontReader(reader.Data, subOffset);
                 int format = subReader.ReadU16();
 
                 bool format12 = format == 12;
@@ -100,7 +100,7 @@ namespace Unite.Text.Fonts
         }
 
         // Format 0: 256-entry byte table for latin-1 code points.
-        private static int LookupFormat0(TtfReader reader, int codePoint)
+        private static int LookupFormat0(FontReader reader, int codePoint)
         {
             reader.Skip(4); // length, language
             if (codePoint < 0 || codePoint > 255 || !reader.Has(256))
@@ -112,7 +112,7 @@ namespace Unite.Text.Fonts
 
         // Format 4: segmented mapping for BMP code points. Segments are searched
         // linearly (the atlas use case only needs a handful of characters per run).
-        private static int LookupFormat4(TtfReader reader, int subOffset, int codePoint)
+        private static int LookupFormat4(FontReader reader, int subOffset, int codePoint)
         {
             reader.Skip(4); // length, language
             int segCount = reader.ReadU16() / 2;
@@ -156,7 +156,7 @@ namespace Unite.Text.Fonts
                     if (position + 2 > reader.Length)
                         return 0;
 
-                    var indexed = new TtfReader(reader.Data, position);
+                    var indexed = new FontReader(reader.Data, position);
                     glyphId = indexed.ReadU16();
 
                     if (glyphId == 0)
@@ -171,7 +171,7 @@ namespace Unite.Text.Fonts
         }
 
         // Format 12: full-code-point group table.
-        private static int LookupFormat12(TtfReader reader, int subOffset, int codePoint)
+        private static int LookupFormat12(FontReader reader, int subOffset, int codePoint)
         {
             // Layout: u16 format, u16 reserved, u32 length, u32 language,
             // u32 numGroups, then groups of (u32 start, u32 end, u32 startGlyphId).
@@ -194,9 +194,9 @@ namespace Unite.Text.Fonts
             return 0;
         }
 
-        private static int ReadU16At(TtfReader reader, int position, int element)
+        private static int ReadU16At(FontReader reader, int position, int element)
         {
-            var window = new TtfReader(reader.Data, position + element * 2);
+            var window = new FontReader(reader.Data, position + element * 2);
             return window.ReadU16();
         }
     }
