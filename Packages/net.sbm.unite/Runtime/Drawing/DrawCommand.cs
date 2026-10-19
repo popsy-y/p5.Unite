@@ -31,6 +31,9 @@ namespace Unite.Canvas
         // stored as additional contours wound opposite to the outer contour.
         public Vector4[] PolygonPoints;
 
+        /// <summary>Points used in <see cref="PolygonPoints"/> (pooled arrays can be longer).</summary>
+        public int PolygonPointCount;
+
         public Vector4 Parameters0;
         public Vector4 Parameters1;
         public Vector4 CornerRadiiX;

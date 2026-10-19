@@ -153,6 +153,11 @@ namespace Unite.Drawing
             _activeArgsBuffers.Clear();
         }
 
+        private static readonly Unity.Profiling.ProfilerMarker CaptureMarker = new("Unite.Draw.Capture");
+        private static readonly Unity.Profiling.ProfilerMarker LayoutMarker = new("Unite.Draw.Layout");
+        private static readonly Unity.Profiling.ProfilerMarker UploadMarker = new("Unite.Draw.Upload");
+        private static readonly Unity.Profiling.ProfilerMarker SubmitMarker = new("Unite.Draw.Submit");
+
         public void Draw(Camera cam)
         {
             if (_frameCommandCount == 0) return;
@@ -162,6 +167,7 @@ namespace Unite.Drawing
 
         public void CaptureCommands()
         {
+            using var scope = CaptureMarker.Auto();
             int previousCount = _frameCommandCount;
             int count = _commandQueue.Count;
 
@@ -169,6 +175,16 @@ namespace Unite.Drawing
                 _frameCommands = new DrawCommand[Mathf.NextPowerOfTwo(Mathf.Max(count, 64))];
 
             _propertyBlocksInUse = 0;
+
+            // Last frame's pooled polygon point arrays have been drawn.
+            for (int index = 0; index < previousCount; index++)
+            {
+                ref var previous = ref _frameCommands[index];
+                if (previous.PolygonPointCount > 0 && previous.PolygonPoints != null)
+                    System.Buffers.ArrayPool<Vector4>.Shared.Return(previous.PolygonPoints);
+                previous.PolygonPoints = null;
+            }
+
             _commandQueue.CopyTo(_frameCommands, 0);
             _commandQueue.Clear();
             _frameCommandCount = count;
@@ -189,6 +205,7 @@ namespace Unite.Drawing
             var shapeDataArray = _shapeDataScratch;
             _polygonPoints.Clear();
             int index = 0;
+            var layoutScope = LayoutMarker.Auto();
 
             for (int commandIndex = 0; commandIndex < count; commandIndex++)
             {
@@ -243,13 +260,15 @@ namespace Unite.Drawing
 
                 if (cmd.ShapeType == Shape.PolygonFill && cmd.PolygonPoints != null)
                 {
+                    int pointCount = cmd.PolygonPointCount > 0 ? cmd.PolygonPointCount : cmd.PolygonPoints.Length;
                     parameters0 = new Vector4(
                         _polygonPoints.Count,
-                        cmd.PolygonPoints.Length,
+                        pointCount,
                         0f,
                         0f
                     );
-                    _polygonPoints.AddRange(cmd.PolygonPoints);
+                    for (int point = 0; point < pointCount; point++)
+                        _polygonPoints.Add(cmd.PolygonPoints[point]);
                 }
 
                 shapeDataArray[index] = new ShapeData
@@ -286,10 +305,16 @@ namespace Unite.Drawing
                 index++;
             }
 
-            _shapeDataBuffer.SetData(shapeDataArray, 0, 0, count);
-            EnsurePolygonPointBuffer(_polygonPoints.Count);
-            if (_polygonPoints.Count > 0)
-                _polygonPointBuffer.SetData(_polygonPoints);
+            layoutScope.Dispose();
+            using (UploadMarker.Auto())
+            {
+                _shapeDataBuffer.SetData(shapeDataArray, 0, 0, count);
+                EnsurePolygonPointBuffer(_polygonPoints.Count);
+                if (_polygonPoints.Count > 0)
+                    _polygonPointBuffer.SetData(_polygonPoints);
+            }
+
+            using var submitScope = SubmitMarker.Auto();
             if (ExecutionMode == DrawingExecutionMode.Sequential)
             {
                 RenderSequential(cam, count);

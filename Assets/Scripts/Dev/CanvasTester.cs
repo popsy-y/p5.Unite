@@ -74,8 +74,11 @@ namespace Dev
             CreateCanvas();
         }
 
+        private static readonly Unity.Profiling.ProfilerMarker UpdateMarker = new("Dev.CanvasTester.Update");
+
         private void Update()
         {
+            using var scope = UpdateMarker.Auto();
             UpdateAutomaticCycling();
             ApplyRenderingSettings();
             _canvas.ResetTransform();

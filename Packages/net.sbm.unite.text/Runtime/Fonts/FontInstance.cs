@@ -10,9 +10,9 @@ namespace Unite.Text.Fonts
     public sealed class FontInstance
     {
         private readonly float[] _coordinates; // normalized axis coordinates; null = defaults
-        private readonly Dictionary<int, float> _advances = new();
-        private readonly Dictionary<int, GlyphOutline> _outlines = new();
-        private readonly Dictionary<int, GlyphBakeSource> _bakeSources = new();
+        // Created on first use: instances of animated axes live for a frame or two.
+        private Dictionary<int, GlyphOutline> _outlines;
+        private Dictionary<int, GlyphBakeSource> _bakeSources;
         private static long _useCounter;
 
         internal FontInstance(FontFace face, float[] coordinates, int id)
@@ -55,15 +55,10 @@ namespace Unite.Text.Fonts
         /// <summary>Advance width of one glyph in glyph units.</summary>
         public float Advance(int glyphId)
         {
+            // Shaping results are cached, so advances are asked for once per shaped glyph.
             if (_coordinates == null)
                 return Face.BaseAdvance(glyphId);
-
-            if (!_advances.TryGetValue(glyphId, out float advance))
-            {
-                advance = Face.BaseAdvance(glyphId) + Face.AdvanceDelta(glyphId, _coordinates);
-                _advances[glyphId] = advance;
-            }
-            return advance;
+            return Face.BaseAdvance(glyphId) + Face.AdvanceDelta(glyphId, _coordinates);
         }
 
         /// <summary>
@@ -75,7 +70,7 @@ namespace Unite.Text.Fonts
         /// </summary>
         internal bool TryGetBakeSource(int glyphId, out GlyphBakeSource source)
         {
-            if (IsDefault && _bakeSources.TryGetValue(glyphId, out source))
+            if (IsDefault && _bakeSources != null && _bakeSources.TryGetValue(glyphId, out source))
                 return !source.IsEmpty;
 
             GlyphPoints points;
@@ -90,7 +85,7 @@ namespace Unite.Text.Fonts
                 source = default;
 
             if (IsDefault)
-                _bakeSources[glyphId] = source;
+                (_bakeSources ??= new Dictionary<int, GlyphBakeSource>())[glyphId] = source;
             return !source.IsEmpty;
         }
 
@@ -100,6 +95,7 @@ namespace Unite.Text.Fonts
         /// </summary>
         public bool TryGetOutline(int glyphId, out GlyphOutline outline)
         {
+            _outlines ??= new Dictionary<int, GlyphOutline>();
             if (!_outlines.TryGetValue(glyphId, out outline))
             {
                 using (TextProfiling.Outline.Auto())

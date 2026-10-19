@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Collections.Generic;
 using UnityEngine;
 using StrokeCapValue = Unite.Canvas.StrokeCap;
@@ -45,7 +46,34 @@ namespace Unite.Canvas
 
         private ShapeKind _shapeKind = ShapeKind.Path;
         private bool _shapeActive;
+
+        // Contours and polylines are pooled: shapes drawn every frame allocate nothing.
         private readonly List<List<PathCommand>> _pathContours = new();
+        private int _contourCount;
+        private readonly List<List<Vector3>> _polylinePool = new();
+        private int _polylinesInUse;
+        private readonly List<List<Vector3>> _fillContours = new();
+        private readonly List<Vector3> _pointScratch = new();
+        private readonly List<Vector3> _simplifyScratch = new();
+        private readonly List<Vector4> _fillPointScratch = new();
+
+        private void AddContour()
+        {
+            if (_contourCount == _pathContours.Count)
+                _pathContours.Add(new List<PathCommand>());
+            else
+                _pathContours[_contourCount].Clear();
+            _contourCount++;
+        }
+
+        private List<Vector3> RentPolyline()
+        {
+            if (_polylinesInUse == _polylinePool.Count)
+                _polylinePool.Add(new List<Vector3>());
+            var polyline = _polylinePool[_polylinesInUse++];
+            polyline.Clear();
+            return polyline;
+        }
 
         /// <summary>
         /// Begins collecting vertices for a custom shape.
@@ -55,8 +83,8 @@ namespace Unite.Canvas
             CheckDrawingContext();
             _shapeKind = kind;
             _shapeActive = true;
-            _pathContours.Clear();
-            _pathContours.Add(new List<PathCommand>());
+            _contourCount = 0;
+            AddContour();
         }
 
         /// <summary>
@@ -117,7 +145,7 @@ namespace Unite.Canvas
                 return;
             }
 
-            _pathContours.Add(new List<PathCommand>());
+            AddContour();
         }
 
         /// <summary>
@@ -141,9 +169,12 @@ namespace Unite.Canvas
             _shapeActive = false;
 
             if (isActiveAndEnabled && (_styleState.FillEnabled || _styleState.StrokeEnabled))
+            {
+                _polylinesInUse = 0;
                 DrawPathShape(closeMode);
+            }
 
-            _pathContours.Clear();
+            _contourCount = 0;
         }
 
         private void AddPathCommand(Vector3 point, PathCommandKind kind)
@@ -156,7 +187,7 @@ namespace Unite.Canvas
                 return;
             }
 
-            _pathContours[_pathContours.Count - 1].Add(new PathCommand
+            _pathContours[_contourCount - 1].Add(new PathCommand
             {
                 Point = point,
                 Kind = kind
@@ -196,9 +227,9 @@ namespace Unite.Canvas
 
         private void DrawPathPoints()
         {
-            foreach (var contour in _pathContours)
+            for (int index = 0; index < _contourCount; index++)
             {
-                foreach (var command in contour)
+                foreach (var command in _pathContours[index])
                     Point(command.Point);
             }
         }
@@ -206,8 +237,9 @@ namespace Unite.Canvas
         private void DrawPathLines()
         {
             StrokeCap cap = _styleState.StrokeCap;
-            foreach (var contour in _pathContours)
+            for (int contourIndex = 0; contourIndex < _contourCount; contourIndex++)
             {
+                var contour = _pathContours[contourIndex];
                 for (int index = 0; index + 1 < contour.Count; index += 2)
                 {
                     EnqueueLineSegment(
@@ -272,14 +304,16 @@ namespace Unite.Canvas
         private void DrawPathContours(ShapeCloseMode closeMode)
         {
             bool closed = closeMode == ShapeCloseMode.Close;
-            var fillContours = _styleState.FillEnabled ? new List<List<Vector3>>() : null;
+            var fillContours = _styleState.FillEnabled ? _fillContours : null;
+            fillContours?.Clear();
 
-            foreach (var contour in _pathContours)
+            for (int contourIndex = 0; contourIndex < _contourCount; contourIndex++)
             {
+                var contour = _pathContours[contourIndex];
                 if (contour.Count == 0)
                     continue;
 
-                var polyline = BuildPathPolyline(contour);
+                var polyline = BuildPathPolyline(contour, RentPolyline());
                 if (polyline.Count < 2)
                     continue;
 
@@ -316,9 +350,9 @@ namespace Unite.Canvas
         /// used as is, Bezier vertices are grouped by the current Bezier order, and
         /// consecutive spline vertices are converted to a cardinal spline.
         /// </summary>
-        internal List<Vector3> BuildPathPolyline(IReadOnlyList<PathCommand> commands)
+        internal List<Vector3> BuildPathPolyline(IReadOnlyList<PathCommand> commands, List<Vector3> polyline = null)
         {
-            var polyline = new List<Vector3>();
+            polyline ??= new List<Vector3>();
             int index = 0;
             Vector3 current = Vector3.zero;
             bool hasCurrent = false;
@@ -380,7 +414,8 @@ namespace Unite.Canvas
                 }
 
                 // Spline run: all commands are points on one smooth curve.
-                var points = new List<Vector3>(runEnd - index);
+                var points = _pointScratch;
+                points.Clear();
                 for (int offset = index; offset < runEnd; offset++)
                     points.Add(commands[offset].Point);
 
@@ -434,10 +469,11 @@ namespace Unite.Canvas
 
         private List<Vector3> CollectPathPoints()
         {
-            var points = new List<Vector3>();
-            foreach (var contour in _pathContours)
+            var points = _pointScratch;
+            points.Clear();
+            for (int index = 0; index < _contourCount; index++)
             {
-                foreach (var command in contour)
+                foreach (var command in _pathContours[index])
                     points.Add(command.Point);
             }
 
@@ -476,13 +512,14 @@ namespace Unite.Canvas
         /// </summary>
         private void EnqueuePathFill(IReadOnlyList<List<Vector3>> contours)
         {
-            var points = new List<Vector4>();
+            var points = _fillPointScratch;
+            points.Clear();
             float zSum = 0f;
             int zCount = 0;
 
             foreach (var contour in contours)
             {
-                var outline = SimplifyContour(contour);
+                var outline = SimplifyContour(contour, _simplifyScratch);
                 if (outline.Count < 3)
                     continue;
 
@@ -507,7 +544,8 @@ namespace Unite.Canvas
             }
 
             var center = (boundsMin + boundsMax) * 0.5f;
-            var localPoints = new Vector4[points.Count];
+            // Returned to the pool by the drawing context once the frame is drawn.
+            var localPoints = ArrayPool<Vector4>.Shared.Rent(points.Count);
             for (int index = 0; index < points.Count; index++)
             {
                 localPoints[index] = new Vector4(
@@ -528,15 +566,16 @@ namespace Unite.Canvas
                 HasCustomBounds = true,
                 ShapeType = Shape.PolygonFill,
                 PolygonPoints = localPoints,
+                PolygonPointCount = points.Count,
                 FillColor = _styleState.FillColor,
                 FillEnabled = true,
                 StrokeEnabled = false
             });
         }
 
-        private static List<Vector3> SimplifyContour(IReadOnlyList<Vector3> contour)
+        private static List<Vector3> SimplifyContour(IReadOnlyList<Vector3> contour, List<Vector3> result)
         {
-            var result = new List<Vector3>(contour.Count);
+            result.Clear();
             foreach (var point in contour)
             {
                 if (
