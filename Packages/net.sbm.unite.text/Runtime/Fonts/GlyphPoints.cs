@@ -1,4 +1,4 @@
-using System.Buffers;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Unite.Text.Fonts
@@ -10,6 +10,14 @@ namespace Unite.Text.Fonts
     /// </summary>
     internal sealed class GlyphPoints
     {
+        // Varied points live from LoadPoints until the bake job has copied them, so the
+        // objects are recycled and keep their arrays (loaded and released on the main
+        // thread). ArrayPool.Shared would not do: a frame rents hundreds of arrays before
+        // the first one comes back, far more than it keeps per size.
+        private static readonly Stack<GlyphPoints> Pool = new();
+        private float[] _ownX;
+        private float[] _ownY;
+
         public GlyphPoints(
             float[] x,
             float[] y,
@@ -18,8 +26,7 @@ namespace Unite.Text.Fonts
             int[] endPoints,
             Vector2 boundsMin,
             Vector2 boundsMax,
-            float flatness,
-            bool pooled = false
+            float flatness
         )
         {
             X = x;
@@ -30,7 +37,10 @@ namespace Unite.Text.Fonts
             BoundsMin = boundsMin;
             BoundsMax = boundsMax;
             Flatness = flatness;
-            IsPooled = pooled;
+        }
+
+        private GlyphPoints()
+        {
         }
 
         /// <summary>Point coordinates; only the first <see cref="Count"/> entries are used.</summary>
@@ -38,40 +48,67 @@ namespace Unite.Text.Fonts
 
         public float[] Y { get; private set; }
 
-        public int Count { get; }
+        public int Count { get; private set; }
 
-        /// <summary>True when X / Y are rented from the shared pool (varied, short-lived points).</summary>
-        public bool IsPooled { get; }
+        /// <summary>True when the points (and their arrays) are rented from the pool (varied, short-lived points).</summary>
+        public bool IsPooled { get; private set; }
 
-        public bool[] OnCurve { get; }
+        public bool[] OnCurve { get; private set; }
 
         /// <summary>Index of the last point of each contour.</summary>
-        public int[] EndPoints { get; }
+        public int[] EndPoints { get; private set; }
 
         /// <summary>Bounding box of all points (curves never leave their control polygon).</summary>
-        public Vector2 BoundsMin { get; }
+        public Vector2 BoundsMin { get; private set; }
 
-        public Vector2 BoundsMax { get; }
+        public Vector2 BoundsMax { get; private set; }
 
         /// <summary>Largest allowed distance, in glyph units, between a curve and its polyline.</summary>
-        public float Flatness { get; }
-
-        /// <summary>Rents coordinate arrays for <see cref="IsPooled"/> points.</summary>
-        public static float[] Rent(int count) => ArrayPool<float>.Shared.Rent(count);
+        public float Flatness { get; private set; }
 
         /// <summary>
-        /// Returns pooled coordinate arrays once the points have been copied into the bake
-        /// job; the points must not be read afterwards. No-op for shared (default master) points.
+        /// Rents <see cref="IsPooled"/> points with room for <paramref name="count"/>
+        /// coordinates; the caller fills X / Y and then calls <see cref="SetShape"/>.
+        /// </summary>
+        public static GlyphPoints Rent(int count)
+        {
+            var points = Pool.Count > 0 ? Pool.Pop() : new GlyphPoints();
+            if (points._ownX == null || points._ownX.Length < count)
+            {
+                int capacity = Mathf.NextPowerOfTwo(Mathf.Max(count, 16));
+                points._ownX = new float[capacity];
+                points._ownY = new float[capacity];
+            }
+            points.X = points._ownX;
+            points.Y = points._ownY;
+            points.Count = count;
+            points.IsPooled = true;
+            return points;
+        }
+
+        public void SetShape(bool[] onCurve, int[] endPoints, Vector2 boundsMin, Vector2 boundsMax, float flatness)
+        {
+            OnCurve = onCurve;
+            EndPoints = endPoints;
+            BoundsMin = boundsMin;
+            BoundsMax = boundsMax;
+            Flatness = flatness;
+        }
+
+        /// <summary>
+        /// Returns pooled points once they have been copied into the bake job; they must not
+        /// be read afterwards. No-op for shared (default master) points.
         /// </summary>
         public void Release()
         {
             if (!IsPooled || X == null)
                 return;
 
-            ArrayPool<float>.Shared.Return(X);
-            ArrayPool<float>.Shared.Return(Y);
             X = null;
             Y = null;
+            OnCurve = null;
+            EndPoints = null;
+            Pool.Push(this);
         }
     }
 

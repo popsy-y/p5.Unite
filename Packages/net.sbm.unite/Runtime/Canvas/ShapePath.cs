@@ -517,9 +517,10 @@ namespace Unite.Canvas
             float zSum = 0f;
             int zCount = 0;
 
-            foreach (var contour in contours)
+            // Indexed loops: foreach over IReadOnlyList boxes the enumerator.
+            for (int contourIndex = 0; contourIndex < contours.Count; contourIndex++)
             {
-                var outline = SimplifyContour(contour, _simplifyScratch);
+                var outline = SimplifyContour(contours[contourIndex], _simplifyScratch);
                 if (outline.Count < 3)
                     continue;
 
@@ -576,8 +577,9 @@ namespace Unite.Canvas
         private static List<Vector3> SimplifyContour(IReadOnlyList<Vector3> contour, List<Vector3> result)
         {
             result.Clear();
-            foreach (var point in contour)
+            for (int index = 0; index < contour.Count; index++)
             {
+                var point = contour[index];
                 if (
                     result.Count > 0 &&
                     (result[result.Count - 1] - point).sqrMagnitude <= 1e-10f

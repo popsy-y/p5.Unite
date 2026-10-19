@@ -115,7 +115,7 @@ namespace Unite.Text.Fonts
             var x = glyph.X;
             var y = glyph.Y;
             int count = x.Length;
-            bool pooled = false;
+            GlyphPoints pooled = null;
             coordinates = UseVariations(coordinates);
             if (coordinates != null)
             {
@@ -127,9 +127,9 @@ namespace Unite.Text.Fonts
 
                 if (varied)
                 {
-                    x = GlyphPoints.Rent(count);
-                    y = GlyphPoints.Rent(count);
-                    pooled = true;
+                    pooled = GlyphPoints.Rent(count);
+                    x = pooled.X;
+                    y = pooled.Y;
                     for (int index = 0; index < count; index++)
                     {
                         x[index] = glyph.X[index] + _deltaX[index];
@@ -148,7 +148,11 @@ namespace Unite.Text.Fonts
                 max.y = Mathf.Max(max.y, y[index]);
             }
 
-            return new GlyphPoints(x, y, count, glyph.OnCurve, glyph.EndPoints, min, max, _flatness, pooled);
+            if (pooled == null)
+                return new GlyphPoints(x, y, count, glyph.OnCurve, glyph.EndPoints, min, max, _flatness);
+
+            pooled.SetShape(glyph.OnCurve, glyph.EndPoints, min, max, _flatness);
+            return pooled;
         }
 
         public float AdvanceDelta(int glyphId, float[] coordinates)
