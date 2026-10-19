@@ -245,8 +245,9 @@ UniteVaryings UniteBuildWorldLine(
 
     float4 startClip = mul(UNITY_MATRIX_P, float4(startView, 1.0));
     float4 endClip = mul(UNITY_MATRIX_P, float4(endView, 1.0));
-    float2 startPixel = (startClip.xy / startClip.w) * _ScreenParams.xy * 0.5;
-    float2 endPixel = (endClip.xy / endClip.w) * _ScreenParams.xy * 0.5;
+    // UniteBuildLine takes pixels from the bottom-left corner (0.._ScreenParams.xy).
+    float2 startPixel = ((startClip.xy / startClip.w) * 0.5 + 0.5) * _ScreenParams.xy;
+    float2 endPixel = ((endClip.xy / endClip.w) * 0.5 + 0.5) * _ScreenParams.xy;
 
     float bias = DepthBiasFactor(dataIndex);
     float2 depths = float2(startClip.z / startClip.w, endClip.z / endClip.w) * bias;
