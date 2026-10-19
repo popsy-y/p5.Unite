@@ -12,6 +12,11 @@ namespace Unite.Text
         public static readonly ProfilerMarker Outline = new("Unite.Text.Outline");
         public static readonly ProfilerMarker Gvar = new("Unite.Text.Outline.Gvar");
         public static readonly ProfilerMarker Flatten = new("Unite.Text.Outline.Flatten");
+        public static readonly ProfilerMarker Analyze = new("Unite.Text.Shape.Analyze");
+        public static readonly ProfilerMarker Shape = new("Unite.Text.Shape");
+        public static readonly ProfilerMarker Normalize = new("Unite.Text.Shape.Normalize");
+        public static readonly ProfilerMarker Substitute = new("Unite.Text.Shape.Gsub");
+        public static readonly ProfilerMarker Position = new("Unite.Text.Shape.Gpos");
         public static readonly ProfilerMarker Allocate = new("Unite.Text.Allocate");
         public static readonly ProfilerMarker Enqueue = new("Unite.Text.Enqueue");
         public static readonly ProfilerMarker Flush = new("Unite.Text.Flush");

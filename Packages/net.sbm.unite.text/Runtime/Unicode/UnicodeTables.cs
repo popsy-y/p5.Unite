@@ -26,11 +26,17 @@ namespace Unite.Text.Unicode
         public static Table Script => new(ScriptShift, ScriptStage1, ScriptStage2);
         public static Table Category => new(CategoryShift, CategoryStage1, CategoryStage2);
         public static Table Flags => new(FlagsShift, FlagsStage1, FlagsStage2);
+        public static Table Combining => new(CombiningShift, CombiningStage1, CombiningStage2);
 
         public static int[] MirrorSourceList => MirrorSources;
         public static int[] MirrorTargetList => MirrorTargets;
         public static int[] BracketSourceList => BracketSources;
         public static int[] BracketPairList => BracketPairs;
         public static byte[] BracketTypeList => BracketTypes;
+        public static int[] DecompositionSourceList => DecompositionSources;
+        public static int[] DecompositionFirstList => DecompositionFirsts;
+        public static int[] DecompositionSecondList => DecompositionSeconds;
+        public static long[] CompositionKeyList => CompositionKeys;
+        public static int[] CompositionValueList => CompositionValues;
     }
 }

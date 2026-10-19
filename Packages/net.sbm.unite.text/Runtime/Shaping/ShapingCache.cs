@@ -79,7 +79,8 @@ namespace Unite.Text.Shaping
             int slot = Shapes.Acquire(key, out shaped);
             shaped ??= new ShapedText();
             Shapes.SetValue(slot, shaped);
-            Analyzer.Shape(shaped, analysis, font);
+            using (TextProfiling.Shape.Auto())
+                Analyzer.Shape(shaped, analysis, font);
             return shaped;
         }
 
@@ -98,7 +99,8 @@ namespace Unite.Text.Shaping
             int slot = Analyses.Acquire(key, out analysis);
             analysis ??= new TextAnalysis();
             Analyses.SetValue(slot, analysis);
-            Analyzer.Analyze(analysis, text, direction);
+            using (TextProfiling.Analyze.Auto())
+                Analyzer.Analyze(analysis, text, direction);
             return analysis;
         }
     }

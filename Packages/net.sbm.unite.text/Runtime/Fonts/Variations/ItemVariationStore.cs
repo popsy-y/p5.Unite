@@ -77,12 +77,12 @@ namespace Unite.Text.Fonts
                 int wordCount = wordField & 0x7FFF;
                 int indexCount = reader.ReadU16();
 
+                // Out-of-range regions (seen in shipping fonts) contribute nothing.
                 regionIndices[index] = new int[indexCount];
                 for (int region = 0; region < indexCount; region++)
                 {
-                    regionIndices[index][region] = reader.ReadU16();
-                    if (regionIndices[index][region] >= regionCount)
-                        throw new FontFormatException("variation region index is out of range.");
+                    int value = reader.ReadU16();
+                    regionIndices[index][region] = value < regionCount ? value : -1;
                 }
 
                 deltas[index] = new float[itemCount][];
@@ -111,14 +111,42 @@ namespace Unite.Text.Fonts
 
             var row = _deltas[outer][inner];
             var indices = _regionIndices[outer];
+            var scalars = ScalarsFor(coordinates);
             float total = 0f;
             for (int index = 0; index < indices.Length; index++)
             {
-                float scalar = RegionScalar(_regions[indices[index]], coordinates);
+                if (indices[index] < 0)
+                    continue;
+
+                float scalar = scalars[indices[index]];
                 if (scalar != 0f)
                     total += scalar * row[index];
             }
             return total;
+        }
+
+        // Region scalars depend only on the coordinates; instances keep their coordinate
+        // array, so the scalars of the last few arrays seen are kept.
+        private const int CachedScalarSets = 4;
+        private readonly float[][] _scalarKeys = new float[CachedScalarSets][];
+        private readonly float[][] _scalarValues = new float[CachedScalarSets][];
+        private int _nextScalarSet;
+
+        private float[] ScalarsFor(float[] coordinates)
+        {
+            for (int set = 0; set < CachedScalarSets; set++)
+            {
+                if (ReferenceEquals(_scalarKeys[set], coordinates))
+                    return _scalarValues[set];
+            }
+
+            int slot = _nextScalarSet;
+            _nextScalarSet = (_nextScalarSet + 1) % CachedScalarSets;
+            var scalars = _scalarValues[slot] ??= new float[_regions.Length];
+            for (int region = 0; region < _regions.Length; region++)
+                scalars[region] = RegionScalar(_regions[region], coordinates);
+            _scalarKeys[slot] = coordinates;
+            return scalars;
         }
 
         private float RegionScalar(float[] region, float[] coordinates)

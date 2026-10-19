@@ -7,7 +7,7 @@ Usage: python GenerateUnicodeData.py <ucd-dir> <output-dir>
 flattened into one directory: UnicodeData.txt PropertyValueAliases.txt BidiBrackets.txt
 BidiMirroring.txt Scripts.txt DerivedCoreProperties.txt DerivedBidiClass.txt
 DerivedJoiningType.txt DerivedGeneralCategory.txt DerivedLineBreak.txt EastAsianWidth.txt
-GraphemeBreakProperty.txt emoji-data.txt
+GraphemeBreakProperty.txt emoji-data.txt DerivedNormalizationProps.txt
 
 Every property becomes a two-stage table of one byte per code point: stage 1 maps
 cp >> shift to a block number (two bytes, little endian), stage 2 holds the deduplicated
@@ -182,6 +182,21 @@ def build_tables(ucd):
             if parts[9] == "Y":
                 flags[int(parts[0], 16)] |= 8
     tables["Flags"] = flags
+
+    # Canonical_Combining_Class.
+    combining = bytearray(MAX_CP)
+    with open(os.path.join(ucd, "UnicodeData.txt"), encoding="utf-8") as handle:
+        previous = None
+        for line in handle:
+            parts = line.split(";")
+            cp = int(parts[0], 16)
+            ccc = int(parts[3])
+            if parts[1].endswith(", Last>") and previous is not None:
+                for value in range(previous, cp + 1):
+                    combining[value] = ccc
+            combining[cp] = ccc
+            previous = cp if parts[1].endswith(", First>") else None
+    tables["Combining"] = combining
     return tables, scripts
 
 
@@ -316,6 +331,44 @@ def write_pairs(output, ucd):
         handle.write("    }\n}\n")
 
 
+def write_normalization(output, ucd):
+    """Canonical decompositions (pairs / singletons) and the primary compositions."""
+    decompositions = []
+    with open(os.path.join(ucd, "UnicodeData.txt"), encoding="utf-8") as handle:
+        for line in handle:
+            parts = line.split(";")
+            mapping = parts[5].strip()
+            if not mapping or mapping.startswith("<"):
+                continue
+            pieces = [int(piece, 16) for piece in mapping.split()]
+            decompositions.append((int(parts[0], 16), pieces[0], pieces[1] if len(pieces) > 1 else 0))
+
+    excluded = flag_set(ucd, "DerivedNormalizationProps.txt", "Full_Composition_Exclusion")
+    compositions = sorted(
+        ((first << 21) | second, composite)
+        for composite, first, second in decompositions
+        if second != 0 and composite not in excluded
+    )
+
+    path = os.path.join(output, "UnicodeTables.Normalization.Generated.cs")
+    with open(path, "w", encoding="utf-8", newline="\n") as handle:
+        handle.write(HEADER.format(version=UNICODE_VERSION))
+        handle.write("namespace Unite.Text.Unicode\n{\n    internal static partial class UnicodeTables\n    {\n")
+        handle.write("        // Canonical decompositions: code point -> first, second (0 for singletons), sorted.\n")
+        handle.write("        private static readonly int[] DecompositionSources =\n        {\n")
+        handle.write(int_lines([source for source, _, _ in decompositions]) + "\n        };\n\n")
+        handle.write("        private static readonly int[] DecompositionFirsts =\n        {\n")
+        handle.write(int_lines([first for _, first, _ in decompositions]) + "\n        };\n\n")
+        handle.write("        private static readonly int[] DecompositionSeconds =\n        {\n")
+        handle.write(int_lines([second for _, _, second in decompositions]) + "\n        };\n\n")
+        handle.write("        // Primary compositions: (first << 21 | second) -> composite, sorted by key.\n")
+        handle.write("        private static readonly long[] CompositionKeys =\n        {\n")
+        handle.write(int_lines([key for key, _ in compositions]) + "\n        };\n\n")
+        handle.write("        private static readonly int[] CompositionValues =\n        {\n")
+        handle.write(int_lines([value for _, value in compositions]) + "\n        };\n")
+        handle.write("    }\n}\n")
+
+
 def int_lines(values, indent="            "):
     lines = []
     for start in range(0, len(values), 16):
@@ -334,6 +387,7 @@ def main():
         print(f"{name}: shift {shift}, {size} bytes")
     write_enums(output, scripts, ucd)
     write_pairs(output, ucd)
+    write_normalization(output, ucd)
 
 
 if __name__ == "__main__":

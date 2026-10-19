@@ -96,6 +96,77 @@ namespace Unite.Text.Unicode
             return (BracketType)UnicodeTables.BracketTypeList[index];
         }
 
+        public static int GetCombiningClass(int codePoint) => Read(UnicodeTables.Combining, codePoint);
+
+        private const int HangulSBase = 0xAC00;
+        private const int HangulLBase = 0x1100;
+        private const int HangulVBase = 0x1161;
+        private const int HangulTBase = 0x11A7;
+        private const int HangulTCount = 28;
+        private const int HangulNCount = 21 * 28;
+        private const int HangulSCount = 19 * HangulNCount;
+
+        /// <summary>
+        /// The canonical decomposition of a code point into one or two code points
+        /// (<paramref name="second"/> is 0 for singletons); Hangul syllables decompose
+        /// algorithmically. Returns false for characters without one.
+        /// </summary>
+        public static bool TryDecompose(int codePoint, out int first, out int second)
+        {
+            int syllable = codePoint - HangulSBase;
+            if ((uint)syllable < HangulSCount)
+            {
+                int trailing = syllable % HangulTCount;
+                if (trailing == 0)
+                {
+                    first = HangulLBase + syllable / HangulNCount;
+                    second = HangulVBase + syllable % HangulNCount / HangulTCount;
+                }
+                else
+                {
+                    first = codePoint - trailing;
+                    second = HangulTBase + trailing;
+                }
+                return true;
+            }
+
+            int index = Array.BinarySearch(UnicodeTables.DecompositionSourceList, codePoint);
+            if (index < 0)
+            {
+                first = codePoint;
+                second = 0;
+                return false;
+            }
+
+            first = UnicodeTables.DecompositionFirstList[index];
+            second = UnicodeTables.DecompositionSecondList[index];
+            return true;
+        }
+
+        /// <summary>The primary composite of two code points (NFC composition, exclusions applied), Hangul included.</summary>
+        public static bool TryCompose(int first, int second, out int composite)
+        {
+            int leading = first - HangulLBase;
+            int vowel = second - HangulVBase;
+            if ((uint)leading < 19 && (uint)vowel < 21)
+            {
+                composite = HangulSBase + (leading * 21 + vowel) * HangulTCount;
+                return true;
+            }
+
+            int syllable = first - HangulSBase;
+            int trailing = second - HangulTBase;
+            if ((uint)syllable < HangulSCount && syllable % HangulTCount == 0 && trailing > 0 && trailing < HangulTCount)
+            {
+                composite = first + trailing;
+                return true;
+            }
+
+            int index = Array.BinarySearch(UnicodeTables.CompositionKeyList, ((long)first << 21) | (uint)second);
+            composite = index >= 0 ? UnicodeTables.CompositionValueList[index] : 0;
+            return index >= 0;
+        }
+
         /// <summary>The OpenType script tag (GSUB / GPOS ScriptList) of a script; "DFLT" for Common / Inherited / Unknown.</summary>
         public static string OpenTypeTag(UnicodeScript script) => UnicodeTables.OpenTypeScriptTags[(int)script];
 

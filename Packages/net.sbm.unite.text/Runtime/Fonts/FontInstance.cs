@@ -30,6 +30,9 @@ namespace Unite.Text.Fonts
         /// <summary>True for the default instance, whose baked glyphs live as long as the font.</summary>
         public bool IsDefault => _coordinates == null;
 
+        /// <summary>Normalized axis coordinates (null for the default instance).</summary>
+        internal float[] Coordinates => _coordinates;
+
         internal long LastUse { get; private set; } = ++_useCounter;
 
         internal void Touch() => LastUse = ++_useCounter;

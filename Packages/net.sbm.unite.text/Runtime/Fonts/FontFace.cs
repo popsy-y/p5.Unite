@@ -69,6 +69,9 @@ namespace Unite.Text.Fonts
         /// <summary>The default instance (default axis values).</summary>
         public FontInstance Default { get; }
 
+        /// <summary>GDEF / GSUB / GPOS / kern tables for shaping.</summary>
+        internal Layout.OpenTypeLayout OpenType { get; private set; }
+
         /// <summary>
         /// Parses a font file: TrueType (.ttf), OpenType with TrueType or CFF outlines
         /// (.otf), WOFF and WOFF2. Returns false for anything else or for corrupt data.
@@ -193,7 +196,10 @@ namespace Unite.Text.Fonts
 
             return new FontFace(
                 characters, advances, outlines, variations, unitsPerEm, ascender, descender
-            );
+            )
+            {
+                OpenType = new Layout.OpenTypeLayout(sfnt, directory)
+            };
         }
 
         private static IOutlineSource CreateOutlines(

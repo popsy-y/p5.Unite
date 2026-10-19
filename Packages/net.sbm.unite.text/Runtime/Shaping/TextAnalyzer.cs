@@ -15,6 +15,8 @@ namespace Unite.Text.Shaping
         private readonly BidiParagraph _bidi = new();
         private readonly LineBreaker _lineBreaker = new();
         private readonly BasicShaper _shaper = new();
+        private readonly OpenTypeShaper _openTypeShaper = new();
+        private static readonly int DefaultLanguage = Fonts.Layout.OpenTypeData.Tag("dflt");
 
         public void Analyze(TextAnalysis target, string text, TextDirectionMode direction)
         {
@@ -46,11 +48,31 @@ namespace Unite.Text.Shaping
                     if (!split)
                         continue;
 
-                    _shaper.Shape(target, font, 0, runStart, index, (analysis.Levels[runStart] & 1) == 1, analysis.Scripts[runStart]);
+                    ShapeRun(target, font, runStart, index, (analysis.Levels[runStart] & 1) == 1, analysis.Scripts[runStart]);
                     runStart = index;
                 }
             }
             SummarizeClusters(target);
+        }
+
+        private void ShapeRun(ShapedText target, FontInstance font, int start, int end, bool rightToLeft, UnicodeScript script)
+        {
+            var layout = font.Face.OpenType;
+            if (layout != null && !layout.IsEmpty)
+            {
+                int glyphs = target.GlyphCount;
+                try
+                {
+                    _openTypeShaper.Shape(target, font, 0, start, end, rightToLeft, script, DefaultLanguage);
+                    return;
+                }
+                catch (IndexOutOfRangeException)
+                {
+                    // Broken layout tables: draw the run without them.
+                    target.GlyphCount = glyphs;
+                }
+            }
+            _shaper.Shape(target, font, 0, start, end, rightToLeft, script);
         }
 
         private static int CountCodePoints(string text)
