@@ -256,6 +256,31 @@ namespace Unite.Text.Tests
         }
 
         [Test]
+        public void ContinuousAxisAnimationKeepsInstanceIdsBounded()
+        {
+            var face = FontFace.LoadFont(TestFontData.Variable, "variable");
+            var settings = new AxisSetting[1];
+            for (int step = 0; step < 10000; step++)
+            {
+                settings[0] = new AxisSetting("wght", 400f + step * 0.04f);
+                face.GetInstance(settings);
+            }
+
+            Assert.LessOrEqual(face.RememberedInstanceIdCount, FontFace.MaxRememberedInstanceIds);
+
+            // Recent coordinate sets still come back with their ids.
+            settings[0] = new AxisSetting("wght", 400f + 9999 * 0.04f);
+            int id = face.GetInstance(settings).Id;
+            for (int step = 0; step < 100; step++)
+            {
+                settings[0] = new AxisSetting("wght", 401f + step * 0.5f);
+                face.GetInstance(settings);
+            }
+            settings[0] = new AxisSetting("wght", 400f + 9999 * 0.04f);
+            Assert.AreEqual(id, face.GetInstance(settings).Id);
+        }
+
+        [Test]
         public void StaticFontsSynthesizeStyles()
         {
             var face = FontFace.LoadFont(TestFontData.StaticTtf, "static");

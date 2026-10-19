@@ -58,12 +58,14 @@ namespace Unite.Text
 
             foreach (var placed in layout.Glyphs)
             {
-                if (!font.TryGetBakeSource(placed.GlyphId, out var source))
-                    continue;
-
+                // Baked glyphs need no outline lookup; blank glyphs are never cached, so
+                // they fall through to the (cached, cheap) bake source check each time.
                 var key = new GlyphKey(atlas.FontId, placed.GlyphId, em, font.Id);
                 if (!atlas.TryGetCached(key, frame, out var glyph))
                 {
+                    if (!font.TryGetBakeSource(placed.GlyphId, out var source))
+                        continue;
+
                     bool allocated;
                     using (TextProfiling.Allocate.Auto())
                         allocated = TryAllocateGlyph(atlas, key, frame, !font.IsDefault, source, em, glyphScale, out glyph);

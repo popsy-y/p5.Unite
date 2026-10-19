@@ -64,34 +64,37 @@ namespace Unite.Text.Fonts
         }
 
         /// <summary>
-        /// Flattened outline of one glyph. Returns false for blank glyphs (space, .notdef,
-        /// unresolvable composites); advance widths still apply to those.
-        /// </summary>
-        /// <summary>
         /// What the atlas bakes this glyph from: the contour points of a simple TrueType glyph
         /// when possible (flattened in the bake job), otherwise the flattened outline. Returns
-        /// false for blank glyphs.
+        /// false for blank glyphs. Only the default instance caches the result: other
+        /// instances bake each glyph about once, so their varied points are rented per call
+        /// and handed back to the pool by the bake.
         /// </summary>
         internal bool TryGetBakeSource(int glyphId, out GlyphBakeSource source)
         {
-            if (!_bakeSources.TryGetValue(glyphId, out source))
-            {
-                GlyphPoints points;
-                using (TextProfiling.Outline.Auto())
-                    points = Face.LoadPoints(glyphId, _coordinates);
+            if (IsDefault && _bakeSources.TryGetValue(glyphId, out source))
+                return !source.IsEmpty;
 
-                if (points != null)
-                    source = new GlyphBakeSource(points);
-                else if (TryGetOutline(glyphId, out var outline))
-                    source = new GlyphBakeSource(outline);
-                else
-                    source = default;
+            GlyphPoints points;
+            using (TextProfiling.Outline.Auto())
+                points = Face.LoadPoints(glyphId, _coordinates);
 
+            if (points != null)
+                source = new GlyphBakeSource(points);
+            else if (TryGetOutline(glyphId, out var outline))
+                source = new GlyphBakeSource(outline);
+            else
+                source = default;
+
+            if (IsDefault)
                 _bakeSources[glyphId] = source;
-            }
             return !source.IsEmpty;
         }
 
+        /// <summary>
+        /// Flattened outline of one glyph. Returns false for blank glyphs (space, .notdef,
+        /// unresolvable composites); advance widths still apply to those.
+        /// </summary>
         public bool TryGetOutline(int glyphId, out GlyphOutline outline)
         {
             if (!_outlines.TryGetValue(glyphId, out outline))

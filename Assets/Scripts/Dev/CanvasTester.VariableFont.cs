@@ -89,8 +89,8 @@ namespace Dev
                 _canvas.Pop();
             }
 
-            // 3) Animated axes, one per word: drawn axis values snap to 1/32 of the axis
-            // range, so the animation reuses a bounded set of baked glyph instances.
+            // 3) Animated axes, one per word: axis values are used as given, so every frame
+            // is a new instance whose glyphs are re-baked (volatile atlas pages).
             float time = _animateTransforms ? Time.time : 1f;
             float animatedWeight = Mathf.Lerp(100f, 700f, (Mathf.Sin(time * 1.3f) + 1f) * 0.5f);
             float animatedWidth = Mathf.Lerp(75f, 100f, (Mathf.Sin(time * 0.9f) + 1f) * 0.5f);

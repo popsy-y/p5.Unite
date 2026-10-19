@@ -110,13 +110,15 @@ namespace Unite.Text.Fonts
             if (!drawable)
                 return null;
 
-            // Points are immutable per glyph, so the default master shares the parsed arrays.
+            // Points are immutable per glyph, so the default master shares the parsed arrays;
+            // varied points live in pooled arrays until the bake job has copied them.
             var x = glyph.X;
             var y = glyph.Y;
+            int count = x.Length;
+            bool pooled = false;
             coordinates = UseVariations(coordinates);
             if (coordinates != null)
             {
-                int count = x.Length;
                 WithPhantomPoints(glyphId, glyph, count);
 
                 bool varied;
@@ -125,8 +127,9 @@ namespace Unite.Text.Fonts
 
                 if (varied)
                 {
-                    x = new float[count];
-                    y = new float[count];
+                    x = GlyphPoints.Rent(count);
+                    y = GlyphPoints.Rent(count);
+                    pooled = true;
                     for (int index = 0; index < count; index++)
                     {
                         x[index] = glyph.X[index] + _deltaX[index];
@@ -137,7 +140,7 @@ namespace Unite.Text.Fonts
 
             var min = new Vector2(float.MaxValue, float.MaxValue);
             var max = new Vector2(float.MinValue, float.MinValue);
-            for (int index = 0; index < x.Length; index++)
+            for (int index = 0; index < count; index++)
             {
                 min.x = Mathf.Min(min.x, x[index]);
                 max.x = Mathf.Max(max.x, x[index]);
@@ -145,7 +148,7 @@ namespace Unite.Text.Fonts
                 max.y = Mathf.Max(max.y, y[index]);
             }
 
-            return new GlyphPoints(x, y, glyph.OnCurve, glyph.EndPoints, min, max, _flatness);
+            return new GlyphPoints(x, y, count, glyph.OnCurve, glyph.EndPoints, min, max, _flatness, pooled);
         }
 
         public float AdvanceDelta(int glyphId, float[] coordinates)
@@ -191,7 +194,7 @@ namespace Unite.Text.Fonts
                 min = Vector2.Min(min, new Vector2(glyph.X[index], glyph.Y[index]));
                 max = Vector2.Max(max, new Vector2(glyph.X[index], glyph.Y[index]));
             }
-            return new GlyphPoints(glyph.X, glyph.Y, glyph.OnCurve, glyph.EndPoints, min, max, OutlineFlatness.For(1000));
+            return new GlyphPoints(glyph.X, glyph.Y, glyph.X.Length, glyph.OnCurve, glyph.EndPoints, min, max, OutlineFlatness.For(1000));
         }
 
         private float[] UseVariations(float[] coordinates)

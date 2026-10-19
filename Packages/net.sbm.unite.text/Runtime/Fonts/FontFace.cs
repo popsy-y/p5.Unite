@@ -14,6 +14,10 @@ namespace Unite.Text.Fonts
     {
         private const int MaxCachedInstances = 64;
 
+        // Ids of evicted instances are remembered for this many coordinate sets (oldest
+        // first out), so continuously animated axes do not grow the table without bound.
+        internal const int MaxRememberedInstanceIds = 4096;
+
         private static int _nextInstanceId;
 
         private readonly CharacterMap _characters;
@@ -22,6 +26,8 @@ namespace Unite.Text.Fonts
         private readonly FontVariations _variations;
         private readonly Dictionary<CoordinateKey, FontInstance> _instances = new();
         private readonly Dictionary<CoordinateKey, int> _instanceIds = new();
+        private CoordinateKey[] _instanceIdOrder;
+        private int _instanceIdNext;
         private float[] _coordinateScratch;
 
         private FontFace(
@@ -105,13 +111,16 @@ namespace Unite.Text.Fonts
             if (!_instanceIds.TryGetValue(key, out int id))
             {
                 id = NewInstanceId();
-                _instanceIds.Add(key, id);
+                RememberInstanceId(key, id);
             }
 
             instance = new FontInstance(this, coordinates, id);
             _instances.Add(key, instance);
             return instance;
         }
+
+        /// <summary>Number of coordinate sets whose instance id is remembered (bounded).</summary>
+        internal int RememberedInstanceIdCount => _instanceIds.Count;
 
         /// <summary>Character-to-glyph lookup (cmap only, no shaping); 0 (.notdef) when unmapped.</summary>
         public int GetGlyphId(int codePoint)
@@ -256,6 +265,20 @@ namespace Unite.Text.Fonts
 
             if (oldest != null)
                 _instances.Remove(oldest.Value);
+        }
+
+        // A ring of the remembered keys: when it is full the oldest id is forgotten. Its
+        // instance may still be cached (and keeps its id); only a later re-creation gets a
+        // new id, whose glyphs are then baked again.
+        private void RememberInstanceId(CoordinateKey key, int id)
+        {
+            _instanceIdOrder ??= new CoordinateKey[MaxRememberedInstanceIds];
+            if (_instanceIds.Count >= MaxRememberedInstanceIds)
+                _instanceIds.Remove(_instanceIdOrder[_instanceIdNext]);
+
+            _instanceIdOrder[_instanceIdNext] = key;
+            _instanceIdNext = (_instanceIdNext + 1) % MaxRememberedInstanceIds;
+            _instanceIds.Add(key, id);
         }
 
         private static int NewInstanceId() => ++_nextInstanceId;

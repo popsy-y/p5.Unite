@@ -257,9 +257,9 @@ namespace Unite.Text
                     continue;
 
                 glyphs++;
-                pointTotal += job.Points.X.Length;
+                pointTotal += job.Points.Count;
                 contourTotal += job.Points.EndPoints.Length;
-                edgeTotal += job.Points.X.Length * OutlineBakeJob.MaxSubdivisions;
+                edgeTotal += job.Points.Count * OutlineBakeJob.MaxSubdivisions;
                 distanceTotal += job.Width * job.Height;
             }
 
@@ -286,7 +286,7 @@ namespace Unite.Text
                     continue;
 
                 var source = job.Points;
-                for (int index = 0; index < source.X.Length; index++)
+                for (int index = 0; index < source.Count; index++)
                 {
                     points[pointStart + index] = new float2(source.X[index], source.Y[index]);
                     onCurve[pointStart + index] = source.OnCurve[index] ? (byte)1 : (byte)0;
@@ -294,7 +294,7 @@ namespace Unite.Text
                 for (int index = 0; index < source.EndPoints.Length; index++)
                     endPoints[contourStart + index] = source.EndPoints[index];
 
-                int edgeCapacity = source.X.Length * OutlineBakeJob.MaxSubdivisions;
+                int edgeCapacity = source.Count * OutlineBakeJob.MaxSubdivisions;
                 tasks[task++] = new OutlineBakeTask
                 {
                     PointStart = pointStart,
@@ -313,10 +313,13 @@ namespace Unite.Text
                     OutputStart = job.Y * page.Span + job.X
                 };
 
-                pointStart += source.X.Length;
+                pointStart += source.Count;
                 contourStart += source.EndPoints.Length;
                 edgeStart += edgeCapacity;
                 distanceStart += job.Width * job.Height;
+
+                // Copied into the job: varied points go back to the pool.
+                source.Release();
             }
 
             var handle = new OutlineBakeJob
