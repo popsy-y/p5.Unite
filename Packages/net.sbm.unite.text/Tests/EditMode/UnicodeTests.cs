@@ -82,6 +82,57 @@ namespace Unite.Text.Tests
             Assert.IsEmpty(failures, string.Join("\n", failures));
         }
 
+        [Test]
+        public void LineBreaksPassTheConformanceTestSubset()
+        {
+            var breaker = new LineBreaker();
+            int cases = 0;
+            var failures = new List<string>();
+            foreach (var (codePoints, expected, line) in ReadBreakTest("LineBreakTestSubset.txt"))
+            {
+                cases++;
+                var breaks = new LineBreakOpportunity[codePoints.Length + 1];
+                breaker.Analyze(codePoints, breaks);
+
+                var actual = new List<int>();
+                for (int index = 1; index <= codePoints.Length; index++)
+                {
+                    if (breaks[index] != LineBreakOpportunity.None)
+                        actual.Add(index);
+                }
+
+                if (!AreEqual(expected, actual) && failures.Count < 10)
+                    failures.Add($"{line}\n   got breaks at {string.Join(" ", actual)}");
+            }
+
+            Assert.Greater(cases, 8000);
+            Assert.IsEmpty(failures, string.Join("\n", failures));
+        }
+
+        [Test]
+        public void LineBreaksKeepJapaneseRulesAndHardBreaks()
+        {
+            var breaker = new LineBreaker();
+
+            // 「漢字。」かな: no break before the closing bracket / full stop or after the
+            // opening bracket; breaks between ideographs otherwise.
+            int[] text = { 0x300C, 0x6F22, 0x5B57, 0x3002, 0x300D, 0x304B, 0x306A };
+            var breaks = new LineBreakOpportunity[text.Length + 1];
+            breaker.Analyze(text, breaks);
+            Assert.AreEqual(LineBreakOpportunity.None, breaks[1]);     // after 「
+            Assert.AreEqual(LineBreakOpportunity.Allowed, breaks[2]);  // 漢|字
+            Assert.AreEqual(LineBreakOpportunity.None, breaks[3]);     // before 。
+            Assert.AreEqual(LineBreakOpportunity.None, breaks[4]);     // before 」
+            Assert.AreEqual(LineBreakOpportunity.Allowed, breaks[5]);  // 」|か
+
+            int[] lines = { 'a', '\r', '\n', 'b' };
+            breaks = new LineBreakOpportunity[lines.Length + 1];
+            breaker.Analyze(lines, breaks);
+            Assert.AreEqual(LineBreakOpportunity.None, breaks[2]);
+            Assert.AreEqual(LineBreakOpportunity.Mandatory, breaks[3]);
+            Assert.AreEqual(LineBreakOpportunity.Mandatory, breaks[4]);
+        }
+
         /// <summary>
         /// Parses a UCD break test file ("÷ 0020 × 0308 ÷"): the code points and the
         /// positions (exclusive end indices, the final position included) where a break is allowed.
