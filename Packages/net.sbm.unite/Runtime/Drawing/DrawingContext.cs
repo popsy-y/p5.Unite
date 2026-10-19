@@ -24,6 +24,13 @@ namespace Unite.Drawing
         private int _frameCommandCount;
         private ShapeData[] _shapeDataScratch = Array.Empty<ShapeData>();
 
+        // The shape buffer depends on the camera only through the anti-aliasing padding, so
+        // cameras with the same padding (Game and Scene view, stacked cameras) reuse the
+        // buffer built for the first one this frame.
+        private int _captureGeneration;
+        private int _builtGeneration = -1;
+        private float _builtPixelPadding = float.NaN;
+
         // Property blocks are recycled frame to frame instead of allocating one per draw
         // call. Within a frame every draw gets its own block, so it does not matter whether
         // a submitted draw still refers to its block until the camera renders.
@@ -188,6 +195,7 @@ namespace Unite.Drawing
             _commandQueue.CopyTo(_frameCommands, 0);
             _commandQueue.Clear();
             _frameCommandCount = count;
+            _captureGeneration++;
 
             // Drop the references (atlas textures, polygon points) of last frame's tail.
             if (previousCount > count)
@@ -195,6 +203,27 @@ namespace Unite.Drawing
         }
 
         private void LayoutShapes(Camera cam)
+        {
+            int count = _frameCommandCount;
+            float pixelPadding = PixelPadding(cam);
+            if (_builtGeneration != _captureGeneration || _builtPixelPadding != pixelPadding)
+            {
+                BuildShapeData(pixelPadding);
+                _builtGeneration = _captureGeneration;
+                _builtPixelPadding = pixelPadding;
+            }
+
+            using var submitScope = SubmitMarker.Auto();
+            if (ExecutionMode == DrawingExecutionMode.Sequential)
+            {
+                RenderSequential(cam, count);
+                return;
+            }
+
+            RenderIndirect(cam, count);
+        }
+
+        private void BuildShapeData(float pixelPadding)
         {
             int count = _frameCommandCount;
             EnsureBuffers(count);
@@ -209,8 +238,10 @@ namespace Unite.Drawing
 
             for (int commandIndex = 0; commandIndex < count; commandIndex++)
             {
-                var cmd = _frameCommands[commandIndex];
-                var transform = cmd.Transform == Matrix4x4.zero
+                ref readonly var cmd = ref _frameCommands[commandIndex];
+                // The zero matrix (legacy Position / Rotation commands) is the only one with
+                // m33 == 0: every affine transform keeps m33 at 1.
+                var transform = cmd.Transform.m33 == 0f && cmd.Transform == Matrix4x4.zero
                     ? Matrix4x4.TRS(cmd.Position, Quaternion.Euler(cmd.Rotation), Vector3.one)
                     : cmd.Transform;
                 var shapeSize = new Vector2(Mathf.Abs(cmd.Size.x), Mathf.Abs(cmd.Size.y));
@@ -221,7 +252,7 @@ namespace Unite.Drawing
                 // their bounds out to give the anti-aliasing room).
                 float padding = cmd.ShapeType == Shape.Text
                     ? 0f
-                    : strokeWeight * 0.5f + AntiAliasPadding(cam, transform);
+                    : strokeWeight * 0.5f + AntiAliasPadding(pixelPadding, transform);
                 var padding2 = Vector2.one * padding;
                 int styleFlags = (cmd.FillEnabled ? 1 : 0) |
                                  (cmd.StrokeEnabled && strokeWeight > 0f ? 2 : 0);
@@ -313,15 +344,6 @@ namespace Unite.Drawing
                 if (_polygonPoints.Count > 0)
                     _polygonPointBuffer.SetData(_polygonPoints);
             }
-
-            using var submitScope = SubmitMarker.Auto();
-            if (ExecutionMode == DrawingExecutionMode.Sequential)
-            {
-                RenderSequential(cam, count);
-                return;
-            }
-
-            RenderIndirect(cam, count);
         }
 
         private void RenderIndirect(Camera cam, int count)
@@ -538,16 +560,19 @@ namespace Unite.Drawing
             return material;
         }
 
-        private float AntiAliasPadding(Camera cam, Matrix4x4 transform)
+        // Anti-aliasing room in drawing units before the shape's own scale: the only part
+        // of the shape data that depends on the camera.
+        private float PixelPadding(Camera cam)
         {
-            float drawingPadding;
             if (DrawingMode is DrawingMode.Screen or DrawingMode.ScreenOverlay)
-                drawingPadding = 1.5f;
-            else if (DrawingMode is DrawingMode.NormalizedScreen or DrawingMode.NormalizedScreenOverlay)
-                drawingPadding = 1.5f / Mathf.Max(1f, Mathf.Min(cam.pixelWidth, cam.pixelHeight));
-            else
-                drawingPadding = 0.001f;
+                return 1.5f;
+            if (DrawingMode is DrawingMode.NormalizedScreen or DrawingMode.NormalizedScreenOverlay)
+                return 1.5f / Mathf.Max(1f, Mathf.Min(cam.pixelWidth, cam.pixelHeight));
+            return 0.001f;
+        }
 
+        private static float AntiAliasPadding(float drawingPadding, in Matrix4x4 transform)
+        {
             var xAxis = new Vector3(transform.m00, transform.m10, transform.m20);
             var yAxis = new Vector3(transform.m01, transform.m11, transform.m21);
             float xx = Vector3.Dot(xAxis, xAxis);
