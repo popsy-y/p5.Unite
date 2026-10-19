@@ -112,3 +112,5 @@ graphify-out/memory
 
 # Uncooperative agent
 .claude
+
+/.temporal-*
