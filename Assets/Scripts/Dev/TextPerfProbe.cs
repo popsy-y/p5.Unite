@@ -68,6 +68,27 @@ namespace Dev
             if (_output == null)
                 return;
 
+            CreateHost();
+        }
+
+        /// <summary>
+        /// Runs the same scenarios in Editor Play mode (e.g. through
+        /// <c>unity command eval "Dev.TextPerfProbe.StartInEditor(@\"...\")"</c>); the report
+        /// is written to <paramref name="output"/> and Play mode keeps running.
+        /// </summary>
+        public static void StartInEditor(string output, bool gcBreakdown = false)
+        {
+            if (!Application.isPlaying)
+                throw new InvalidOperationException("TextPerfProbe: enter Play mode first.");
+
+            _output = output;
+            _fontPath = null; // the tester's project-relative path works in the Editor
+            _gcBreakdown = gcBreakdown;
+            CreateHost();
+        }
+
+        private static void CreateHost()
+        {
             var host = new GameObject("TextPerfProbe");
             DontDestroyOnLoad(host);
             host.AddComponent<TextPerfProbe>();
@@ -169,6 +190,9 @@ namespace Dev
                     + $"{sorted[(int)(sorted.Count * 0.95)],11:0.000}{sorted[(int)(sorted.Count * 0.99)],11:0.000}"
                     + $"{sorted[sorted.Count - 1],11:0.000}{sum,13:0.0}"
                 );
+
+                if (Metrics[index].Name == null)
+                    report.AppendLine($"{"  => fps (mean / median)",-26}{1000.0 * list.Count / sum,11:0}{1000.0 / sorted[sorted.Count / 2],11:0}");
             }
         }
 
@@ -273,7 +297,8 @@ namespace Dev
             }
 
             Debug.Log("TEXTPERF_DONE\n" + report);
-            Application.Quit(0);
+            if (!Application.isEditor)
+                Application.Quit(0);
         }
     }
 }

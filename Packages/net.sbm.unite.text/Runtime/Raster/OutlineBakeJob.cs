@@ -33,7 +33,7 @@ namespace Unite.Text.Raster
     /// encodes them with <see cref="SdfKernel"/>, straight into the atlas page. Mirrors
     /// the polygons of <c>OutlineBuilder</c> without allocating managed arrays.
     /// </summary>
-    [BurstCompile]
+    [BurstCompile(DisableSafetyChecks = true)]
     internal struct OutlineBakeJob : IJobParallelFor
     {
         public const int MaxSubdivisions = 48;

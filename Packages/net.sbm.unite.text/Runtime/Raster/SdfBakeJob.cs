@@ -22,7 +22,7 @@ namespace Unite.Text.Raster
     /// Encodes many glyphs in parallel straight into one atlas page (rects of different
     /// tasks never overlap, so the shared output array needs no restriction).
     /// </summary>
-    [BurstCompile]
+    [BurstCompile(DisableSafetyChecks = true)]
     internal struct SdfBakeJob : IJobParallelFor
     {
         [ReadOnly] public NativeArray<float4> Edges;
