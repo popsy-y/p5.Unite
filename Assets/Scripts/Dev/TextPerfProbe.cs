@@ -123,6 +123,7 @@ namespace Dev
                 new Scenario { Name = "VariableFont animated (cold start included)", Page = CanvasTester.TestPage.VariableFont, Animate = true, WarmupFrames = 0, Frames = 900 },
                 new Scenario { Name = "VariableFont animated (warm)", Page = CanvasTester.TestPage.VariableFont, Animate = true, WarmupFrames = 120, Frames = 900 },
                 new Scenario { Name = "VariableFont static (steady state)", Page = CanvasTester.TestPage.VariableFont, Animate = false, WarmupFrames = 120, Frames = 600 },
+                new Scenario { Name = "Stress (all features, animated)", Page = CanvasTester.TestPage.Stress, Animate = true, WarmupFrames = 120, Frames = 600 },
             };
 
             foreach (var scenario in scenarios)

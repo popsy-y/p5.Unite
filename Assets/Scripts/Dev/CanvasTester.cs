@@ -278,46 +278,6 @@ namespace Dev
             );
         }
 
-        private void DrawStressTest()
-        {
-            float unit = Unit();
-            float strokeWeight = Mathf.Max(AntiAliasMinimum(), unit * 0.002f);
-            int shapeCount = Mathf.Max(1, _stressShapeCount);
-
-            _canvas.RectMode = ShapeMode.Center;
-            _canvas.EllipseMode = ShapeMode.Center;
-            _canvas.Stroke(new Color(0.02f, 0.04f, 0.08f, 0.65f));
-            _canvas.StrokeWeight(strokeWeight);
-
-            for (int index = 0; index < shapeCount; index++)
-            {
-                float x = 0.03f + Mathf.Repeat((index + 1) * 0.61803398875f, 1f) * 0.94f;
-                float y = 0.04f + Mathf.Repeat((index + 1) * 0.754877666f, 1f) * 0.92f;
-                float variation = Mathf.Repeat((index + 1) * 0.414213562f, 1f);
-                float size = Mathf.Lerp(unit * 0.006f, unit * 0.022f, variation);
-                Color color = Color.HSVToRGB(Mathf.Repeat(index * 0.071f, 1f), 0.65f, 0.95f);
-                color.a = 0.75f;
-                _canvas.Fill(color);
-
-                Vector3 position = Position(x, y);
-                switch (index % 4)
-                {
-                    case 0:
-                        _canvas.Circle(position, size);
-                        break;
-                    case 1:
-                        _canvas.Ellipse(position, new Vector2(size * 1.5f, size));
-                        break;
-                    case 2:
-                        _canvas.Rect(position, new Vector2(size * 1.6f, size), size * 0.2f);
-                        break;
-                    default:
-                        _canvas.Square(position, size, size * 0.15f);
-                        break;
-                }
-            }
-        }
-
         private void DrawDepthTest()
         {
             float unit = Unit();
