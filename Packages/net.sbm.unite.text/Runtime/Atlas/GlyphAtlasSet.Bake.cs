@@ -35,6 +35,12 @@ namespace Unite.Text
         private float4[] _edges = new float4[1024];
         private SdfBakeTask[] _tasks = new SdfBakeTask[32];
 
+        // Glyphs given as points start baking in batches of this many while the frame's
+        // text is still being laid out; the flush completes them with the rest.
+        internal const int EarlyBatchGlyphs = 48;
+        private int _pendingPointGlyphs;
+        private JobHandle _inFlight;
+
         /// <summary>
         /// Reserves a rect for a glyph outline and queues its encoding; the pixels exist
         /// after <see cref="Flush"/>. (offsetX, offsetY) is the pen-relative sprite rect
@@ -71,6 +77,9 @@ namespace Unite.Text
                 OriginX = originX,
                 OriginY = originY
             });
+
+            if (source.Points != null && ++_pendingPointGlyphs >= EarlyBatchGlyphs)
+                DispatchPointBakes();
             return ToCachedGlyph(entry);
         }
 
@@ -119,6 +128,10 @@ namespace Unite.Text
         public void Flush()
         {
             using var flushScope = TextProfiling.Flush.Auto();
+            DispatchPointBakes();
+            using (TextProfiling.Job.Auto())
+                CompleteInFlight();
+
             if (_pending.Count > 0)
             {
                 _batchPages.Clear();
@@ -148,6 +161,47 @@ namespace Unite.Text
                 }
                 _dirtyPages.Clear();
             }
+        }
+
+        // Schedules the queued point glyphs of every page and drops them from the queue;
+        // the pages are written by the jobs until CompleteInFlight.
+        private void DispatchPointBakes()
+        {
+            if (_pendingPointGlyphs == 0)
+                return;
+            _pendingPointGlyphs = 0;
+            using var scope = TextProfiling.Dispatch.Auto();
+
+            _batchPages.Clear();
+            foreach (var job in _pending)
+            {
+                if (job.Points != null && !_batchPages.Contains(job.Page))
+                    _batchPages.Add(job.Page);
+            }
+
+            foreach (var page in _batchPages)
+            {
+                if (page.Texture == null)
+                    continue;
+                _inFlight = JobHandle.CombineDependencies(_inFlight, ScheduleOutlineBake(page, page.Texture.GetRawTextureData<byte>()));
+                MarkDirty(page);
+            }
+            JobHandle.ScheduleBatchedJobs();
+
+            int kept = 0;
+            for (int index = 0; index < _pending.Count; index++)
+            {
+                if (_pending[index].Points == null)
+                    _pending[kept++] = _pending[index];
+            }
+            _pending.RemoveRange(kept, _pending.Count - kept);
+        }
+
+        /// <summary>Waits for the batches started by <see cref="DispatchPointBakes"/>; required before page memory is read, uploaded or destroyed.</summary>
+        private void CompleteInFlight()
+        {
+            _inFlight.Complete();
+            _inFlight = default;
         }
 
         private void BakePage(Page page)
@@ -357,7 +411,7 @@ namespace Unite.Text
             foreach (var candidate in _pages)
             {
                 if (candidate.InUse && !candidate.Volatile && candidate.Span == source.Span
-                    && candidate.Allocator.TryPlace(entry.W, entry.H, out x, out y))
+                    && candidate.TryPlace(entry.W, entry.H, out x, out y))
                 {
                     target = candidate;
                     break;
@@ -367,7 +421,7 @@ namespace Unite.Text
             if (target == null)
             {
                 target = AcquirePage(false, source.Span);
-                if (!target.Allocator.TryPlace(entry.W, entry.H, out x, out y))
+                if (!target.TryPlace(entry.W, entry.H, out x, out y))
                     return;
             }
 
@@ -401,6 +455,8 @@ namespace Unite.Text
 
         private void ClearPending()
         {
+            CompleteInFlight();
+            _pendingPointGlyphs = 0;
             _pending.Clear();
             _dirtyPages.Clear();
         }
@@ -425,7 +481,7 @@ namespace Unite.Text
             foreach (var candidate in _pages)
             {
                 if (candidate.InUse && candidate.Volatile == isVolatile && candidate.Span == span
-                    && candidate.Allocator.TryPlace(width, height, out x, out y))
+                    && candidate.TryPlace(width, height, out x, out y))
                 {
                     page = candidate;
                     break;
@@ -437,7 +493,7 @@ namespace Unite.Text
                 page = AcquirePage(isVolatile, span);
 
                 // Glyph rects are bounded by LargePageSpan through the layout bucket clamps.
-                if (!page.Allocator.TryPlace(width, height, out x, out y))
+                if (!page.TryPlace(width, height, out x, out y))
                 {
                     throw new ArgumentException(
                         $"p5.Unite: glyph rect {width}x{height} does not fit an atlas page."

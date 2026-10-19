@@ -1,5 +1,6 @@
 using Unity.Burst;
 using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 using Unity.Jobs;
 using Unity.Mathematics;
 
@@ -30,7 +31,8 @@ namespace Unite.Text.Raster
         [NativeDisableParallelForRestriction] public NativeArray<float> Distance;
         [NativeDisableParallelForRestriction] public NativeArray<float> CrossingX;
         [NativeDisableParallelForRestriction] public NativeArray<int> CrossingWinding;
-        [NativeDisableParallelForRestriction] public NativeArray<byte> Output;
+        // Several bakes write disjoint rects of one page at once (batches start before the flush).
+        [NativeDisableParallelForRestriction, NativeDisableContainerSafetyRestriction] public NativeArray<byte> Output;
         public int OutputStride;
 
         public void Execute(int index)

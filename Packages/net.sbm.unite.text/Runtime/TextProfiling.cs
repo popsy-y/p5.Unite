@@ -18,6 +18,8 @@ namespace Unite.Text
         public static readonly ProfilerMarker Substitute = new("Unite.Text.Shape.Gsub");
         public static readonly ProfilerMarker Position = new("Unite.Text.Shape.Gpos");
         public static readonly ProfilerMarker Allocate = new("Unite.Text.Allocate");
+        public static readonly ProfilerMarker NewPage = new("Unite.Text.Allocate.NewPage");
+        public static readonly ProfilerMarker Dispatch = new("Unite.Text.Bake.Dispatch");
         public static readonly ProfilerMarker Enqueue = new("Unite.Text.Enqueue");
         public static readonly ProfilerMarker Flush = new("Unite.Text.Flush");
         public static readonly ProfilerMarker Edges = new("Unite.Text.Bake.Edges");

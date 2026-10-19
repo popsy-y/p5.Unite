@@ -41,6 +41,8 @@ namespace Dev
             ("    Gvar deltas ms", ProfilerCategory.Scripts, "Unite.Text.Outline.Gvar", 1e-6),
             ("    Flatten ms", ProfilerCategory.Scripts, "Unite.Text.Outline.Flatten", 1e-6),
             ("  Allocate ms", ProfilerCategory.Scripts, "Unite.Text.Allocate", 1e-6),
+            ("    NewPage ms", ProfilerCategory.Scripts, "Unite.Text.Allocate.NewPage", 1e-6),
+            ("    Bake.Dispatch ms", ProfilerCategory.Scripts, "Unite.Text.Bake.Dispatch", 1e-6),
             ("  Enqueue ms", ProfilerCategory.Scripts, "Unite.Text.Enqueue", 1e-6),
             ("Text.Flush ms", ProfilerCategory.Scripts, "Unite.Text.Flush", 1e-6),
             ("  Bake.Edges ms", ProfilerCategory.Scripts, "Unite.Text.Bake.Edges", 1e-6),

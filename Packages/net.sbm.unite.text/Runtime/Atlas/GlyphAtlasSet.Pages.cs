@@ -29,6 +29,38 @@ namespace Unite.Text
             public bool Volatile;
             public bool Dirty;
             public int ReleasedFrame;
+
+            // Smallest rect that failed to fit since the page was reset. Rects are only
+            // added, so anything at least as wide and tall fails too and skips the search.
+            private int _failedWidth = int.MaxValue;
+            private int _failedHeight = int.MaxValue;
+
+            public bool TryPlace(int width, int height, out int x, out int y)
+            {
+                if (width >= _failedWidth && height >= _failedHeight)
+                {
+                    x = -1;
+                    y = -1;
+                    return false;
+                }
+
+                if (Allocator.TryPlace(width, height, out x, out y))
+                    return true;
+
+                if (width <= _failedWidth && height <= _failedHeight)
+                {
+                    _failedWidth = width;
+                    _failedHeight = height;
+                }
+                return false;
+            }
+
+            public void Reset()
+            {
+                Allocator.Reset();
+                _failedWidth = int.MaxValue;
+                _failedHeight = int.MaxValue;
+            }
         }
 
         private static readonly Dictionary<int, byte[]> ClearFields = new();
@@ -86,6 +118,7 @@ namespace Unite.Text
 
         private Page AcquirePage(bool isVolatile, int span)
         {
+            using var scope = TextProfiling.NewPage.Auto();
             Page page = null;
 
             // A spare page keeps its texture; reuse it before allocating another.
@@ -132,7 +165,7 @@ namespace Unite.Text
             page.InUse = true;
             page.Volatile = isVolatile;
             page.Live = 0;
-            page.Allocator.Reset();
+            page.Reset();
             ClearPage(page);
             int slotIndex = _pages.IndexOf(page);
             _pageTextures[slotIndex] = page.Texture;

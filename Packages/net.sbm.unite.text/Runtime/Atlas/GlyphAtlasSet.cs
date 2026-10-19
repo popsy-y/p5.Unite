@@ -139,6 +139,7 @@ namespace Unite.Text
 
         public void Dispose()
         {
+            CompleteInFlight();
             foreach (var page in _pages)
                 DestroyTexture(page.Texture);
 

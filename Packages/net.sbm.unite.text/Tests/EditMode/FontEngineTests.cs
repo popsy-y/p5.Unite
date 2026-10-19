@@ -177,6 +177,52 @@ namespace Unite.Text.Tests
             Assert.LessOrEqual(worst, 2, "the point bake must match the outline bake");
         }
 
+        [Test]
+        public void EarlyBatchesBakeLikeOneFlush()
+        {
+            // More point glyphs than one early batch, mixed with outline glyphs that bake at
+            // the flush: every rect must hold the same field as a lone bake.
+            var outline = TrueTypeOutlines.ParseSimpleRecord(RoundRecord);
+            const float scale = 0.32f;
+            const float origin = -8f;
+            const int size = 48;
+            const float range = 6f;
+            var expected = new byte[size * size];
+            SdfEncoder.Encode(outline.Contours, scale, origin, origin, size, size, range, expected);
+
+            int count = GlyphAtlasSet.EarlyBatchGlyphs * 2 + 5;
+            using var set = new GlyphAtlasSet(fontId: 4);
+            var baked = new GlyphAtlasSet.CachedGlyph[count];
+            for (int index = 0; index < count; index++)
+            {
+                var source = index % 7 == 3
+                    ? new GlyphBakeSource(outline)
+                    : new GlyphBakeSource(TrueTypeOutlines.ParseSimplePoints(RoundRecord));
+                baked[index] = set.Allocate(
+                    new GlyphKey(0, index, 32), frame: 0, isVolatile: false, size, size, range, 0f, 0f,
+                    source, scale, origin, origin
+                );
+            }
+            set.Flush();
+
+            for (int index = 0; index < count; index++)
+            {
+                var glyph = baked[index];
+                var pixels = glyph.Texture.GetPixelData<byte>(0);
+                int stride = glyph.Texture.width;
+                int worst = 0;
+                for (int row = 0; row < size; row++)
+                {
+                    for (int column = 0; column < size; column++)
+                    {
+                        int actual = pixels[(glyph.Y + row) * stride + glyph.X + column];
+                        worst = Mathf.Max(worst, Mathf.Abs(actual - expected[row * size + column]));
+                    }
+                }
+                Assert.LessOrEqual(worst, 2, $"glyph {index}");
+            }
+        }
+
         // Counter-clockwise square whose edges pass through texel centers on rows 4/11.
         private static Vector2[] Square() => new[]
         {
