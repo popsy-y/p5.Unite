@@ -696,18 +696,20 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 61842b5b430b4d898943fdba109e6136, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Dev.CanvasTester
-  _mode: 3
+  _showAtlas: 1
+  _atlasPageSize: 220
+  _mode: 0
   _executionMode: 0
   _enableDepth: 1
   _debugShapeBounds: 0
   _autoCycleModes: 0
   _cycleInterval: 3
-  _page: 6
+  _page: 8
   _autoCyclePages: 0
   _pageCycleInterval: 3
   _animateTransforms: 1
   _stressShapeCount: 5000
-  _textFont: {fileID: 11400000, guid: 6e3eeb01708244d48b5e011c3e9710e0, type: 2}
+  _fontPath: Assets/DevResources/Fonts/IBMPlexSans-VariableFont_wdth,wght.bytes
 --- !u!114 &605906603
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1878,6 +1880,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 61842b5b430b4d898943fdba109e6136, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Dev.CanvasTester
+  _showAtlas: 1
+  _atlasPageSize: 220
   _mode: 5
   _executionMode: 0
   _enableDepth: 1
@@ -1889,7 +1893,7 @@ MonoBehaviour:
   _pageCycleInterval: 3
   _animateTransforms: 1
   _stressShapeCount: 5000
-  _textFont: {fileID: 0}
+  _fontPath: Assets/DevResources/Fonts/IBMPlexSans-VariableFont_wdth,wght.bytes
 --- !u!114 &1275819814
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2829,6 +2833,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 61842b5b430b4d898943fdba109e6136, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Dev.CanvasTester
+  _showAtlas: 1
+  _atlasPageSize: 220
   _mode: 5
   _executionMode: 0
   _enableDepth: 1
@@ -2840,7 +2846,7 @@ MonoBehaviour:
   _pageCycleInterval: 3
   _animateTransforms: 1
   _stressShapeCount: 5000
-  _textFont: {fileID: 0}
+  _fontPath: Assets/DevResources/Fonts/IBMPlexSans-VariableFont_wdth,wght.bytes
 --- !u!114 &1762135873
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3626,6 +3632,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 61842b5b430b4d898943fdba109e6136, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Dev.CanvasTester
+  _showAtlas: 1
+  _atlasPageSize: 220
   _mode: 5
   _executionMode: 0
   _enableDepth: 1
@@ -3637,7 +3645,7 @@ MonoBehaviour:
   _pageCycleInterval: 3
   _animateTransforms: 1
   _stressShapeCount: 5000
-  _textFont: {fileID: 0}
+  _fontPath: Assets/DevResources/Fonts/IBMPlexSans-VariableFont_wdth,wght.bytes
 --- !u!114 &1869666849
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4198,6 +4206,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 61842b5b430b4d898943fdba109e6136, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Dev.CanvasTester
+  _showAtlas: 1
+  _atlasPageSize: 220
   _mode: 5
   _executionMode: 0
   _enableDepth: 1
@@ -4209,7 +4219,7 @@ MonoBehaviour:
   _pageCycleInterval: 3
   _animateTransforms: 1
   _stressShapeCount: 5000
-  _textFont: {fileID: 0}
+  _fontPath: Assets/DevResources/Fonts/IBMPlexSans-VariableFont_wdth,wght.bytes
 --- !u!114 &1996237512
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4302,6 +4312,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 61842b5b430b4d898943fdba109e6136, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Dev.CanvasTester
+  _showAtlas: 1
+  _atlasPageSize: 220
   _mode: 5
   _executionMode: 0
   _enableDepth: 1
@@ -4313,7 +4325,7 @@ MonoBehaviour:
   _pageCycleInterval: 3
   _animateTransforms: 1
   _stressShapeCount: 5000
-  _textFont: {fileID: 0}
+  _fontPath: Assets/DevResources/Fonts/IBMPlexSans-VariableFont_wdth,wght.bytes
 --- !u!114 &2020405482
 MonoBehaviour:
   m_ObjectHideFlags: 0

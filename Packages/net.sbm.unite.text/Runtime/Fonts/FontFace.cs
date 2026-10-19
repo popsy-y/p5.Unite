@@ -133,6 +133,9 @@ namespace Unite.Text.Fonts
         internal float MetricDelta(string tag, float[] coordinates)
             => _variations == null || coordinates == null ? 0f : _variations.MetricDelta(tag, coordinates);
 
+        internal GlyphPoints LoadPoints(int glyphId, float[] coordinates)
+            => glyphId < 0 || glyphId >= GlyphCount ? null : _outlines.LoadPoints(glyphId, coordinates);
+
         internal GlyphOutline LoadOutline(int glyphId, float[] coordinates)
             => glyphId < 0 || glyphId >= GlyphCount ? null : _outlines.Load(glyphId, coordinates);
 

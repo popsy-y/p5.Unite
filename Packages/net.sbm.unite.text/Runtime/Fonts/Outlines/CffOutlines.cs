@@ -115,6 +115,8 @@ namespace Unite.Text.Fonts
             return outline;
         }
 
+        public GlyphPoints LoadPoints(int glyphId, float[] coordinates) => null;
+
         public float AdvanceDelta(int glyphId, float[] coordinates) => 0f;
 
         private static PrivateData ReadPrivate(byte[] data, int cffOffset, CffDict dict)

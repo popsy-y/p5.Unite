@@ -93,6 +93,61 @@ namespace Unite.Text.Fonts
         public GlyphOutline Load(int glyphId, float[] coordinates)
             => Build(glyphId, UseVariations(coordinates), 0);
 
+        public GlyphPoints LoadPoints(int glyphId, float[] coordinates)
+        {
+            var glyph = GetGlyph(glyphId);
+            if (glyph == null || glyph.IsComposite)
+                return null;
+
+            // A glyph without a contour of two points or more has no outline.
+            bool drawable = false;
+            int contourStart = 0;
+            foreach (int end in glyph.EndPoints)
+            {
+                drawable |= end - contourStart + 1 >= 2;
+                contourStart = end + 1;
+            }
+            if (!drawable)
+                return null;
+
+            // Points are immutable per glyph, so the default master shares the parsed arrays.
+            var x = glyph.X;
+            var y = glyph.Y;
+            coordinates = UseVariations(coordinates);
+            if (coordinates != null)
+            {
+                int count = x.Length;
+                WithPhantomPoints(glyphId, glyph, count);
+
+                bool varied;
+                using (TextProfiling.Gvar.Auto())
+                    varied = _gvar.TryGetDeltas(glyphId, coordinates, _pointX, _pointY, count + PhantomPointCount, glyph.EndPoints, _deltaX, _deltaY);
+
+                if (varied)
+                {
+                    x = new float[count];
+                    y = new float[count];
+                    for (int index = 0; index < count; index++)
+                    {
+                        x[index] = glyph.X[index] + _deltaX[index];
+                        y[index] = glyph.Y[index] + _deltaY[index];
+                    }
+                }
+            }
+
+            var min = new Vector2(float.MaxValue, float.MaxValue);
+            var max = new Vector2(float.MinValue, float.MinValue);
+            for (int index = 0; index < x.Length; index++)
+            {
+                min.x = Mathf.Min(min.x, x[index]);
+                max.x = Mathf.Max(max.x, x[index]);
+                min.y = Mathf.Min(min.y, y[index]);
+                max.y = Mathf.Max(max.y, y[index]);
+            }
+
+            return new GlyphPoints(x, y, glyph.OnCurve, glyph.EndPoints, min, max, _flatness);
+        }
+
         public float AdvanceDelta(int glyphId, float[] coordinates)
         {
             coordinates = UseVariations(coordinates);
@@ -120,6 +175,23 @@ namespace Unite.Text.Fonts
             var builder = new OutlineBuilder(OutlineFlatness.For(1000));
             EmitContours(builder, glyph, glyph.X, glyph.Y, new List<Vector2>());
             return builder.ToOutline();
+        }
+
+        /// <summary>Parses a standalone simple glyph record into contour points (used by tests).</summary>
+        internal static GlyphPoints ParseSimplePoints(byte[] record)
+        {
+            var glyph = ParseRecord(new FontReader(record));
+            if (glyph == null || glyph.IsComposite)
+                return null;
+
+            var min = new Vector2(float.MaxValue, float.MaxValue);
+            var max = new Vector2(float.MinValue, float.MinValue);
+            for (int index = 0; index < glyph.X.Length; index++)
+            {
+                min = Vector2.Min(min, new Vector2(glyph.X[index], glyph.Y[index]));
+                max = Vector2.Max(max, new Vector2(glyph.X[index], glyph.Y[index]));
+            }
+            return new GlyphPoints(glyph.X, glyph.Y, glyph.OnCurve, glyph.EndPoints, min, max, OutlineFlatness.For(1000));
         }
 
         private float[] UseVariations(float[] coordinates)
@@ -166,7 +238,10 @@ namespace Unite.Text.Fonts
             {
                 int count = glyph.X.Length;
                 WithPhantomPoints(glyphId, glyph, count);
-                if (_gvar.TryGetDeltas(glyphId, coordinates, _pointX, _pointY, count + PhantomPointCount, glyph.EndPoints, _deltaX, _deltaY))
+                bool varied;
+                using (TextProfiling.Gvar.Auto())
+                    varied = _gvar.TryGetDeltas(glyphId, coordinates, _pointX, _pointY, count + PhantomPointCount, glyph.EndPoints, _deltaX, _deltaY);
+                if (varied)
                 {
                     x = _variedX;
                     y = _variedY;
@@ -179,8 +254,12 @@ namespace Unite.Text.Fonts
             }
 
             var builder = RentBuilder();
-            EmitContours(builder, glyph, x, y, _controls);
-            var outline = builder.ToOutline();
+            GlyphOutline outline;
+            using (TextProfiling.Flatten.Auto())
+            {
+                EmitContours(builder, glyph, x, y, _controls);
+                outline = builder.ToOutline();
+            }
             _builders.Push(builder);
             return outline;
         }

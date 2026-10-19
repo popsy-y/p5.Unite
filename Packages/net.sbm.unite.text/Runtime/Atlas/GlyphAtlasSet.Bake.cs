@@ -22,6 +22,7 @@ namespace Unite.Text
             public int Height;
             public float Range;
             public GlyphOutline Outline;
+            public GlyphPoints Points;
             public float Scale;
             public float OriginX;
             public float OriginY;
@@ -49,7 +50,7 @@ namespace Unite.Text
             float range,
             float offsetX,
             float offsetY,
-            GlyphOutline outline,
+            GlyphBakeSource source,
             float scale,
             float originX,
             float originY
@@ -64,7 +65,8 @@ namespace Unite.Text
                 Width = width,
                 Height = height,
                 Range = range,
-                Outline = outline,
+                Outline = source.Outline,
+                Points = source.Points,
                 Scale = scale,
                 OriginX = originX,
                 OriginY = originY
@@ -116,6 +118,7 @@ namespace Unite.Text
         /// </summary>
         public void Flush()
         {
+            using var flushScope = TextProfiling.Flush.Auto();
             if (_pending.Count > 0)
             {
                 _batchPages.Clear();
@@ -132,15 +135,19 @@ namespace Unite.Text
             }
 
             // Expiry and promotion touch page memory, so they run before the upload.
-            Maintain();
+            using (TextProfiling.Maintain.Auto())
+                Maintain();
 
-            foreach (var page in _dirtyPages)
+            using (TextProfiling.Upload.Auto())
             {
-                if (page.Texture != null)
-                    page.Texture.Apply(updateMipmaps: false, makeNoLongerReadable: false);
-                page.Dirty = false;
+                foreach (var page in _dirtyPages)
+                {
+                    if (page.Texture != null)
+                        page.Texture.Apply(updateMipmaps: false, makeNoLongerReadable: false);
+                    page.Dirty = false;
+                }
+                _dirtyPages.Clear();
             }
-            _dirtyPages.Clear();
         }
 
         private void BakePage(Page page)
@@ -170,10 +177,16 @@ namespace Unite.Text
                     continue;
                 }
 
+                if (job.Points != null)
+                    continue; // flattened and encoded by the outline job
+
                 int edgeStart = edgeTotal;
-                edgeTotal = EdgeBuilder.Append(
-                    ref _edges, edgeTotal, job.Outline.Contours, job.Scale, job.OriginX, job.OriginY
-                );
+                using (TextProfiling.Edges.Auto())
+                {
+                    edgeTotal = EdgeBuilder.Append(
+                        ref _edges, edgeTotal, job.Outline.Contours, job.Scale, job.OriginX, job.OriginY
+                    );
+                }
                 int edgeCount = edgeTotal - edgeStart;
 
                 if (_tasks.Length <= taskCount)
@@ -194,6 +207,8 @@ namespace Unite.Text
                 crossingTotal += edgeCount;
             }
 
+            var outlineHandle = ScheduleOutlineBake(page, raw);
+
             if (taskCount > 0)
             {
                 using var edges = new NativeArray<float4>(System.Math.Max(1, edgeTotal), Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
@@ -205,6 +220,7 @@ namespace Unite.Text
                 NativeArray<float4>.Copy(_edges, edges, edgeTotal);
                 NativeArray<SdfBakeTask>.Copy(_tasks, tasks, taskCount);
 
+                using var jobScope = TextProfiling.Job.Auto();
                 new SdfBakeJob
                 {
                     Edges = edges,
@@ -214,10 +230,113 @@ namespace Unite.Text
                     CrossingWinding = crossingWinding,
                     Output = raw,
                     OutputStride = page.Span
-                }.Schedule(taskCount, 1).Complete();
+                }.Schedule(taskCount, 1, outlineHandle).Complete();
+            }
+            else
+            {
+                using (TextProfiling.Job.Auto())
+                    outlineHandle.Complete();
             }
 
             MarkDirty(page);
+        }
+
+        // Glyphs given as contour points: one job flattens their curves and encodes them.
+        // The native arrays are disposed by jobs that depend on the bake, so they outlive it
+        // and the caller only has to complete the returned handle.
+        private JobHandle ScheduleOutlineBake(Page page, NativeArray<byte> raw)
+        {
+            int glyphs = 0;
+            int pointTotal = 0;
+            int contourTotal = 0;
+            int edgeTotal = 0;
+            int distanceTotal = 0;
+            foreach (var job in _pending)
+            {
+                if (job.Page != page || job.Points == null)
+                    continue;
+
+                glyphs++;
+                pointTotal += job.Points.X.Length;
+                contourTotal += job.Points.EndPoints.Length;
+                edgeTotal += job.Points.X.Length * OutlineBakeJob.MaxSubdivisions;
+                distanceTotal += job.Width * job.Height;
+            }
+
+            if (glyphs == 0)
+                return default;
+
+            var points = new NativeArray<float2>(pointTotal, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
+            var onCurve = new NativeArray<byte>(pointTotal, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
+            var endPoints = new NativeArray<int>(contourTotal, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
+            var tasks = new NativeArray<OutlineBakeTask>(glyphs, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
+            var edges = new NativeArray<float4>(edgeTotal, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
+            var distance = new NativeArray<float>(distanceTotal, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
+            var crossingX = new NativeArray<float>(edgeTotal, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
+            var crossingWinding = new NativeArray<int>(edgeTotal, Allocator.TempJob, NativeArrayOptions.UninitializedMemory);
+
+            int pointStart = 0;
+            int contourStart = 0;
+            int edgeStart = 0;
+            int distanceStart = 0;
+            int task = 0;
+            foreach (var job in _pending)
+            {
+                if (job.Page != page || job.Points == null)
+                    continue;
+
+                var source = job.Points;
+                for (int index = 0; index < source.X.Length; index++)
+                {
+                    points[pointStart + index] = new float2(source.X[index], source.Y[index]);
+                    onCurve[pointStart + index] = source.OnCurve[index] ? (byte)1 : (byte)0;
+                }
+                for (int index = 0; index < source.EndPoints.Length; index++)
+                    endPoints[contourStart + index] = source.EndPoints[index];
+
+                int edgeCapacity = source.X.Length * OutlineBakeJob.MaxSubdivisions;
+                tasks[task++] = new OutlineBakeTask
+                {
+                    PointStart = pointStart,
+                    ContourStart = contourStart,
+                    ContourCount = source.EndPoints.Length,
+                    Scale = job.Scale,
+                    OriginX = job.OriginX,
+                    OriginY = job.OriginY,
+                    Flatness = source.Flatness,
+                    EdgeStart = edgeStart,
+                    EdgeCapacity = edgeCapacity,
+                    Width = job.Width,
+                    Height = job.Height,
+                    Range = job.Range,
+                    DistanceStart = distanceStart,
+                    OutputStart = job.Y * page.Span + job.X
+                };
+
+                pointStart += source.X.Length;
+                contourStart += source.EndPoints.Length;
+                edgeStart += edgeCapacity;
+                distanceStart += job.Width * job.Height;
+            }
+
+            var handle = new OutlineBakeJob
+            {
+                Points = points,
+                OnCurve = onCurve,
+                EndPoints = endPoints,
+                Tasks = tasks,
+                Edges = edges,
+                Distance = distance,
+                CrossingX = crossingX,
+                CrossingWinding = crossingWinding,
+                Output = raw,
+                OutputStride = page.Span
+            }.Schedule(glyphs, 1);
+
+            var disposal = JobHandle.CombineDependencies(points.Dispose(handle), onCurve.Dispose(handle), endPoints.Dispose(handle));
+            disposal = JobHandle.CombineDependencies(disposal, tasks.Dispose(handle), edges.Dispose(handle));
+            disposal = JobHandle.CombineDependencies(disposal, distance.Dispose(handle), crossingX.Dispose(handle));
+            return JobHandle.CombineDependencies(disposal, crossingWinding.Dispose(handle));
         }
 
         // Moves a long-lived volatile glyph to the stable pages by copying its pixels

@@ -13,6 +13,12 @@ namespace Unite.Text.Fonts
         GlyphOutline Load(int glyphId, float[] coordinates);
 
         /// <summary>
+        /// The contour points of a simple glyph for flattening in the bake job, or null when
+        /// the format or glyph needs <see cref="Load"/> (composites, CFF, blank glyphs).
+        /// </summary>
+        GlyphPoints LoadPoints(int glyphId, float[] coordinates);
+
+        /// <summary>
         /// Advance width change implied by the glyph data itself (TrueType phantom
         /// points), used when the font has no HVAR table.
         /// </summary>

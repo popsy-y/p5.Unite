@@ -31,6 +31,16 @@ namespace Dev
         private string _fontStatus = "not loaded";
         private double _fontLoadMilliseconds;
 
+        /// <summary>Used by TextPerfProbe to run a scenario without editing the scene.</summary>
+        public void ConfigureForProfiling(TestPage page, bool showAtlas, bool animate, string fontPath)
+        {
+            _page = page;
+            _showAtlas = showAtlas;
+            _animateTransforms = animate;
+            if (!string.IsNullOrEmpty(fontPath))
+                _fontPath = fontPath;
+        }
+
         private void DrawVariableFontPage()
         {
             float unit = Unit();

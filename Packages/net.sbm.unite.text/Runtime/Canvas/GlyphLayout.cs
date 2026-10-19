@@ -41,7 +41,11 @@ namespace Unite.Text
                 return;
 
             var settings = SettingsFor(canvas, state);
-            var layout = TextLayout.Layout(font, settings, text, x, y, box, LayoutBuffer);
+            using var drawScope = TextProfiling.Draw.Auto();
+
+            TextLayoutResult layout;
+            using (TextProfiling.Layout.Auto())
+                layout = TextLayout.Layout(font, settings, text, x, y, box, LayoutBuffer);
 
             ResolveRaster(canvas, state, font, x, y, out int em, out float glyphScale, out float unitsPerPx);
             var atlas = AtlasRegistry.GetOrCreate(state.Font);
@@ -54,13 +58,18 @@ namespace Unite.Text
 
             foreach (var placed in layout.Glyphs)
             {
-                if (!font.TryGetOutline(placed.GlyphId, out var outline))
+                if (!font.TryGetBakeSource(placed.GlyphId, out var source))
                     continue;
 
                 var key = new GlyphKey(atlas.FontId, placed.GlyphId, em, font.Id);
-                if (!atlas.TryGetCached(key, frame, out var glyph) &&
-                    !TryAllocateGlyph(atlas, key, frame, !font.IsDefault, outline, em, glyphScale, out glyph))
-                    continue;
+                if (!atlas.TryGetCached(key, frame, out var glyph))
+                {
+                    bool allocated;
+                    using (TextProfiling.Allocate.Auto())
+                        allocated = TryAllocateGlyph(atlas, key, frame, !font.IsDefault, source, em, glyphScale, out glyph);
+                    if (!allocated)
+                        continue;
+                }
 
                 // Sprite rect: pen-relative origin (OffsetX/Y, font orientation y-up) +
                 // size in baked pixels, mapped into drawing space around the pen.
@@ -73,6 +82,7 @@ namespace Unite.Text
                 // The quad's -y half must sample the sprite's top in y-down space and its
                 // bottom in y-up space.
                 bool yDown = settings.YSign > 0f;
+                using var enqueueScope = TextProfiling.Enqueue.Auto();
                 canvas.EnqueueRawCommand(new DrawCommand
                 {
                     Transform = canvas.CurrentTransform
@@ -191,7 +201,7 @@ namespace Unite.Text
             GlyphKey key,
             int frame,
             bool isVolatile,
-            GlyphOutline outline,
+            GlyphBakeSource source,
             int emBucket,
             float glyphScale,
             out CachedGlyph glyph
@@ -203,10 +213,10 @@ namespace Unite.Text
             float range = Mathf.Clamp(Mathf.RoundToInt(emBucket * 0.125f), 4, 24);
             int pad = Mathf.CeilToInt(range) + 2;
 
-            float minX = outline.BoundsMin.x * glyphScale;
-            float maxX = outline.BoundsMax.x * glyphScale;
-            float minY = outline.BoundsMin.y * glyphScale;
-            float maxY = outline.BoundsMax.y * glyphScale;
+            float minX = source.BoundsMin.x * glyphScale;
+            float maxX = source.BoundsMax.x * glyphScale;
+            float minY = source.BoundsMin.y * glyphScale;
+            float maxY = source.BoundsMax.y * glyphScale;
 
             int width = Mathf.CeilToInt(maxX - minX) + pad * 2;
             int height = Mathf.CeilToInt(maxY - minY) + pad * 2;
@@ -222,7 +232,7 @@ namespace Unite.Text
             // (issueX, issueY) is the pen-relative sprite rect origin: the glyph's
             // baked pixel box measured from the pen origin / baseline (y-up).
             glyph = atlas.Allocate(
-                key, frame, isVolatile, width, height, range, issueX, issueY, outline, glyphScale, issueX, issueY
+                key, frame, isVolatile, width, height, range, issueX, issueY, source, glyphScale, issueX, issueY
             );
             return true;
         }

@@ -12,6 +12,7 @@ namespace Unite.Text.Fonts
         private readonly float[] _coordinates; // normalized axis coordinates; null = defaults
         private readonly Dictionary<int, float> _advances = new();
         private readonly Dictionary<int, GlyphOutline> _outlines = new();
+        private readonly Dictionary<int, GlyphBakeSource> _bakeSources = new();
         private static long _useCounter;
 
         internal FontInstance(FontFace face, float[] coordinates, int id)
@@ -66,11 +67,37 @@ namespace Unite.Text.Fonts
         /// Flattened outline of one glyph. Returns false for blank glyphs (space, .notdef,
         /// unresolvable composites); advance widths still apply to those.
         /// </summary>
+        /// <summary>
+        /// What the atlas bakes this glyph from: the contour points of a simple TrueType glyph
+        /// when possible (flattened in the bake job), otherwise the flattened outline. Returns
+        /// false for blank glyphs.
+        /// </summary>
+        internal bool TryGetBakeSource(int glyphId, out GlyphBakeSource source)
+        {
+            if (!_bakeSources.TryGetValue(glyphId, out source))
+            {
+                GlyphPoints points;
+                using (TextProfiling.Outline.Auto())
+                    points = Face.LoadPoints(glyphId, _coordinates);
+
+                if (points != null)
+                    source = new GlyphBakeSource(points);
+                else if (TryGetOutline(glyphId, out var outline))
+                    source = new GlyphBakeSource(outline);
+                else
+                    source = default;
+
+                _bakeSources[glyphId] = source;
+            }
+            return !source.IsEmpty;
+        }
+
         public bool TryGetOutline(int glyphId, out GlyphOutline outline)
         {
             if (!_outlines.TryGetValue(glyphId, out outline))
             {
-                outline = Face.LoadOutline(glyphId, _coordinates);
+                using (TextProfiling.Outline.Auto())
+                    outline = Face.LoadOutline(glyphId, _coordinates);
                 _outlines[glyphId] = outline;
             }
             return outline != null;

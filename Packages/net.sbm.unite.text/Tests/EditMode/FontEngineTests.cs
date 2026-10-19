@@ -121,6 +121,62 @@ namespace Unite.Text.Tests
             CollectionAssert.Contains(outline.Contours[0], new Vector2(50f, 100f));
         }
 
+        // Glyph records for the bake equivalence test: a contour of four off-curve points, and
+        // one mixing on-curve corners with an off-curve control.
+        private static readonly byte[] RoundRecord =
+        {
+            0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0,
+            0, 0, 0, 0,
+            0, 0, 0, 100, 0, 0, 0xFF, 0x9C,
+            0, 0, 0, 0, 0, 100, 0, 0
+        };
+
+        private static readonly byte[] MixedRecord =
+        {
+            0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0,
+            1, 1, 0, 1,
+            0, 0, 0, 100, 0, 0, 0xFF, 0x9C,
+            0, 0, 0, 0, 0, 100, 0, 0
+        };
+
+        [TestCase(0)]
+        [TestCase(1)]
+        public void PointBakeMatchesOutlineBake(int recordIndex)
+        {
+            var record = recordIndex == 0 ? RoundRecord : MixedRecord;
+            var outline = TrueTypeOutlines.ParseSimpleRecord(record);
+            var points = TrueTypeOutlines.ParseSimplePoints(record);
+            Assert.IsNotNull(points);
+
+            const float scale = 0.32f;
+            const float origin = -8f;
+            const int size = 48;
+            const float range = 6f;
+
+            var expected = new byte[size * size];
+            SdfEncoder.Encode(outline.Contours, scale, origin, origin, size, size, range, expected);
+
+            using var set = new GlyphAtlasSet(fontId: 3);
+            var baked = set.Allocate(
+                new GlyphKey(0, 1, 32), frame: 0, isVolatile: false, size, size, range, 0f, 0f,
+                new GlyphBakeSource(points), scale, origin, origin
+            );
+            set.Flush();
+
+            var pixels = baked.Texture.GetPixelData<byte>(0);
+            int stride = baked.Texture.width;
+            int worst = 0;
+            for (int row = 0; row < size; row++)
+            {
+                for (int column = 0; column < size; column++)
+                {
+                    int actual = pixels[(baked.Y + row) * stride + baked.X + column];
+                    worst = Mathf.Max(worst, Mathf.Abs(actual - expected[row * size + column]));
+                }
+            }
+            Assert.LessOrEqual(worst, 2, "the point bake must match the outline bake");
+        }
+
         // Counter-clockwise square whose edges pass through texel centers on rows 4/11.
         private static Vector2[] Square() => new[]
         {
