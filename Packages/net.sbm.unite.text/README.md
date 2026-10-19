@@ -19,6 +19,13 @@ List<TextPoint> points = font.TextToPoints("p5", 0f, 0f, TextPathOptions.FromCan
 // Variable fonts: weight and style map onto the font's axes, other axes by tag.
 canvas.TextWeight(650f);
 canvas.TextVariation("wdth", 80f);
+
+// Fallback fonts for characters the first font lacks (like a CSS font-family list),
+// OpenType features and language as in p5.js 2.x textProperty():
+canvas.TextFont(new[] { latinFont, japaneseFont, emojiFont }, 24f);
+canvas.TextProperty("fontFeatureSettings", "'smcp' 1, 'liga' 0");
+canvas.TextProperty("lang", "tr");
+canvas.TextDirection(TextDirectionMode.Auto);
 ```
 
 Glyphs are rasterized on demand into an SDF atlas cache (per font asset,
@@ -36,6 +43,34 @@ See `references/api-checklist/typography.md` in the repository for the mapping.
 
 Screen modes use p5's y-down canvas space; in the World and CanvasLocal modes text
 stays upright and lines advance toward -y.
+
+## Writing systems
+
+Text goes through the same steps as in a browser:
+
+- **Unicode 16 analysis**: extended grapheme clusters (UAX #29), the bidirectional
+  algorithm with bracket pairs and mirroring (UAX #9), line breaking (UAX #14: CJK
+  breaks between characters with the usual kinsoku rules, no-break space, zero-width
+  space, soft hyphen) and script runs (UAX #24). Each part passes the Unicode
+  conformance test files.
+- **OpenType shaping** modeled on HarfBuzz: GSUB lookups 1-8 and GPOS lookups 1-9
+  (kerning, cursive attachment, mark-to-base / ligature / mark), lookup flags and mark
+  filtering sets, `FeatureVariations` (`rvrn`), device / variation deltas, and the
+  legacy `kern` table. Arabic, Syriac, N'Ko, Mongolian, Adlam and the other joining
+  scripts get their positional forms; text is normalized (composed or decomposed) to what the font covers. The
+  results are checked against HarfBuzz on Windows system fonts.
+- **Font fallback**: a cluster is drawn with the first font in `TextFont(...)` that has
+  all its characters. Past those, the system fonts (Windows, macOS and Linux font
+  folders) are indexed on a worker thread the first time a character is missing and the
+  matching font is loaded in the background. Until it arrives the text shows tofu (the
+  primary font's .notdef). Set `FontFace.SystemFontFallback = false` to turn this off.
+- **Color glyphs**: COLRv0 / CPAL layers (such as Segoe UI Emoji) are drawn in their
+  palette colors; the foreground entry uses the fill color, whose alpha applies to all
+  layers. ZWJ sequences and flags come from the font's ligatures.
+
+Shaping results are cached per string, font stack, direction, features and language
+(about a few microseconds per glyph for new strings), so steady text costs only the
+lookup and placement.
 
 ## Font formats
 
@@ -62,14 +97,28 @@ a fraction of a millisecond per glyph). `FontFace.AtlasPages` exposes the baked 
 for inspection. World and CanvasLocal text is baked at the size it covers on screen (up to
 1024 px per em; the largest sizes use 2048 px pages), so it stays sharp when the camera moves closer.
 
-## Current limitations (v1)
+## Current limitations
 
-- No shaping: one glyph per code point via cmap (formats 4/12/0); kerning, GSUB/GPOS
-  and bidi are not applied. Right-to-left only reverses the glyph order per line.
+- Scripts that need reordering or syllable shaping beyond the default OpenType
+  features are not shaped correctly: Indic scripts (Devanagari, Bengali, Tamil, ...),
+  Thai, Lao, Khmer, Myanmar, Tibetan and similar. They are drawn with the default
+  features only, without reordering.
+- Only COLRv0 color glyphs. COLRv1 gradients and bitmap emoji fonts (sbix, CBDT: Apple
+  Color Emoji, Noto Color Emoji) are not drawn; such fonts give blank glyphs.
+- Variation selectors (cmap format 14) are not used to choose glyphs; VS15 / VS16 are
+  ignored when picking fonts.
+- System font fallback only covers desktop platforms (it needs the font folders). On
+  other platforms missing characters stay tofu unless a fallback font is given to
+  `TextFont`.
 - Variable OpenType/CFF2 fonts are not supported (variable TrueType fonts are).
 - `TextStyle()` and `TextWeight()` are synthesized (slant and outline offset) only for
   fonts without matching variation axes; they do not affect the p5.Font outline
   functions.
-- Glyphs are baked once per frame just before the canvases draw (Burst jobs, all cores);
-  a frame that needs many new glyphs at once (first draw of a page of text) still takes
-  a few milliseconds.
+- Glyphs start baking in Burst jobs while text is laid out and are finished just before
+  the canvases draw; a frame that needs many new glyphs at once (first draw of a page of
+  text) still takes a few milliseconds.
+
+## Third-party data
+
+The Unicode tables are generated from the Unicode Character Database; see
+`Third Party Notices.md`.

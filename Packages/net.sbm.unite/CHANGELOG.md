@@ -12,6 +12,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Samples~/BasicDrawing`: importable sample scene that draws circles, rounded rectangles and
   curves through the `UCanvas` API.
 
+### Changed
+
+- The per-frame shape data is built by a Burst-compiled kernel (new `com.unity.burst`
+  dependency), once per frame instead of once per camera.
+- `DrawCommand` holds no references: polygon points and glyph atlases are referred to by
+  index (`PolygonPointStart` / `PolygonPointCount`, `GlyphAtlasIndex`). The
+  `DrawingContext` constructor is internal.
+- `Translate`, `Rotate` and `Scale` update the current matrix in closed form.
+
 ### Fixed
 
 - Declare the `com.unity.render-pipelines.universal` dependency. The drawing shaders include URP's

@@ -8,7 +8,7 @@ p5.js風のクリエイティブコーディングをUnityで楽しむための�
 
 - Unity 6000.2 以降
 - **URP（Universal Render Pipeline）が必要です。** 描画シェーダーがURPのシェーダーライブラリをインクルードしています
-- 依存パッケージ（`com.unity.mathematics`, `com.unity.render-pipelines.core`, `com.unity.render-pipelines.universal`）はUPMが自動で解決します
+- 依存パッケージ（`com.unity.burst`, `com.unity.mathematics`, `com.unity.render-pipelines.core`, `com.unity.render-pipelines.universal`）はUPMが自動で解決します
 
 ## インストール
 
