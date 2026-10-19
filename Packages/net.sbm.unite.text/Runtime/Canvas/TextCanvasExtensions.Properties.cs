@@ -35,16 +35,25 @@ namespace Unite.Text
             ["textDirection"] = "direction",
             ["letterSpacing"] = "letterSpacing",
             ["wordSpacing"] = "wordSpacing",
-            ["fontVariationSettings"] = "fontVariationSettings"
+            ["fontVariationSettings"] = "fontVariationSettings",
+            ["fontFeatureSettings"] = "fontFeatureSettings",
+            ["fontKerning"] = "fontKerning",
+            ["fontVariantLigatures"] = "fontVariantLigatures",
+            ["lang"] = "lang",
+            ["language"] = "lang"
         };
 
         /// <summary>
         /// Sets one text property by name, like p5 textProperty(prop, value). Supported:
         /// textFont, textSize (fontSize), textLeading (lineHeight), textAlign,
         /// textBaseline, textStyle (fontStyle), textWeight (fontWeight), textWrap,
-        /// direction (textDirection), letterSpacing, wordSpacing and
+        /// direction (textDirection: ltr / rtl / auto), letterSpacing, wordSpacing,
         /// fontVariationSettings (a CSS-like string such as "wght" 700, "wdth" 75, or an
-        /// IEnumerable of <see cref="AxisSetting"/>). Enum values accept the enum or its
+        /// IEnumerable of <see cref="AxisSetting"/>), and the CSS OpenType controls
+        /// fontFeatureSettings ("liga" 0, "smcp", "ss01" on, "salt" 2), fontKerning
+        /// (normal / none), fontVariantLigatures (none, no-common-ligatures,
+        /// discretionary-ligatures, no-contextual, ...) and lang (a BCP 47 tag such as "ja"
+        /// or "sr" that picks localized glyph forms). Enum values accept the enum or its
         /// name; sizes and spacings are in drawing units.
         /// </summary>
         public static void TextProperty(this UCanvas canvas, string property, object value)
@@ -93,6 +102,18 @@ namespace Unite.Text
                     case "fontVariationSettings":
                         state.Variations = ToAxisSettings(value);
                         break;
+                    case "fontFeatureSettings":
+                        state.FontFeatureSettings = (string)value;
+                        break;
+                    case "fontKerning":
+                        state.FontKerning = (string)value;
+                        break;
+                    case "fontVariantLigatures":
+                        state.FontVariantLigatures = (string)value;
+                        break;
+                    case "lang":
+                        state.Language = (string)value;
+                        break;
                 }
             }
             catch (Exception exception) when (exception is InvalidCastException or FormatException or ArgumentException or OverflowException)
@@ -137,7 +158,11 @@ namespace Unite.Text
                 ["direction"] = state.Direction,
                 ["letterSpacing"] = state.LetterSpacing,
                 ["wordSpacing"] = state.WordSpacing,
-                ["fontVariationSettings"] = state.Variations != null ? new List<AxisSetting>(state.Variations).ToArray() : Array.Empty<AxisSetting>()
+                ["fontVariationSettings"] = state.Variations != null ? new List<AxisSetting>(state.Variations).ToArray() : Array.Empty<AxisSetting>(),
+                ["fontFeatureSettings"] = state.FontFeatureSettings ?? "normal",
+                ["fontKerning"] = state.FontKerning ?? "normal",
+                ["fontVariantLigatures"] = state.FontVariantLigatures ?? "normal",
+                ["lang"] = state.Language ?? string.Empty
             };
         }
 

@@ -26,6 +26,12 @@ namespace Unite.Text
         public float LetterSpacing;
         public float WordSpacing;
 
+        /// <summary>CSS-like OpenType controls, as textProperty fontKerning / fontVariantLigatures / fontFeatureSettings / lang.</summary>
+        public string FontKerning;
+        public string FontVariantLigatures;
+        public string FontFeatureSettings;
+        public string Language;
+
         /// <summary>
         /// Output orientation. False (default) is p5's y-down canvas space; true flips
         /// glyphs upright for y-up spaces such as the world drawing modes.
@@ -64,6 +70,10 @@ namespace Unite.Text
                 Direction = state.Direction,
                 LetterSpacing = state.LetterSpacing,
                 WordSpacing = state.WordSpacing,
+                FontKerning = state.FontKerning,
+                FontVariantLigatures = state.FontVariantLigatures,
+                FontFeatureSettings = state.FontFeatureSettings,
+                Language = state.Language,
                 YUp = GlyphLayout.IsYUp(canvas.CurrentDrawingMode),
                 Variations = state.ResolveAxes()
             };
@@ -79,6 +89,8 @@ namespace Unite.Text
             Direction = Direction,
             LetterSpacing = LetterSpacing,
             WordSpacing = WordSpacing,
+            Features = Shaping.TextFeatures.From(FontKerning, FontVariantLigatures, FontFeatureSettings),
+            LanguageTag = Shaping.LanguageTags.For(Language),
             YSign = YUp ? -1f : 1f
         };
     }

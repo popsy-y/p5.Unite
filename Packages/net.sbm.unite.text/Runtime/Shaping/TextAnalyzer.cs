@@ -17,6 +17,8 @@ namespace Unite.Text.Shaping
         private readonly BasicShaper _shaper = new();
         private readonly OpenTypeShaper _openTypeShaper = new();
         private static readonly int DefaultLanguage = Fonts.Layout.OpenTypeData.Tag("dflt");
+        private TextFeatures _features = TextFeatures.Default;
+        private int _language;
 
         public void Analyze(TextAnalysis target, string text, TextDirectionMode direction)
         {
@@ -33,8 +35,10 @@ namespace Unite.Text.Shaping
             ResolveScripts(target, codePoints);
         }
 
-        public void Shape(ShapedText target, TextAnalysis analysis, FontInstance font)
+        public void Shape(ShapedText target, TextAnalysis analysis, FontInstance font, TextFeatures features = null, int languageTag = 0)
         {
+            _features = features ?? TextFeatures.Default;
+            _language = languageTag == 0 ? DefaultLanguage : languageTag;
             target.Reset(analysis);
             for (int paragraph = 0; paragraph < analysis.ParagraphCount; paragraph++)
             {
@@ -63,7 +67,7 @@ namespace Unite.Text.Shaping
                 int glyphs = target.GlyphCount;
                 try
                 {
-                    _openTypeShaper.Shape(target, font, 0, start, end, rightToLeft, script, DefaultLanguage);
+                    _openTypeShaper.Shape(target, font, 0, start, end, rightToLeft, script, _language, _features);
                     return;
                 }
                 catch (IndexOutOfRangeException)

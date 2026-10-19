@@ -25,6 +25,10 @@ namespace Unite.Text
         public float LetterSpacing;
         public float WordSpacing;
 
+        /// <summary>OpenType features to apply (null = defaults) and the OpenType language tag (0 = dflt).</summary>
+        public TextFeatures Features;
+        public int LanguageTag;
+
         /// <summary>Outward outline offset (synthetic weight); widens each advance by twice this.</summary>
         public float Embolden;
 
@@ -50,6 +54,8 @@ namespace Unite.Text
                 Direction = state.Direction,
                 LetterSpacing = state.LetterSpacing,
                 WordSpacing = state.WordSpacing,
+                Features = state.Features,
+                LanguageTag = LanguageTags.For(state.Language),
                 Embolden = synthesizeWeight ? EmboldenFor(weight, state.Size) : 0f,
                 Slant = synthesizeItalic && state.IsItalic ? ItalicSlant : 0f,
                 YSign = yUp ? -1f : 1f
@@ -173,7 +179,7 @@ namespace Unite.Text
             if (font == null || string.IsNullOrEmpty(text))
                 return result;
 
-            var shaped = ShapingCache.Get(font, text, settings.Direction);
+            var shaped = ShapingCache.Get(font, text, settings.Direction, settings.Features, settings.LanguageTag);
             BreakLines(shaped, settings, box?.Width ?? 0f, result.Ranges);
 
             float scale = settings.Size / font.UnitsPerEm;

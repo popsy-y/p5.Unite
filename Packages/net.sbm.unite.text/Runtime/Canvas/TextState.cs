@@ -96,6 +96,36 @@ namespace Unite.Text
         public float WordSpacing;
         public bool WarnedMissingFont;
 
+        // CSS-like OpenType controls (textProperty fontKerning / fontVariantLigatures /
+        // fontFeatureSettings / lang).
+        public string FontKerning;
+        public string FontVariantLigatures;
+        public string FontFeatureSettings;
+        public string Language;
+
+        private Shaping.TextFeatures _features;
+        private string _featuresKerning;
+        private string _featuresLigatures;
+        private string _featuresSettings;
+
+        /// <summary>The interned feature settings for the current properties.</summary>
+        public Shaping.TextFeatures Features
+        {
+            get
+            {
+                if (_features == null || !ReferenceEquals(_featuresKerning, FontKerning)
+                    || !ReferenceEquals(_featuresLigatures, FontVariantLigatures)
+                    || !ReferenceEquals(_featuresSettings, FontFeatureSettings))
+                {
+                    _features = Shaping.TextFeatures.From(FontKerning, FontVariantLigatures, FontFeatureSettings);
+                    _featuresKerning = FontKerning;
+                    _featuresLigatures = FontVariantLigatures;
+                    _featuresSettings = FontFeatureSettings;
+                }
+                return _features;
+            }
+        }
+
         public FontFace Font
         {
             get => _font;
@@ -195,6 +225,10 @@ namespace Unite.Text
             Direction = other.Direction;
             LetterSpacing = other.LetterSpacing;
             WordSpacing = other.WordSpacing;
+            FontKerning = other.FontKerning;
+            FontVariantLigatures = other.FontVariantLigatures;
+            FontFeatureSettings = other.FontFeatureSettings;
+            Language = other.Language;
             WarnedMissingFont = other.WarnedMissingFont;
         }
 

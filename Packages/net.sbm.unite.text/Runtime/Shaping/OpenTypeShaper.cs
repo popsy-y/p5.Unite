@@ -22,10 +22,10 @@ namespace Unite.Text.Shaping
         private readonly PositioningApplier _positions = new();
         private readonly List<int> _scriptTags = new(2);
 
-        public void Shape(ShapedText target, FontInstance font, int face, int start, int end, bool rightToLeft, UnicodeScript script, int languageTag)
+        public void Shape(ShapedText target, FontInstance font, int face, int start, int end, bool rightToLeft, UnicodeScript script, int languageTag, TextFeatures features)
         {
             var layout = font.Face.OpenType;
-            var plan = PlanCache.Get(font, layout, script, languageTag, rightToLeft, _scriptTags);
+            var plan = PlanCache.Get(font, layout, script, languageTag, rightToLeft, features, _scriptTags);
             var buffer = _buffer;
             buffer.Clear(rightToLeft);
             Fill(target, font, layout, plan, start, end, rightToLeft, script);
@@ -188,28 +188,30 @@ namespace Unite.Text.Shaping
             private readonly int _language;
             private readonly bool _rightToLeft;
             private readonly int _variation;
+            private readonly int _features;
 
-            public Key(OpenTypeLayout layout, UnicodeScript script, int language, bool rightToLeft, int variation)
+            public Key(OpenTypeLayout layout, UnicodeScript script, int language, bool rightToLeft, int variation, int features)
             {
                 _layout = layout;
                 _script = script;
                 _language = language;
                 _rightToLeft = rightToLeft;
                 _variation = variation;
+                _features = features;
             }
 
             public bool Equals(Key other)
                 => ReferenceEquals(_layout, other._layout) && _script == other._script && _language == other._language
-                    && _rightToLeft == other._rightToLeft && _variation == other._variation;
+                    && _rightToLeft == other._rightToLeft && _variation == other._variation && _features == other._features;
 
             public override bool Equals(object obj) => obj is Key other && Equals(other);
 
-            public override int GetHashCode() => HashCode.Combine(_layout, (int)_script, _language, _rightToLeft, _variation);
+            public override int GetHashCode() => HashCode.Combine(_layout, (int)_script, _language, _rightToLeft, _variation, _features);
         }
 
         private static readonly Dictionary<Key, ShapePlan> Plans = new();
 
-        public static ShapePlan Get(FontInstance font, OpenTypeLayout layout, UnicodeScript script, int languageTag, bool rightToLeft, List<int> scriptTags)
+        public static ShapePlan Get(FontInstance font, OpenTypeLayout layout, UnicodeScript script, int languageTag, bool rightToLeft, TextFeatures features, List<int> scriptTags)
         {
             var coordinates = font.Coordinates;
             int variation = Math.Max(
@@ -217,13 +219,16 @@ namespace Unite.Text.Shaping
                 layout.Positions?.FindVariation(coordinates) ?? -1
             );
 
-            var key = new Key(layout, script, languageTag, rightToLeft, variation);
+            var key = new Key(layout, script, languageTag, rightToLeft, variation, features.Id);
             if (Plans.TryGetValue(key, out var plan))
                 return plan;
 
             scriptTags.Clear();
             scriptTags.Add(Tag(UnicodeData.OpenTypeTag(script)));
-            plan = Features(script, rightToLeft).Build(layout, scriptTags, languageTag, coordinates);
+            var builder = Features(script, rightToLeft);
+            foreach (var (tag, value) in features.Settings)
+                builder.Add(tag, value: value);
+            plan = builder.Build(layout, scriptTags, languageTag, coordinates);
             Plans.Add(key, plan);
             return plan;
         }

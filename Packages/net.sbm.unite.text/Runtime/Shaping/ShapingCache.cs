@@ -41,18 +41,23 @@ namespace Unite.Text.Shaping
             private readonly string _text;
             private readonly int _font;
             private readonly TextDirectionMode _direction;
+            private readonly int _features;
+            private readonly int _language;
             private readonly int _hash;
 
-            public ShapeKey(string text, int font, TextDirectionMode direction)
+            public ShapeKey(string text, int font, TextDirectionMode direction, int features, int language)
             {
                 _text = text;
                 _font = font;
                 _direction = direction;
-                _hash = HashCode.Combine(text.GetHashCode(), font, (int)direction);
+                _features = features;
+                _language = language;
+                _hash = HashCode.Combine(text.GetHashCode(), font, (int)direction, features, language);
             }
 
             public bool Equals(ShapeKey other)
                 => _hash == other._hash && _font == other._font && _direction == other._direction
+                    && _features == other._features && _language == other._language
                     && string.Equals(_text, other._text, StringComparison.Ordinal);
 
             public override bool Equals(object obj) => obj is ShapeKey other && Equals(other);
@@ -65,13 +70,17 @@ namespace Unite.Text.Shaping
         private static readonly TextAnalyzer Analyzer = new();
 
         /// <summary>The shaped text; valid until the next call that misses the cache.</summary>
-        public static ShapedText Get(FontInstance font, string text, TextDirectionMode direction)
+        public static ShapedText Get(FontInstance font, string text, TextDirectionMode direction, TextFeatures features = null, int languageTag = 0)
         {
-            var key = new ShapeKey(text, font.Id, direction);
+            features ??= TextFeatures.Default;
+            if (languageTag == 0)
+                languageTag = LanguageTags.Default;
+
+            var key = new ShapeKey(text, font.Id, direction, features.Id, languageTag);
             if (Shapes.TryGet(key, out var shaped))
             {
                 if (!shaped.IsCurrent)
-                    Analyzer.Shape(shaped, GetAnalysis(text, direction), font);
+                    Analyzer.Shape(shaped, GetAnalysis(text, direction), font, features, languageTag);
                 return shaped;
             }
 
@@ -80,7 +89,7 @@ namespace Unite.Text.Shaping
             shaped ??= new ShapedText();
             Shapes.SetValue(slot, shaped);
             using (TextProfiling.Shape.Auto())
-                Analyzer.Shape(shaped, analysis, font);
+                Analyzer.Shape(shaped, analysis, font, features, languageTag);
             return shaped;
         }
 
