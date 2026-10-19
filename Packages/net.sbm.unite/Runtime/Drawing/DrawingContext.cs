@@ -30,6 +30,9 @@ namespace Unite.Drawing
         private int _builtGeneration = -1;
         private float _builtPixelPadding = float.NaN;
 
+        // Submission index of the draws of the current camera (sets their sort distance).
+        private int _submitOrder;
+
         // Property blocks are recycled frame to frame instead of allocating one per draw
         // call. Within a frame every draw gets its own block, so it does not matter whether
         // a submitted draw still refers to its block until the camera renders.
@@ -192,6 +195,7 @@ namespace Unite.Drawing
             }
 
             using var submitScope = SubmitMarker.Auto();
+            _submitOrder = 0;
             if (ExecutionMode == DrawingExecutionMode.Sequential)
             {
                 RenderSequential(cam, count);
@@ -395,10 +399,16 @@ namespace Unite.Drawing
                 properties.SetMatrix(PID.ParentTransform, _parentTransform.localToWorldMatrix);
             }
 
+            // The pipeline sorts transparent draws back to front by their bounds center
+            // (URP's transparent sort ignores rendererPriority). Each later draw's center
+            // sits a little closer to the camera, so the sort keeps submission (painter's)
+            // order across draws: shapes and glyph atlas runs.
+            var cameraTransform = cam.transform;
+            float sortDistance = 1000f - 0.01f * _submitOrder++;
             var baseMaterial = atlas != null ? GetGlyphMaterial(atlas) : _material;
             return new RenderParams(useDepthPrepass ? _depthPrepassMaterial : baseMaterial)
             {
-                worldBounds = new Bounds(cam.transform.position, Vector3.one * 10000f),
+                worldBounds = new Bounds(cameraTransform.position + cameraTransform.forward * sortDistance, Vector3.one * 10000f),
                 camera = cam,
                 matProps = properties
             };
