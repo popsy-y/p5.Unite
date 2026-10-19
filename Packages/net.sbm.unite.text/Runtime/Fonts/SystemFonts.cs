@@ -47,6 +47,7 @@ namespace Unite.Text.Fonts
         private static readonly ConcurrentQueue<(Entry Entry, FontFace Face)> Completed = new();
         private static readonly HashSet<int> Uncovered = new();
         private static volatile IndexState _state = IndexState.Idle;
+        private static volatile bool _indexPublished;
         private static List<Entry> _entries;
 
         /// <summary>Changes whenever a system font finishes loading.</summary>
@@ -64,6 +65,15 @@ namespace Unite.Text.Fonts
         /// <summary>Main thread: publishes fonts loaded in the background. Cheap when nothing is pending.</summary>
         public static void Poll()
         {
+            // Text shaped while the index was being built drew tofu without asking for a
+            // font; a new generation reshapes it, which finds and loads the font now.
+            if (_indexPublished)
+            {
+                _indexPublished = false;
+                Uncovered.Clear();
+                Generation++;
+            }
+
             while (Completed.TryDequeue(out var completed))
             {
                 completed.Entry.Loading = false;
@@ -224,6 +234,7 @@ namespace Unite.Text.Fonts
                 _entries = entries;
                 IndexMilliseconds = timer.Elapsed.TotalMilliseconds;
                 _state = IndexState.Ready;
+                _indexPublished = true;
             }
         }
 
