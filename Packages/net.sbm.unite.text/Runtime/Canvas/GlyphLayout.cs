@@ -153,10 +153,9 @@ namespace Unite.Text
             using var enqueueScope = TextProfiling.Enqueue.Auto();
             context.Canvas.EnqueueRawCommand(new DrawCommand
             {
-                Transform = context.Canvas.CurrentTransform
-                    * Matrix4x4.Translate(new Vector3(placed.PenX, placed.Baseline, 0f))
-                    * context.Slant
-                    * Matrix4x4.Translate(local),
+                Transform = Unite.Coordinate.MatrixMath.Glyph(
+                    context.Canvas.CurrentTransform, placed.PenX, placed.Baseline, context.Slant.m01, local.x, local.y
+                ),
                 Size = new Vector2(glyph.W * unitsPerPx, glyph.H * unitsPerPx),
                 ShapeType = Shape.Text,
                 Point2 = new Vector2(glyph.UvMin.x, yDown ? glyph.UvMax.y : glyph.UvMin.y),

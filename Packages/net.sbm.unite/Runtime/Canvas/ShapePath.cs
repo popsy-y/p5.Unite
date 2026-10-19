@@ -560,8 +560,7 @@ namespace Unite.Canvas
             float centerZ = zSum / Mathf.Max(1, zCount);
             _commandQueue.Add(new DrawCommand
             {
-                Transform = CurrentTransform
-                    * Matrix4x4.Translate(new Vector3(center.x, center.y, centerZ)),
+                Transform = TransformAt(new Vector3(center.x, center.y, centerZ)),
                 BoundsMin = boundsMin - center,
                 BoundsMax = boundsMax - center,
                 HasCustomBounds = true,

@@ -12,6 +12,10 @@ namespace Unite.Canvas
 
         internal Matrix4x4 CurrentTransform => _transformStack.CurrentMatrix;
 
+        /// <summary>The current transform followed by a translation to a shape's local origin.</summary>
+        internal Matrix4x4 TransformAt(Vector3 origin)
+            => Unite.Coordinate.MatrixMath.Translated(_transformStack.CurrentMatrix, origin.x, origin.y, origin.z);
+
         /// <summary>
         /// Clears the current transformation matrix without discarding saved Push() states.
         /// </summary>

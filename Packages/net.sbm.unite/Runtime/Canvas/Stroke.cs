@@ -67,7 +67,7 @@ namespace Unite.Canvas
 
             _commandQueue.Add(new DrawCommand
             {
-                Transform = CurrentTransform * Matrix4x4.Translate(midpoint),
+                Transform = TransformAt(midpoint),
                 LineStart = start - midpoint,
                 LineEnd = end - midpoint,
                 ShapeType = Shape.Line3D,

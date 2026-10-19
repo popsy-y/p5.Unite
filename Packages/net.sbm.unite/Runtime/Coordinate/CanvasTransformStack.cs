@@ -53,13 +53,13 @@ namespace Unite.Coordinate
         public void ApplyMatrix(Matrix4x4 matrix) => _currentMatrix *= matrix;
 
         public void Translate(Vector3 translation)
-            => _currentMatrix *= Matrix4x4.Translate(translation);
+            => MatrixMath.Translate(ref _currentMatrix, translation.x, translation.y, translation.z);
 
         public void Translate(float x, float y, float z = 0f)
-            => Translate(new Vector3(x, y, z));
+            => MatrixMath.Translate(ref _currentMatrix, x, y, z);
 
         public void Rotate(float radians)
-            => _currentMatrix *= Matrix4x4.Rotate(Quaternion.Euler(0f, 0f, radians * Mathf.Rad2Deg));
+            => MatrixMath.RotateZ(ref _currentMatrix, radians);
 
         public void Rotate(Vector3 anglesRadians)
             => _currentMatrix *= Matrix4x4.Rotate(Quaternion.Euler(anglesRadians * Mathf.Rad2Deg));
@@ -81,10 +81,10 @@ namespace Unite.Coordinate
         public void RotateZ(float radians) => Rotate(radians, Vector3.forward);
 
         public void Scale(Vector3 scale)
-            => _currentMatrix *= Matrix4x4.Scale(scale);
+            => MatrixMath.Scale(ref _currentMatrix, scale.x, scale.y, scale.z);
 
         public void Scale(float x, float y, float z)
-            => Scale(new Vector3(x, y, z));
+            => MatrixMath.Scale(ref _currentMatrix, x, y, z);
 
         public void ShearX(float radians)
         {

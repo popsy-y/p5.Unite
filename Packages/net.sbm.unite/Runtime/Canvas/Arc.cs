@@ -81,7 +81,7 @@ namespace Unite.Canvas
 
             _commandQueue.Add(new DrawCommand
             {
-                Transform = CurrentTransform * Matrix4x4.Translate(center),
+                Transform = TransformAt(center),
                 Size = shapeSize,
                 BoundsMin = boundsMin,
                 BoundsMax = boundsMax,

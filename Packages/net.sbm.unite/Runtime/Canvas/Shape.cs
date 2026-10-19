@@ -83,7 +83,7 @@ namespace Unite.Canvas
 
             _commandQueue.Add(new DrawCommand
             {
-                Transform = CurrentTransform * Matrix4x4.Translate(center),
+                Transform = TransformAt(center),
                 Size = Abs(size),
                 ShapeType = shape,
                 CornerRadiiX = Abs(cornerRadii),
@@ -139,7 +139,7 @@ namespace Unite.Canvas
 
             _commandQueue.Add(new DrawCommand
             {
-                Transform = CurrentTransform * Matrix4x4.Translate(center3),
+                Transform = TransformAt(center3),
                 Size = shapeBoundsMax - shapeBoundsMin,
                 Point0 = shapePoint0,
                 Point1 = shapePoint1,
