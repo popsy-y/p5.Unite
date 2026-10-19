@@ -43,21 +43,23 @@ namespace Unite.Text.Shaping
             private readonly TextDirectionMode _direction;
             private readonly int _features;
             private readonly int _language;
+            private readonly int _systemFonts;
             private readonly int _hash;
 
-            public ShapeKey(string text, int font, TextDirectionMode direction, int features, int language)
+            public ShapeKey(string text, int font, TextDirectionMode direction, int features, int language, int systemFonts)
             {
                 _text = text;
                 _font = font;
                 _direction = direction;
                 _features = features;
                 _language = language;
-                _hash = HashCode.Combine(text.GetHashCode(), font, (int)direction, features, language);
+                _systemFonts = systemFonts;
+                _hash = HashCode.Combine(text.GetHashCode(), font, (int)direction, features, language, systemFonts);
             }
 
             public bool Equals(ShapeKey other)
                 => _hash == other._hash && _font == other._font && _direction == other._direction
-                    && _features == other._features && _language == other._language
+                    && _features == other._features && _language == other._language && _systemFonts == other._systemFonts
                     && string.Equals(_text, other._text, StringComparison.Ordinal);
 
             public override bool Equals(object obj) => obj is ShapeKey other && Equals(other);
@@ -71,12 +73,21 @@ namespace Unite.Text.Shaping
 
         /// <summary>The shaped text; valid until the next call that misses the cache.</summary>
         public static ShapedText Get(FontInstance font, string text, TextDirectionMode direction, TextFeatures features = null, int languageTag = 0)
+            => Get(FontStack.Single(font), text, direction, features, languageTag);
+
+        /// <summary>
+        /// The shaped text for a font stack. A system font arriving for a missing character
+        /// changes the key (<see cref="SystemFonts.Generation"/>), so text drawn as tofu
+        /// before re-shapes with it.
+        /// </summary>
+        public static ShapedText Get(FontStack font, string text, TextDirectionMode direction, TextFeatures features = null, int languageTag = 0)
         {
             features ??= TextFeatures.Default;
             if (languageTag == 0)
                 languageTag = LanguageTags.Default;
 
-            var key = new ShapeKey(text, font.Id, direction, features.Id, languageTag);
+            SystemFonts.Poll();
+            var key = new ShapeKey(text, font.Id, direction, features.Id, languageTag, SystemFonts.Generation);
             if (Shapes.TryGet(key, out var shaped))
             {
                 if (!shaped.IsCurrent)

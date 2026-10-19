@@ -50,7 +50,18 @@ namespace Unite.Text.Fonts
             return record;
         }
 
-        public static SfntDirectory Read(byte[] data)
+        /// <summary>Number of fonts in the data: the collection size for .ttc files, otherwise 1.</summary>
+        public static int CountFonts(byte[] data)
+        {
+            var reader = new FontReader(data);
+            if (reader.ReadU32() != CollectionVersion)
+                return 1;
+            reader.Skip(4);
+            return (int)reader.ReadU32();
+        }
+
+        /// <summary>The table directory of a font; <paramref name="collectionIndex"/> picks the font of a collection.</summary>
+        public static SfntDirectory Read(byte[] data, int collectionIndex = 0)
         {
             var reader = new FontReader(data);
             uint version = reader.ReadU32();
@@ -61,8 +72,11 @@ namespace Unite.Text.Fonts
                 uint fontCount = reader.ReadU32();
                 if (fontCount == 0)
                     throw new FontFormatException("font collection is empty.");
+                if (collectionIndex < 0 || collectionIndex >= fontCount)
+                    throw new FontFormatException($"font collection has no font {collectionIndex}.");
 
-                reader.Seek((int)reader.ReadU32()); // first font's table directory
+                reader.Skip(collectionIndex * 4);
+                reader.Seek((int)reader.ReadU32()); // the font's table directory
                 version = reader.ReadU32();
             }
 

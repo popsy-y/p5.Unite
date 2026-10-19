@@ -53,6 +53,24 @@ namespace Dev
             _canvas.TextFont(_font);
             DrawStressText(unit, time, Mathf.Max(1, _stressTextCount));
             DrawStressTextPoints(unit, time);
+            DrawStressScripts(unit);
+        }
+
+        // Band 7: scripts the primary font lacks, drawn through system font fallback, with
+        // shaping (Arabic joining, Hebrew points, Hangul, emoji sequences) and bidi.
+        private const string StressScripts =
+            "日本語の「テキスト」。 العربية لا بِسْمِ  עִבְרִית  한국어  Ελληνικά  Tiếng Việt  👨‍👩‍👧 🇯🇵";
+
+        private void DrawStressScripts(float unit)
+        {
+            _canvas.Push();
+            _canvas.Translate(Position(0.3f, 0.965f));
+            _canvas.TextSize(unit * 0.03f);
+            _canvas.TextStyle(TextStyleMode.Normal);
+            _canvas.NoStroke();
+            _canvas.Fill(DarkColor());
+            _canvas.Text(StressScripts, 0f, 0f);
+            _canvas.Pop();
         }
 
         // Band 1 (y 0.02..0.30): every primitive with fill + stroke under push/rotate/scale/shear.

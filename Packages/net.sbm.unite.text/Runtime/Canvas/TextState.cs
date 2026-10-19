@@ -83,6 +83,9 @@ namespace Unite.Text
         // Cached resolution of the font + style + axes into a font instance.
         private bool _resolved;
         private FontInstance _instance;
+        private FontFace[] _fallbacks = System.Array.Empty<FontFace>();
+        private FontInstance[] _stackInstances = System.Array.Empty<FontInstance>();
+        private Shaping.FontStack _stack;
         private bool _synthesizeWeight = true;
         private bool _synthesizeItalic = true;
 
@@ -132,6 +135,18 @@ namespace Unite.Text
             set
             {
                 _font = value;
+                _fallbacks = System.Array.Empty<FontFace>();
+                _resolved = false;
+            }
+        }
+
+        /// <summary>Fonts tried, in order, for characters the primary font lacks.</summary>
+        public FontFace[] Fallbacks
+        {
+            get => _fallbacks;
+            set
+            {
+                _fallbacks = value == null || value.Length == 0 ? System.Array.Empty<FontFace>() : (FontFace[])value.Clone();
                 _resolved = false;
             }
         }
@@ -215,6 +230,8 @@ namespace Unite.Text
             _variations.AddRange(other._variations);
             _resolved = other._resolved;
             _instance = other._instance;
+            _fallbacks = other._fallbacks;
+            _stack = other._stack;
             _synthesizeWeight = other._synthesizeWeight;
             _synthesizeItalic = other._synthesizeItalic;
             Size = other.Size;
@@ -266,10 +283,34 @@ namespace Unite.Text
             return axes;
         }
 
+        /// <summary>The primary font and its fallbacks at the current axis values.</summary>
+        public bool TryGetStack(out Shaping.FontStack stack)
+        {
+            stack = null;
+            if (!TryGetInstance(out _, out _, out _))
+                return false;
+            stack = _stack;
+            return true;
+        }
+
         private void Resolve(FontFace face)
         {
             BuildAxes(face, _resolvedAxes, out _synthesizeWeight, out _synthesizeItalic);
             _instance = face.GetInstance(_resolvedAxes);
+            if (_fallbacks.Length == 0)
+            {
+                _stack = Shaping.FontStack.Single(_instance);
+            }
+            else
+            {
+                // Fallbacks take the same axis values (fonts without those axes ignore them).
+                if (_stackInstances.Length != _fallbacks.Length + 1)
+                    _stackInstances = new FontInstance[_fallbacks.Length + 1];
+                _stackInstances[0] = _instance;
+                for (int index = 0; index < _fallbacks.Length; index++)
+                    _stackInstances[index + 1] = _fallbacks[index].GetInstance(_resolvedAxes);
+                _stack = Shaping.FontStack.Of(_stackInstances);
+            }
             _resolved = true;
         }
 

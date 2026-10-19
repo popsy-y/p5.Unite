@@ -151,9 +151,9 @@ namespace Unite.Text
                 layout.Lines.Count == 0)
                 return new Rect(x, y, 0f, 0f);
 
-            float scale = settings.Size / font.UnitsPerEm;
-            float ascent = font.Ascender * scale;
-            float descent = -font.Descender * scale;
+            float scale = settings.Size / font.Primary.UnitsPerEm;
+            float ascent = font.Primary.Ascender * scale;
+            float descent = -font.Primary.Descender * scale;
             var min = new Vector2(float.MaxValue, float.MaxValue);
             var max = new Vector2(float.MinValue, float.MinValue);
             foreach (var line in layout.Lines)
@@ -191,17 +191,20 @@ namespace Unite.Text
         }
 
         // Measurement layout at the origin: left / baseline alignment, no box.
+        // One measurement buffer: measuring is not re-entrant either.
+        private static readonly TextLayoutResult MeasureBuffer = new();
+
         private static bool TryLayout(
             UCanvas canvas,
             string text,
-            out Fonts.FontInstance font,
+            out Shaping.FontStack font,
             out TextLayoutSettings settings,
             out TextLayoutResult layout,
             bool alignToOrigin
         )
         {
             var state = State(canvas);
-            font = GlyphLayout.RequireFont(canvas, state);
+            font = GlyphLayout.RequireStack(canvas, state);
             settings = default;
             layout = null;
             if (font == null || string.IsNullOrEmpty(text))
@@ -213,7 +216,7 @@ namespace Unite.Text
                 settings.Align = TextAlignMode.Left;
                 settings.VerticalAlign = TextVerticalAlignMode.Baseline;
             }
-            layout = TextLayout.Layout(font, settings, text, 0f, 0f);
+            layout = TextLayout.Layout(font, settings, text, 0f, 0f, null, MeasureBuffer);
             return true;
         }
 
@@ -224,13 +227,13 @@ namespace Unite.Text
             float y,
             float maxWidth,
             float maxHeight,
-            out Fonts.FontInstance font,
+            out Shaping.FontStack font,
             out TextLayoutSettings settings,
             out TextLayoutResult layout
         )
         {
             var state = State(canvas);
-            font = GlyphLayout.RequireFont(canvas, state);
+            font = GlyphLayout.RequireStack(canvas, state);
             settings = default;
             layout = null;
             if (font == null || string.IsNullOrEmpty(text))
@@ -238,7 +241,7 @@ namespace Unite.Text
 
             settings = GlyphLayout.SettingsFor(canvas, state);
             TextBox? box = maxWidth > 0f ? ResolveBox(canvas, x, y, maxWidth, maxHeight) : null;
-            layout = TextLayout.Layout(font, settings, text, x, y, box);
+            layout = TextLayout.Layout(font, settings, text, x, y, box, MeasureBuffer);
             return true;
         }
 

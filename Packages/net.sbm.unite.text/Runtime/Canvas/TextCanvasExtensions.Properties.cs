@@ -67,7 +67,10 @@ namespace Unite.Text
                 switch (key)
                 {
                     case "textFont":
-                        state.Font = (FontFace)value;
+                        if (value is FontFace[] fonts)
+                            canvas.TextFont(fonts);
+                        else
+                            state.Font = (FontFace)value;
                         break;
                     case "textSize":
                         canvas.TextSize(Convert.ToSingle(value));

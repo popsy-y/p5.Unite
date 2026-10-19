@@ -30,8 +30,8 @@ namespace Unite.Text
 
         public static void Draw(UCanvas canvas, TextState state, string text, float x, float y, TextBox? box = null)
         {
-            var font = RequireFont(canvas, state);
-            if (font == null || text == null)
+            var fonts = RequireStack(canvas, state);
+            if (fonts == null || text == null)
                 return;
 
             var style = canvas.StyleState;
@@ -45,10 +45,10 @@ namespace Unite.Text
 
             TextLayoutResult layout;
             using (TextProfiling.Layout.Auto())
-                layout = TextLayout.Layout(font, settings, text, x, y, box, LayoutBuffer);
+                layout = TextLayout.Layout(fonts, settings, text, x, y, box, LayoutBuffer);
 
-            ResolveRaster(canvas, state, font, x, y, out int em, out float glyphScale, out float unitsPerPx);
-            var atlas = AtlasRegistry.GetOrCreate(state.Font);
+            // The raster bucket depends on the size only; each face scales its own units.
+            ResolveRaster(canvas, state, fonts.Primary, x, y, out int em, out _, out float unitsPerPx);
             int frame = GetCurrentFrame();
 
             // Synthetic italic: x shifts right with the height above the baseline. In
@@ -56,8 +56,21 @@ namespace Unite.Text
             var slant = Matrix4x4.identity;
             slant.m01 = -settings.YSign * settings.Slant;
 
+            int currentFace = -1;
+            FontInstance font = null;
+            GlyphAtlasSet atlas = null;
+            float glyphScale = 0f;
+
             foreach (var placed in layout.Glyphs)
             {
+                if (placed.Face != currentFace)
+                {
+                    currentFace = placed.Face;
+                    font = fonts[currentFace];
+                    atlas = AtlasRegistry.GetOrCreate(font.Face);
+                    glyphScale = em / (float)font.UnitsPerEm;
+                }
+
                 // Baked glyphs need no outline lookup; blank glyphs are never cached, so
                 // they fall through to the (cached, cheap) bake source check each time.
                 var key = new GlyphKey(atlas.FontId, placed.GlyphId, em, font.Id);
@@ -117,9 +130,13 @@ namespace Unite.Text
         public static bool IsYUp(DrawingMode mode) => mode is DrawingMode.World or DrawingMode.CanvasLocal;
 
         public static FontInstance RequireFont(UCanvas canvas, TextState state)
+            => RequireStack(canvas, state)?.Primary;
+
+        /// <summary>The primary font and its fallbacks, or null (warned once per canvas) without a usable font.</summary>
+        public static Shaping.FontStack RequireStack(UCanvas canvas, TextState state)
         {
-            if (state.TryGetInstance(out var instance, out _, out _))
-                return instance;
+            if (state.TryGetStack(out var stack))
+                return stack;
 
             if (!WarnedCanvases.TryGetValue(canvas, out _))
             {

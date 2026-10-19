@@ -33,9 +33,9 @@ namespace Unite.Text.Fonts
         /// <summary>Normalized axis coordinates (null for the default instance).</summary>
         internal float[] Coordinates => _coordinates;
 
-        internal long LastUse { get; private set; } = ++_useCounter;
+        internal long LastUse { get; private set; } = System.Threading.Interlocked.Increment(ref _useCounter);
 
-        internal void Touch() => LastUse = ++_useCounter;
+        internal void Touch() => LastUse = System.Threading.Interlocked.Increment(ref _useCounter);
 
         /// <summary>Process-wide unique id; part of every atlas cache key.</summary>
         public int Id { get; }

@@ -152,9 +152,9 @@ namespace Unite.Text.Fonts
             => glyphId < 0 || glyphId >= GlyphCount ? null : _outlines.Load(glyphId, coordinates);
 
         /// <summary>Builds a face from plain sfnt bytes (see <see cref="FontLoader"/>).</summary>
-        internal static FontFace Create(byte[] sfnt)
+        internal static FontFace Create(byte[] sfnt, int collectionIndex = 0)
         {
-            var directory = SfntDirectory.Read(sfnt);
+            var directory = SfntDirectory.Read(sfnt, collectionIndex);
 
             var head = directory.Get("head");
             if (head.Length < 54)
@@ -287,7 +287,8 @@ namespace Unite.Text.Fonts
             _instanceIds.Add(key, id);
         }
 
-        private static int NewInstanceId() => ++_nextInstanceId;
+        // Faces may be created on a worker thread (system font fallback).
+        private static int NewInstanceId() => System.Threading.Interlocked.Increment(ref _nextInstanceId);
 
         /// <summary>Normalized axis coordinates as a dictionary key, compared by value.</summary>
         private readonly struct CoordinateKey : IEquatable<CoordinateKey>

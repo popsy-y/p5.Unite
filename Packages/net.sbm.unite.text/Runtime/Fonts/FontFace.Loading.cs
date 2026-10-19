@@ -13,6 +13,14 @@ namespace Unite.Text.Fonts
         public string Name { get; private set; } = "Font";
 
         /// <summary>
+        /// When on (the default), characters that none of the fonts given to TextFont()
+        /// can draw are looked up in the fonts installed on the machine (desktop platforms;
+        /// scanned and loaded in the background). Off, they draw as the primary font's
+        /// .notdef glyph.
+        /// </summary>
+        public static bool SystemFontFallback { get; set; } = true;
+
+        /// <summary>
         /// The glyph atlas pages baked for this font so far: R8 signed distance field
         /// textures (inside = 0, outside = 255), meant for inspection and debugging. Empty
         /// until text is drawn with the font; entries can be null for released pages.
@@ -49,6 +57,15 @@ namespace Unite.Text.Fonts
             if (!FontLoader.TryLoad(data, out var face, out string error))
                 throw new InvalidDataException($"p5.Unite: font '{name}' could not be parsed: {error}");
 
+            if (!string.IsNullOrEmpty(name))
+                face.Name = name;
+            return face;
+        }
+
+        /// <summary>One font of a collection (.ttc) or a plain sfnt file; thread-safe (no Unity calls).</summary>
+        internal static FontFace LoadCollectionMember(byte[] data, int collectionIndex, string name)
+        {
+            var face = Create(data, collectionIndex);
             if (!string.IsNullOrEmpty(name))
                 face.Name = name;
             return face;

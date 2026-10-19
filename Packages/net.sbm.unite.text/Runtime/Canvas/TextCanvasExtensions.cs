@@ -26,8 +26,47 @@ namespace Unite.Text
             canvas.TextSize(size);
         }
 
+        /// <summary>
+        /// Sets a font stack, like a CSS font family list in p5.js 2.x textFont(): the first
+        /// font is the primary one, the others draw the characters it lacks, tried in order
+        /// (system fonts come last, see <see cref="FontFace.SystemFontFallback"/>).
+        /// </summary>
+        public static void TextFont(this UCanvas canvas, params FontFace[] fonts)
+        {
+            var state = State(canvas);
+            if (fonts == null || fonts.Length == 0)
+            {
+                state.Font = null;
+                return;
+            }
+
+            state.Font = fonts[0];
+            if (fonts.Length > 1)
+                state.Fallbacks = fonts[1..];
+        }
+
+        /// <summary>Sets a font stack and the text size at once.</summary>
+        public static void TextFont(this UCanvas canvas, FontFace[] fonts, float size)
+        {
+            canvas.TextFont(fonts);
+            canvas.TextSize(size);
+        }
+
         /// <summary>Returns the current font asset (null until TextFont() is called).</summary>
         public static FontFace TextFont(this UCanvas canvas) => State(canvas).Font;
+
+        /// <summary>Returns the primary font followed by its fallbacks (empty until TextFont() is called).</summary>
+        public static FontFace[] TextFonts(this UCanvas canvas)
+        {
+            var state = State(canvas);
+            if (state.Font == null)
+                return Array.Empty<FontFace>();
+
+            var fonts = new FontFace[state.Fallbacks.Length + 1];
+            fonts[0] = state.Font;
+            state.Fallbacks.CopyTo(fonts, 1);
+            return fonts;
+        }
 
         /// <summary>Loads a font file synchronously. See <see cref="FontFace.LoadFont(string, string)"/>.</summary>
         public static FontFace LoadFont(this UCanvas canvas, string path, string name = null)

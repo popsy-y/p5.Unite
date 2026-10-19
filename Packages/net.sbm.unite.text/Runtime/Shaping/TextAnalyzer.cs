@@ -36,6 +36,15 @@ namespace Unite.Text.Shaping
         }
 
         public void Shape(ShapedText target, TextAnalysis analysis, FontInstance font, TextFeatures features = null, int languageTag = 0)
+            => Shape(target, analysis, FontStack.Single(font), features, languageTag);
+
+        /// <summary>
+        /// Shapes the analysis run by run: one bidi level, script and font each. Every
+        /// grapheme cluster goes to the first font of the stack that can draw it (spaces and
+        /// punctuation stay with the font before them), then to a system font, else to the
+        /// primary font's .notdef.
+        /// </summary>
+        public void Shape(ShapedText target, TextAnalysis analysis, FontStack stack, TextFeatures features = null, int languageTag = 0)
         {
             _features = features ?? TextFeatures.Default;
             _language = languageTag == 0 ? DefaultLanguage : languageTag;
@@ -44,22 +53,55 @@ namespace Unite.Text.Shaping
             {
                 var range = analysis.Paragraphs[paragraph];
                 int runStart = range.Start;
+                int runFace = range.Start < range.End ? FaceFor(stack, target, range.Start, -1) : 0;
                 for (int index = range.Start + 1; index <= range.End; index++)
                 {
-                    bool split = index == range.End
-                        || target.ClusterStarts[index]
-                            && (analysis.Levels[index] != analysis.Levels[runStart] || analysis.Scripts[index] != analysis.Scripts[runStart]);
+                    bool split = index == range.End;
+                    int face = runFace;
+                    if (!split && target.ClusterStarts[index])
+                    {
+                        face = FaceFor(stack, target, index, runFace);
+                        split = face != runFace
+                            || analysis.Levels[index] != analysis.Levels[runStart]
+                            || analysis.Scripts[index] != analysis.Scripts[runStart];
+                    }
                     if (!split)
                         continue;
 
-                    ShapeRun(target, font, runStart, index, (analysis.Levels[runStart] & 1) == 1, analysis.Scripts[runStart]);
+                    ShapeRun(target, stack[runFace], runFace, runStart, index, (analysis.Levels[runStart] & 1) == 1, analysis.Scripts[runStart]);
                     runStart = index;
+                    runFace = face;
                 }
             }
             SummarizeClusters(target);
         }
 
-        private void ShapeRun(ShapedText target, FontInstance font, int start, int end, bool rightToLeft, UnicodeScript script)
+        // The face index (stack fonts, then system fonts) that draws the cluster at start.
+        private static int FaceFor(FontStack stack, ShapedText target, int start, int previous)
+        {
+            int end = start + 1;
+            while (end < target.Length && !target.ClusterStarts[end])
+                end++;
+            var cluster = new ReadOnlySpan<int>(target.CodePoints, start, end - start);
+
+            var script = UnicodeData.GetScript(cluster[0]);
+            bool neutral = script is UnicodeScript.Common or UnicodeScript.Inherited;
+            if (neutral && previous >= 0 && SystemFonts.Covers(stack[previous], cluster))
+                return previous;
+
+            for (int face = 0; face < stack.Count; face++)
+            {
+                if (SystemFonts.Covers(stack[face], cluster))
+                    return face;
+            }
+
+            int system = SystemFonts.FindFace(cluster);
+            if (system >= 0)
+                return stack.Count + system;
+            return neutral && previous >= 0 ? previous : 0;
+        }
+
+        private void ShapeRun(ShapedText target, FontInstance font, int face, int start, int end, bool rightToLeft, UnicodeScript script)
         {
             var layout = font.Face.OpenType;
             if (layout != null && !layout.IsEmpty)
@@ -67,7 +109,7 @@ namespace Unite.Text.Shaping
                 int glyphs = target.GlyphCount;
                 try
                 {
-                    _openTypeShaper.Shape(target, font, 0, start, end, rightToLeft, script, _language, _features);
+                    _openTypeShaper.Shape(target, font, face, start, end, rightToLeft, script, _language, _features);
                     return;
                 }
                 catch (IndexOutOfRangeException)
@@ -76,7 +118,7 @@ namespace Unite.Text.Shaping
                     target.GlyphCount = glyphs;
                 }
             }
-            _shaper.Shape(target, font, 0, start, end, rightToLeft, script);
+            _shaper.Shape(target, font, face, start, end, rightToLeft, script);
         }
 
         private static int CountCodePoints(string text)

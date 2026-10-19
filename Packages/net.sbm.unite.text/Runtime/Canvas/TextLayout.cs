@@ -172,14 +172,26 @@ namespace Unite.Text
             float y,
             TextBox? box = null,
             TextLayoutResult reuse = null
+        ) => Layout(font == null ? null : FontStack.Single(font), settings, text, x, y, box, reuse);
+
+        /// <summary>Lays out text with a font stack; line metrics come from the primary font.</summary>
+        public static TextLayoutResult Layout(
+            FontStack fonts,
+            in TextLayoutSettings settings,
+            string text,
+            float x,
+            float y,
+            TextBox? box = null,
+            TextLayoutResult reuse = null
         )
         {
             var result = reuse ?? new TextLayoutResult();
             result.Reset();
-            if (font == null || string.IsNullOrEmpty(text))
+            if (fonts == null || string.IsNullOrEmpty(text))
                 return result;
 
-            var shaped = ShapingCache.Get(font, text, settings.Direction, settings.Features, settings.LanguageTag);
+            var font = fonts.Primary;
+            var shaped = ShapingCache.Get(fonts, text, settings.Direction, settings.Features, settings.LanguageTag);
             BreakLines(shaped, settings, box?.Width ?? 0f, result.Ranges);
 
             float scale = settings.Size / font.UnitsPerEm;
@@ -231,6 +243,10 @@ namespace Unite.Text
 
             return result;
         }
+
+        /// <summary>Ink box of one placed glyph, measured in the font of the stack that draws it.</summary>
+        public static bool TryGetInkBounds(FontStack fonts, in TextLayoutSettings settings, PlacedGlyph glyph, out Vector2 min, out Vector2 max)
+            => TryGetInkBounds(fonts[glyph.Face], settings, glyph, out min, out max);
 
         /// <summary>
         /// Ink box of one placed glyph in drawing units, including the synthetic slant and
