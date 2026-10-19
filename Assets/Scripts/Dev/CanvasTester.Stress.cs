@@ -39,10 +39,14 @@ namespace Dev
             _canvas.RectMode = ShapeMode.Center;
             _canvas.EllipseMode = ShapeMode.Center;
 
-            DrawStressPrimitives(unit, time, shapeCount);
-            DrawStressLines(unit, time, Mathf.Max(1, shapeCount / 4));
-            DrawStressCurves(unit, time, Mathf.Max(1, shapeCount / 20));
-            DrawStressPaths(unit, time, Mathf.Max(1, shapeCount / 50));
+            using (StressPrimitivesMarker.Auto())
+                DrawStressPrimitives(unit, time, shapeCount);
+            using (StressLinesMarker.Auto())
+                DrawStressLines(unit, time, Mathf.Max(1, shapeCount / 4));
+            using (StressCurvesMarker.Auto())
+                DrawStressCurves(unit, time, Mathf.Max(1, shapeCount / 20));
+            using (StressPathsMarker.Auto())
+                DrawStressPaths(unit, time, Mathf.Max(1, shapeCount / 50));
 
             if (_font == null)
             {
@@ -51,10 +55,22 @@ namespace Dev
             }
 
             _canvas.TextFont(_font);
-            DrawStressText(unit, time, Mathf.Max(1, _stressTextCount));
-            DrawStressTextPoints(unit, time);
-            DrawStressScripts(unit);
+            using (StressTextMarker.Auto())
+                DrawStressText(unit, time, Mathf.Max(1, _stressTextCount));
+            using (StressTextPointsMarker.Auto())
+                DrawStressTextPoints(unit, time);
+            using (StressScriptsMarker.Auto())
+                DrawStressScripts(unit);
         }
+
+        // Per-band cost of the stress page (Profiler, TextPerfProbe).
+        private static readonly Unity.Profiling.ProfilerMarker StressPrimitivesMarker = new("Dev.Stress.Primitives");
+        private static readonly Unity.Profiling.ProfilerMarker StressLinesMarker = new("Dev.Stress.Lines");
+        private static readonly Unity.Profiling.ProfilerMarker StressCurvesMarker = new("Dev.Stress.Curves");
+        private static readonly Unity.Profiling.ProfilerMarker StressPathsMarker = new("Dev.Stress.Paths");
+        private static readonly Unity.Profiling.ProfilerMarker StressTextMarker = new("Dev.Stress.Text");
+        private static readonly Unity.Profiling.ProfilerMarker StressTextPointsMarker = new("Dev.Stress.TextPoints");
+        private static readonly Unity.Profiling.ProfilerMarker StressScriptsMarker = new("Dev.Stress.Scripts");
 
         // Band 7: scripts the primary font lacks, drawn through system font fallback, with
         // shaping (Arabic joining, Hebrew points, Hangul, emoji sequences) and bidi.
