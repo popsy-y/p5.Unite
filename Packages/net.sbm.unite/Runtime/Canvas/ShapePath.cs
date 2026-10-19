@@ -1,4 +1,3 @@
-using System.Buffers;
 using System.Collections.Generic;
 using UnityEngine;
 using StrokeCapValue = Unite.Canvas.StrokeCap;
@@ -545,20 +544,21 @@ namespace Unite.Canvas
             }
 
             var center = (boundsMin + boundsMax) * 0.5f;
-            // Returned to the pool by the drawing context once the frame is drawn.
-            var localPoints = ArrayPool<Vector4>.Shared.Rent(points.Count);
+            // Shape-local points go straight into the frame's shared polygon buffer.
+            var framePoints = _commandQueue.PolygonPoints;
+            int pointStart = framePoints.Count;
             for (int index = 0; index < points.Count; index++)
             {
-                localPoints[index] = new Vector4(
+                framePoints.Add(new Vector4(
                     points[index].x - center.x,
                     points[index].y - center.y,
                     0f,
                     0f
-                );
+                ));
             }
 
             float centerZ = zSum / Mathf.Max(1, zCount);
-            _commandQueue.Enqueue(new DrawCommand
+            _commandQueue.Add(new DrawCommand
             {
                 Transform = CurrentTransform
                     * Matrix4x4.Translate(new Vector3(center.x, center.y, centerZ)),
@@ -566,7 +566,7 @@ namespace Unite.Canvas
                 BoundsMax = boundsMax - center,
                 HasCustomBounds = true,
                 ShapeType = Shape.PolygonFill,
-                PolygonPoints = localPoints,
+                PolygonPointStart = pointStart,
                 PolygonPointCount = points.Count,
                 FillColor = _styleState.FillColor,
                 FillEnabled = true,

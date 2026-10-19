@@ -79,7 +79,7 @@ namespace Unite.Canvas
                 out var boundsMax
             );
 
-            _commandQueue.Enqueue(new DrawCommand
+            _commandQueue.Add(new DrawCommand
             {
                 Transform = CurrentTransform * Matrix4x4.Translate(center),
                 Size = shapeSize,

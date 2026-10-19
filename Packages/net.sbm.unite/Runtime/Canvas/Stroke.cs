@@ -65,7 +65,7 @@ namespace Unite.Canvas
 
             var midpoint = (start + end) * 0.5f;
 
-            _commandQueue.Enqueue(new DrawCommand
+            _commandQueue.Add(new DrawCommand
             {
                 Transform = CurrentTransform * Matrix4x4.Translate(midpoint),
                 LineStart = start - midpoint,

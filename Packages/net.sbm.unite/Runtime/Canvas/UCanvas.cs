@@ -245,7 +245,7 @@ namespace Unite.Canvas
 
         #region Draw Command
 
-        private Queue<DrawCommand> _commandQueue = new();
+        private readonly DrawCommandBuffer _commandQueue = new();
 
         /// <summary>
         /// The active drawing mode; throws the standard not-initialized error when the
@@ -270,8 +270,11 @@ namespace Unite.Canvas
             CheckDrawingContext();
             if (!isActiveAndEnabled)
                 return;
-            _commandQueue.Enqueue(command);
+            _commandQueue.Add(command);
         }
+
+        /// <summary>The <see cref="DrawCommand.GlyphAtlasIndex"/> of an atlas page texture for this frame's commands.</summary>
+        internal int GlyphAtlasIndex(Texture atlas) => _commandQueue.AtlasIndex(atlas);
 
         #endregion
 

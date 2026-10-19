@@ -2,6 +2,11 @@ using UnityEngine;
 
 namespace Unite.Canvas
 {
+    /// <summary>
+    /// One queued shape. Commands are plain values (no references) so the frame's shape
+    /// data can be built from them in Burst; polygon points and atlas textures live in
+    /// the frame's command buffer and are referred to by index.
+    /// </summary>
     public struct DrawCommand
     {
         public Matrix4x4 Transform;
@@ -27,11 +32,10 @@ namespace Unite.Canvas
         // Line3D only: scales the stroke weight by the perspective projection.
         public bool LinePerspective;
 
-        // PolygonFill only: shape-local points of the outline, in order. Holes are
-        // stored as additional contours wound opposite to the outer contour.
-        public Vector4[] PolygonPoints;
-
-        /// <summary>Points used in <see cref="PolygonPoints"/> (pooled arrays can be longer).</summary>
+        // PolygonFill only: shape-local points of the outline, in order, in the frame's
+        // shared polygon point buffer. Holes are stored as additional contours wound
+        // opposite to the outer contour.
+        public int PolygonPointStart;
         public int PolygonPointCount;
 
         public Vector4 Parameters0;
@@ -51,7 +55,8 @@ namespace Unite.Canvas
         public bool FillEnabled;
         public bool StrokeEnabled;
 
-        // Text only: atlas page texture holding this glyph's SDF. Null for every shape.
-        public Texture GlyphAtlas;
+        // Text only: atlas page holding this glyph's SDF, as a 1-based index into the
+        // frame's atlas list. 0 for every shape.
+        public int GlyphAtlasIndex;
     }
 }

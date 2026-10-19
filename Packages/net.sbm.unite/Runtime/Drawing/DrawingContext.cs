@@ -16,11 +16,10 @@ namespace Unite.Drawing
         private Material _material;
         private Material _depthPrepassMaterial;
 
-        private Queue<DrawCommand> _commandQueue;
-
-        // Frame buffers are reused every frame (and only ever grow): per-frame arrays of a
-        // few hundred commands would land on the large object heap and keep the GC busy.
-        private DrawCommand[] _frameCommands = Array.Empty<DrawCommand>();
+        // The canvas records into _commandQueue; CaptureCommands swaps it with _frame, the
+        // commands being drawn. Both only ever grow, so steady frames allocate nothing.
+        private readonly DrawCommandBuffer _commandQueue;
+        private readonly DrawCommandBuffer _frame = new();
         private int _frameCommandCount;
         private ShapeData[] _shapeDataScratch = Array.Empty<ShapeData>();
 
@@ -69,15 +68,14 @@ namespace Unite.Drawing
         private GraphicsBuffer _commandBuffer;
         private GraphicsBuffer _polygonPointBuffer;
         private GraphicsBuffer.IndirectDrawIndexedArgs[] _commandData;
-        private readonly List<Vector4> _polygonPoints = new();
 
         // MaterialPropertyBlock textures do not reach RenderMeshIndirect reliably, so
         // every atlas page gets its own material variant that owns the texture binding.
         private readonly Dictionary<Texture, Material> _glyphMaterials = new();
 
-        public DrawingContext(
+        internal DrawingContext(
             DrawingMode mode,
-            Queue<DrawCommand> commandQueue,
+            DrawCommandBuffer commandQueue,
             Transform parentTransform = null,
             DrawingExecutionMode executionMode = DrawingExecutionMode.Indirect,
             bool enableDepth = false,
@@ -175,31 +173,11 @@ namespace Unite.Drawing
         public void CaptureCommands()
         {
             using var scope = CaptureMarker.Auto();
-            int previousCount = _frameCommandCount;
-            int count = _commandQueue.Count;
-
-            if (_frameCommands.Length < count)
-                _frameCommands = new DrawCommand[Mathf.NextPowerOfTwo(Mathf.Max(count, 64))];
-
             _propertyBlocksInUse = 0;
-
-            // Last frame's pooled polygon point arrays have been drawn.
-            for (int index = 0; index < previousCount; index++)
-            {
-                ref var previous = ref _frameCommands[index];
-                if (previous.PolygonPointCount > 0 && previous.PolygonPoints != null)
-                    System.Buffers.ArrayPool<Vector4>.Shared.Return(previous.PolygonPoints);
-                previous.PolygonPoints = null;
-            }
-
-            _commandQueue.CopyTo(_frameCommands, 0);
+            _frame.SwapWith(_commandQueue);
             _commandQueue.Clear();
-            _frameCommandCount = count;
+            _frameCommandCount = _frame.Count;
             _captureGeneration++;
-
-            // Drop the references (atlas textures, polygon points) of last frame's tail.
-            if (previousCount > count)
-                Array.Clear(_frameCommands, count, previousCount - count);
         }
 
         private void LayoutShapes(Camera cam)
@@ -232,117 +210,22 @@ namespace Unite.Drawing
                 _shapeDataScratch = new ShapeData[Mathf.NextPowerOfTwo(Mathf.Max(count, 64))];
 
             var shapeDataArray = _shapeDataScratch;
-            _polygonPoints.Clear();
-            int index = 0;
             var layoutScope = LayoutMarker.Auto();
-
-            for (int commandIndex = 0; commandIndex < count; commandIndex++)
+            unsafe
             {
-                ref readonly var cmd = ref _frameCommands[commandIndex];
-                // The zero matrix (legacy Position / Rotation commands) is the only one with
-                // m33 == 0: every affine transform keeps m33 at 1.
-                var transform = cmd.Transform.m33 == 0f && cmd.Transform == Matrix4x4.zero
-                    ? Matrix4x4.TRS(cmd.Position, Quaternion.Euler(cmd.Rotation), Vector3.one)
-                    : cmd.Transform;
-                var shapeSize = new Vector2(Mathf.Abs(cmd.Size.x), Mathf.Abs(cmd.Size.y));
-                var halfSize = shapeSize * 0.5f;
-                float strokeWeight = cmd.StrokeEnabled ? Mathf.Max(0f, cmd.StrokeWeight) : 0f;
-                // Glyph quads sample a prebaked SDF that already has generous sprite
-                // padding, so they keep their tight bounds (the analytic shapes round
-                // their bounds out to give the anti-aliasing room).
-                float padding = cmd.ShapeType == Shape.Text
-                    ? 0f
-                    : strokeWeight * 0.5f + AntiAliasPadding(pixelPadding, transform);
-                var padding2 = Vector2.one * padding;
-                int styleFlags = (cmd.FillEnabled ? 1 : 0) |
-                                 (cmd.StrokeEnabled && strokeWeight > 0f ? 2 : 0);
-                Vector2 boundsMin = cmd.HasCustomBounds ? cmd.BoundsMin : -halfSize;
-                Vector2 boundsMax = cmd.HasCustomBounds ? cmd.BoundsMax : halfSize;
-
-                Vector4 point0 = cmd.Point0;
-                Vector4 point1 = cmd.Point1;
-                Vector4 parameters0 = cmd.Parameters0;
-
-                if (cmd.ShapeType == Shape.Line3D)
-                {
-                    point0 = new Vector4(
-                        cmd.LineStart.x,
-                        cmd.LineStart.y,
-                        cmd.LineStart.z,
-                        0f
-                    );
-                    point1 = new Vector4(
-                        cmd.LineEnd.x,
-                        cmd.LineEnd.y,
-                        cmd.LineEnd.z,
-                        0f
-                    );
-                }
-
-                if (cmd.ShapeType is Shape.Line or Shape.Line3D)
-                {
-                    parameters0 = new Vector4(
-                        cmd.LineCaps,
-                        cmd.LinePerspective ? 1f : 0f,
-                        0f,
-                        0f
-                    );
-                }
-
-                if (cmd.ShapeType == Shape.PolygonFill && cmd.PolygonPoints != null)
-                {
-                    int pointCount = cmd.PolygonPointCount > 0 ? cmd.PolygonPointCount : cmd.PolygonPoints.Length;
-                    parameters0 = new Vector4(
-                        _polygonPoints.Count,
-                        pointCount,
-                        0f,
-                        0f
-                    );
-                    for (int point = 0; point < pointCount; point++)
-                        _polygonPoints.Add(cmd.PolygonPoints[point]);
-                }
-
-                shapeDataArray[index] = new ShapeData
-                {
-                    Transform0 = transform.GetColumn(0),
-                    Transform1 = transform.GetColumn(1),
-                    Transform2 = transform.GetColumn(2),
-                    Transform3 = transform.GetColumn(3),
-                    Bounds = new Vector4(
-                        boundsMin.x - padding2.x,
-                        boundsMin.y - padding2.y,
-                        boundsMax.x + padding2.x,
-                        boundsMax.y + padding2.y
-                    ),
-                    ShapeParameters = new Vector4(shapeSize.x, shapeSize.y, 0f, 0f),
-                    Point0 = point0,
-                    Point1 = point1,
-                    Point2 = cmd.Point2,
-                    Point3 = cmd.Point3,
-                    Parameters0 = parameters0,
-                    Parameters1 = cmd.Parameters1,
-                    CornerRadiiX = cmd.CornerRadiiX,
-                    CornerRadiiY = cmd.CornerRadiiY,
-                    Style = new Vector4(
-                        GpuShapeType(cmd.ShapeType),
-                        (float)cmd.ArcMode,
-                        strokeWeight,
-                        styleFlags
-                    ),
-                    FillColor = cmd.FillColor,
-                    StrokeColor = cmd.StrokeColor
-                };
-
-                index++;
+                fixed (DrawCommand* commands = _frame.Items)
+                fixed (ShapeData* output = shapeDataArray)
+                    ShapeDataBuilder.Build(commands, count, output, pixelPadding);
             }
 
             layoutScope.Dispose();
             using (UploadMarker.Auto())
             {
                 _shapeDataBuffer.SetData(shapeDataArray, 0, 0, count);
-                EnsurePolygonPointBuffer(_polygonPoints.Count);
-                if (_polygonPoints.Count > 0)
-                    _polygonPointBuffer.SetData(_polygonPoints);
+                var polygonPoints = _frame.PolygonPoints;
+                EnsurePolygonPointBuffer(polygonPoints.Count);
+                if (polygonPoints.Count > 0)
+                    _polygonPointBuffer.SetData(polygonPoints);
             }
         }
 
@@ -402,7 +285,7 @@ namespace Unite.Drawing
                 {
                     // Glyph quads never write depth (like line strokes): the depth
                     // prepass material does not know the glyph's atlas texture.
-                    if (_frameCommands[index].GlyphAtlas != null)
+                    if (_frame.Items[index].GlyphAtlasIndex != 0)
                         continue;
 
                     var prepassParams = CreateRenderParams(
@@ -416,7 +299,7 @@ namespace Unite.Drawing
 
             for (int index = 0; index < count; index++)
             {
-                var rp = CreateRenderParams(cam, index, atlas: _frameCommands[index].GlyphAtlas);
+                var rp = CreateRenderParams(cam, index, atlas: _frame.AtlasAt(_frame.Items[index].GlyphAtlasIndex));
                 Graphics.RenderMesh(rp, _mesh, 0, Matrix4x4.identity);
             }
         }
@@ -463,23 +346,24 @@ namespace Unite.Drawing
         {
             _runs.Clear();
             int count = _frameCommandCount;
-            Texture current = null;
+            var commands = _frame.Items;
+            int current = 0;
             int start = 0;
 
             for (int index = 0; index < count; index++)
             {
-                var atlas = _frameCommands[index].GlyphAtlas;
-                if (ReferenceEquals(atlas, current)) continue;
+                int atlas = commands[index].GlyphAtlasIndex;
+                if (atlas == current) continue;
 
                 if (index > start)
-                    _runs.Add(new AtlasRun { Start = start, Count = index - start, Atlas = current });
+                    _runs.Add(new AtlasRun { Start = start, Count = index - start, Atlas = _frame.AtlasAt(current) });
 
                 start = index;
                 current = atlas;
             }
 
             if (count > start)
-                _runs.Add(new AtlasRun { Start = start, Count = count - start, Atlas = current });
+                _runs.Add(new AtlasRun { Start = start, Count = count - start, Atlas = _frame.AtlasAt(current) });
         }
 
         private RenderParams CreateRenderParams(
@@ -569,37 +453,6 @@ namespace Unite.Drawing
             if (DrawingMode is DrawingMode.NormalizedScreen or DrawingMode.NormalizedScreenOverlay)
                 return 1.5f / Mathf.Max(1f, Mathf.Min(cam.pixelWidth, cam.pixelHeight));
             return 0.001f;
-        }
-
-        private static float AntiAliasPadding(float drawingPadding, in Matrix4x4 transform)
-        {
-            var xAxis = new Vector3(transform.m00, transform.m10, transform.m20);
-            var yAxis = new Vector3(transform.m01, transform.m11, transform.m21);
-            float xx = Vector3.Dot(xAxis, xAxis);
-            float yy = Vector3.Dot(yAxis, yAxis);
-            float xy = Vector3.Dot(xAxis, yAxis);
-            float discriminant = Mathf.Sqrt(Mathf.Max(0f, (xx - yy) * (xx - yy) + 4f * xy * xy));
-            float minimumScale = Mathf.Sqrt(Mathf.Max(0f, (xx + yy - discriminant) * 0.5f));
-
-            return drawingPadding / Mathf.Max(0.0001f, minimumScale);
-        }
-
-        private static float GpuShapeType(Shape shape)
-        {
-            return shape switch
-            {
-                Shape.Circle or Shape.Ellipse => 0f,
-                Shape.Rectangle or Shape.Square => 1f,
-                Shape.Line => 2f,
-                Shape.Line3D => 7f,
-                Shape.Point => 3f,
-                Shape.Triangle => 4f,
-                Shape.Quad => 5f,
-                Shape.Arc => 6f,
-                Shape.PolygonFill => 8f,
-                Shape.Text => 9f,
-                _ => 0f
-            };
         }
 
         private void EnsureBuffers(int count)

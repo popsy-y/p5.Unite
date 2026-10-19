@@ -81,7 +81,7 @@ namespace Unite.Canvas
             if (!_styleState.FillEnabled && !_styleState.StrokeEnabled)
                 return;
 
-            _commandQueue.Enqueue(new DrawCommand
+            _commandQueue.Add(new DrawCommand
             {
                 Transform = CurrentTransform * Matrix4x4.Translate(center),
                 Size = Abs(size),
@@ -137,7 +137,7 @@ namespace Unite.Canvas
             IncludePoint(shapePoint2, pointCount, 3, ref shapeBoundsMin, ref shapeBoundsMax);
             IncludePoint(shapePoint3, pointCount, 4, ref shapeBoundsMin, ref shapeBoundsMax);
 
-            _commandQueue.Enqueue(new DrawCommand
+            _commandQueue.Add(new DrawCommand
             {
                 Transform = CurrentTransform * Matrix4x4.Translate(center3),
                 Size = shapeBoundsMax - shapeBoundsMin,

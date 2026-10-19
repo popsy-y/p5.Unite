@@ -162,7 +162,7 @@ namespace Unite.Text
                 Point2 = new Vector2(glyph.UvMin.x, yDown ? glyph.UvMax.y : glyph.UvMin.y),
                 Point3 = new Vector2(glyph.UvMax.x, yDown ? glyph.UvMin.y : glyph.UvMax.y),
                 Parameters0 = new Vector4(glyph.Range, glyph.W, context.Embolden, 0f),
-                GlyphAtlas = glyph.Texture,
+                GlyphAtlasIndex = context.Canvas.GlyphAtlasIndex(glyph.Texture),
                 FillColor = fillColor,
                 StrokeColor = context.StrokeColor,
                 StrokeWeight = context.StrokeWeight,
