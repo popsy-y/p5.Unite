@@ -3,6 +3,7 @@
     "rootNamespace": "Unite.Examples",
     "references": [
         "Unite.Runtime",
+        "Unite.Text",
         "Unity.Mathematics"
     ],
     "includePlatforms": [],
