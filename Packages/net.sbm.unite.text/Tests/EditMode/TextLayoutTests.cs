@@ -143,15 +143,57 @@ namespace Unite.Text.Tests
         }
 
         [Test]
-        public void RightToLeftReversesGlyphOrder()
+        public void BidiOrdersMixedDirectionText()
         {
+            // "A" + HEBREW ALEF (no glyph in the test font: .notdef = 0). Latin text keeps
+            // its order in a right-to-left paragraph; the Hebrew letter goes to the left
+            // of it there, and to the right in a left-to-right paragraph.
             var settings = Settings();
+            var layout = TextLayout.Layout(Font(), settings, "A\u05D0", 0f, 0f);
+            Assert.AreEqual(1, layout.Glyphs[0].GlyphId);
+            Assert.AreEqual(0, layout.Glyphs[1].GlyphId);
+
             settings.Direction = TextDirectionMode.Rtl;
-
-            var layout = TextLayout.Layout(Font(), settings, "AB", 0f, 0f);
-
-            Assert.AreEqual(2, layout.Glyphs[0].GlyphId);
+            layout = TextLayout.Layout(Font(), settings, "A\u05D0", 0f, 0f);
+            Assert.AreEqual(0, layout.Glyphs[0].GlyphId);
             Assert.AreEqual(1, layout.Glyphs[1].GlyphId);
+            Assert.Less(layout.Glyphs[0].PenX, layout.Glyphs[1].PenX);
+
+            settings.Direction = TextDirectionMode.Rtl;
+            layout = TextLayout.Layout(Font(), settings, "AB", 0f, 0f);
+            Assert.AreEqual(1, layout.Glyphs[0].GlyphId);
+            Assert.AreEqual(2, layout.Glyphs[1].GlyphId);
+
+            // Auto: the first strong character (Hebrew) makes the paragraph RTL.
+            settings.Direction = TextDirectionMode.Auto;
+            layout = TextLayout.Layout(Font(), settings, "\u05D0A", 0f, 0f);
+            Assert.AreEqual(1, layout.Glyphs[0].GlyphId);
+            Assert.AreEqual(0, layout.Glyphs[1].GlyphId);
+        }
+
+        [Test]
+        public void WordWrapBreaksBetweenIdeographs()
+        {
+            // Ideographs (no glyphs here: 500 advance each) may break between any two, but
+            // never before the ideographic full stop: the full stop pulls the previous
+            // ideograph onto the next line.
+            var layout = TextLayout.Layout(Font(), Settings(), "漢字。", 0f, 0f, new TextBox(0f, 0f, 1200f, float.PositiveInfinity));
+
+            Assert.AreEqual(2, layout.Lines.Count);
+            Assert.AreEqual(1, layout.Lines[0].GlyphCount);
+            Assert.AreEqual(2, layout.Lines[1].GlyphCount);
+        }
+
+        [Test]
+        public void ControlsAndIgnorablesDrawNothing()
+        {
+            // ZWJ, a bidi mark and a line separator: no glyphs, no width.
+            var layout = TextLayout.Layout(Font(), Settings(), "A\u200D\u200EA", 0f, 0f);
+            Assert.AreEqual(2, layout.Glyphs.Count);
+            Assert.AreEqual(1600f, layout.Lines[0].Width, Tolerance);
+
+            layout = TextLayout.Layout(Font(), Settings(), "A\u2028A", 0f, 0f);
+            Assert.AreEqual(2, layout.Lines.Count);
         }
 
         [Test]

@@ -87,6 +87,40 @@ namespace Dev
             CreateHost();
         }
 
+        /// <summary>
+        /// Editor Play mode helper for visual checks: shows each test page for a few frames
+        /// and saves a screenshot of it as &lt;directory&gt;/page-&lt;Page&gt;.png.
+        /// </summary>
+        public static void CaptureInEditor(string directory, params CanvasTester.TestPage[] pages)
+        {
+            if (!Application.isPlaying)
+                throw new InvalidOperationException("TextPerfProbe: enter Play mode first.");
+
+            var host = new GameObject("TextPerfProbe.Capture");
+            DontDestroyOnLoad(host);
+            host.AddComponent<PageCapture>().Begin(directory, pages);
+        }
+
+        private sealed class PageCapture : MonoBehaviour
+        {
+            public void Begin(string directory, CanvasTester.TestPage[] pages) => StartCoroutine(Capture(directory, pages));
+
+            private IEnumerator Capture(string directory, CanvasTester.TestPage[] pages)
+            {
+                var tester = FindFirstObjectByType<CanvasTester>();
+                foreach (var page in pages)
+                {
+                    tester.ConfigureForProfiling(page, showAtlas: false, animate: true, fontPath: null);
+                    for (int frame = 0; frame < 30; frame++)
+                        yield return null;
+                    ScreenCapture.CaptureScreenshot(Path.Combine(directory, $"page-{page}.png"));
+                    yield return null;
+                }
+                Debug.Log("TEXTPERF_CAPTURED");
+                Destroy(gameObject);
+            }
+        }
+
         private static void CreateHost()
         {
             var host = new GameObject("TextPerfProbe");

@@ -47,12 +47,18 @@ namespace Unite.Text
         Char
     }
 
-    /// <summary>Text direction, mirroring p5.js "ltr" / "rtl" / "inherit".</summary>
+    /// <summary>
+    /// Paragraph direction, mirroring p5.js / CSS "ltr" / "rtl" / "inherit" / "auto". The
+    /// Unicode Bidirectional Algorithm orders mixed text inside the paragraph either way;
+    /// Auto takes the direction of the first strong character. Inherit is left-to-right
+    /// (the canvas default).
+    /// </summary>
     public enum TextDirectionMode
     {
         Ltr,
         Rtl,
-        Inherit
+        Inherit,
+        Auto
     }
 
     /// <summary>Per-canvas text style state, mirroring p5.js text attributes.</summary>

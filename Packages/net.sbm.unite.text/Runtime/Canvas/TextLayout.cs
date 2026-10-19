@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Unite.Text.Fonts;
+using Unite.Text.Shaping;
 using UnityEngine;
 
 namespace Unite.Text
@@ -81,10 +82,17 @@ namespace Unite.Text
         public bool HasHeight => !float.IsInfinity(Height);
     }
 
-    /// <summary>One glyph placed by the layout: pen origin on its line's baseline.</summary>
+    /// <summary>One glyph placed by the layout: pen origin on the baseline of its line.</summary>
     internal struct PlacedGlyph
     {
         public int GlyphId;
+
+        /// <summary>Index of the font of the glyph in the font stack of the text.</summary>
+        public int Face;
+
+        /// <summary>Code point index of the cluster of the glyph in the laid-out string.</summary>
+        public int Cluster;
+
         public float PenX;
         public float Baseline;
     }
@@ -99,6 +107,15 @@ namespace Unite.Text
         public int GlyphCount;
     }
 
+    /// <summary>A line before placement: code points [Start, End) of one paragraph; VisibleEnd drops the hanging spaces.</summary>
+    internal struct LineRange
+    {
+        public int Start;
+        public int End;
+        public int VisibleEnd;
+        public int Paragraph;
+    }
+
     /// <summary>
     /// Output of <see cref="TextLayout.Layout"/>. Instances can be passed back into the
     /// layout to reuse their lists, which keeps per-frame drawing free of garbage.
@@ -108,36 +125,38 @@ namespace Unite.Text
         public readonly List<PlacedGlyph> Glyphs = new();
         public readonly List<LayoutLine> Lines = new();
 
-        internal readonly List<List<int>> BrokenLines = new();
-        private readonly List<List<int>> _codePointLists = new();
-        private int _codePointListsInUse;
-
-        /// <summary>A cleared code point list that stays valid until the next <see cref="Reset"/>.</summary>
-        internal List<int> RentCodePoints()
-        {
-            if (_codePointListsInUse == _codePointLists.Count)
-                _codePointLists.Add(new List<int>());
-
-            var list = _codePointLists[_codePointListsInUse++];
-            list.Clear();
-            return list;
-        }
+        internal readonly List<LineRange> Ranges = new();
+        internal byte[] LineLevels = Array.Empty<byte>();
+        internal byte[] GlyphLevels = Array.Empty<byte>();
+        internal int[] VisualOrder = Array.Empty<int>();
 
         internal void Reset()
         {
             Glyphs.Clear();
             Lines.Clear();
-            BrokenLines.Clear();
-            _codePointListsInUse = 0;
+            Ranges.Clear();
+        }
+
+        internal void EnsureLine(int codePoints, int glyphs)
+        {
+            if (LineLevels.Length < codePoints)
+                LineLevels = new byte[Math.Max(codePoints, LineLevels.Length * 2)];
+            if (GlyphLevels.Length < glyphs)
+            {
+                int size = Math.Max(glyphs, GlyphLevels.Length * 2);
+                GlyphLevels = new byte[size];
+                VisualOrder = new int[size];
+            }
         }
     }
 
     /// <summary>
-    /// Shaping-free text layout: line splitting, WORD/CHAR wrapping, letter/word spacing,
-    /// p5.js-style horizontal and vertical alignment (free or inside a text box), box
-    /// clipping and simple right-to-left glyph ordering.
+    /// Text layout on top of the cached analysis (<see cref="ShapingCache"/>): line
+    /// breaking at Unicode opportunities (WORD) or grapheme clusters (CHAR), bidi
+    /// reordering per line, letter / word spacing and synthetic weight, p5.js-style
+    /// horizontal and vertical alignment (free or inside a text box) and box clipping.
     /// </summary>
-    internal static class TextLayout
+    internal static partial class TextLayout
     {
         public static TextLayoutResult Layout(
             FontInstance font,
@@ -154,13 +173,14 @@ namespace Unite.Text
             if (font == null || string.IsNullOrEmpty(text))
                 return result;
 
-            float scale = settings.Size / font.UnitsPerEm;
-            var lines = TextLineBreaker.BreakLines(font, settings, text, box?.Width ?? 0f, scale, result);
+            var shaped = ShapingCache.Get(font, text, settings.Direction);
+            BreakLines(shaped, settings, box?.Width ?? 0f, result.Ranges);
 
+            float scale = settings.Size / font.UnitsPerEm;
             float ascent = font.Ascender * scale;
             float descent = -font.Descender * scale;
             float leading = settings.Leading;
-            int count = lines.Count;
+            int count = result.Ranges.Count;
             float blockBelowFirstBaseline = (count - 1) * leading + descent;
 
             // Offset of the first baseline from the reference edge, measured in the
@@ -200,19 +220,10 @@ namespace Unite.Text
                     continue;
 
                 float baseline = referenceY + settings.YSign * offset;
-                PlaceLine(font, settings, lines[index], x, box, baseline, scale, result);
+                PlaceLine(shaped, settings, result.Ranges[index], x, box, baseline, result);
             }
 
             return result;
-        }
-
-        /// <summary>Loose advance width of one line of code points, including spacing.</summary>
-        public static float MeasureLine(FontInstance font, in TextLayoutSettings settings, List<int> codePoints, float scale)
-        {
-            float width = 0f;
-            foreach (int codePoint in codePoints)
-                width += Advance(font, settings, codePoint, scale);
-            return width;
         }
 
         /// <summary>
@@ -252,93 +263,8 @@ namespace Unite.Text
             return true;
         }
 
-        public static List<int> CodePoints(string text) => CodePoints(text, new List<int>(text.Length));
-
-        public static List<int> CodePoints(string text, List<int> codePoints)
-        {
-            for (int index = 0; index < text.Length; index++)
-            {
-                if (char.IsHighSurrogate(text[index]) &&
-                    index + 1 < text.Length &&
-                    char.IsLowSurrogate(text[index + 1]))
-                {
-                    codePoints.Add(char.ConvertToUtf32(text[index], text[index + 1]));
-                    index++;
-                    continue;
-                }
-
-                codePoints.Add(text[index]);
-            }
-            return codePoints;
-        }
-
         // y-down: the box top is its smallest y; y-up: its largest.
         private static float BoxTop(TextBox box, float ySign)
             => ySign > 0f ? box.MinY : box.MinY + (box.HasHeight ? box.Height : 0f);
-
-        internal static float Advance(FontInstance font, in TextLayoutSettings settings, int codePoint, float scale)
-        {
-            float advance = font.Advance(font.GetGlyphId(codePoint)) * scale
-                + settings.LetterSpacing
-                + settings.Embolden * 2f;
-            if (codePoint == ' ')
-                advance += settings.WordSpacing;
-            return advance;
-        }
-
-        private static void PlaceLine(
-            FontInstance font,
-            in TextLayoutSettings settings,
-            List<int> codePoints,
-            float x,
-            TextBox? box,
-            float baseline,
-            float scale,
-            TextLayoutResult result
-        )
-        {
-            float width = MeasureLine(font, settings, codePoints, scale);
-            float anchor = box.HasValue
-                ? settings.Align switch
-                {
-                    TextAlignMode.Center => box.Value.Left + box.Value.Width * 0.5f,
-                    TextAlignMode.Right => box.Value.Left + box.Value.Width,
-                    _ => box.Value.Left
-                }
-                : x;
-
-            float left = settings.Align switch
-            {
-                TextAlignMode.Center => anchor - width * 0.5f,
-                TextAlignMode.Right => anchor - width,
-                _ => anchor
-            };
-
-            var line = new LayoutLine
-            {
-                Left = left,
-                Width = width,
-                Baseline = baseline,
-                GlyphStart = result.Glyphs.Count
-            };
-
-            // No bidi or shaping: right-to-left only reverses the visual glyph order.
-            bool reverse = settings.Direction == TextDirectionMode.Rtl;
-            float pen = left;
-            for (int step = 0; step < codePoints.Count; step++)
-            {
-                int codePoint = codePoints[reverse ? codePoints.Count - 1 - step : step];
-                result.Glyphs.Add(new PlacedGlyph
-                {
-                    GlyphId = font.GetGlyphId(codePoint),
-                    PenX = pen + settings.Embolden,
-                    Baseline = baseline
-                });
-                pen += Advance(font, settings, codePoint, scale);
-            }
-
-            line.GlyphCount = result.Glyphs.Count - line.GlyphStart;
-            result.Lines.Add(line);
-        }
     }
 }
