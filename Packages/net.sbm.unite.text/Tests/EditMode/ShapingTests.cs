@@ -93,6 +93,28 @@ namespace Unite.Text.Tests
         }
 
         [Test]
+        public void ColorGlyphsListTheirLayers()
+        {
+            var face = Font().Face;
+            Assert.IsTrue(face.HasColorGlyphs);
+
+            var color = face.ColorLayers;
+            Assert.IsFalse(color.TryGetLayers(A, out _, out _));
+            Assert.IsTrue(color.TryGetLayers(V, out int first, out int count));
+            Assert.AreEqual(2, count);
+
+            color.GetLayer(first, out int glyph, out int palette);
+            Assert.AreEqual(A, glyph);
+            var red = color.LayerColor(palette, new UnityEngine.Color(0f, 1f, 0f, 0.5f));
+            Assert.AreEqual(1f, red.r, 0.01f);
+            Assert.AreEqual(0.5f, red.a, 0.01f); // the fill alpha applies to palette colors
+
+            color.GetLayer(first + 1, out glyph, out palette);
+            Assert.AreEqual(i, glyph);
+            Assert.AreEqual(UnityEngine.Color.green, color.LayerColor(palette, UnityEngine.Color.green));
+        }
+
+        [Test]
         public void TextPropertiesReachTheLayout()
         {
             var gameObject = new UnityEngine.GameObject("TextPropertiesReachTheLayout");

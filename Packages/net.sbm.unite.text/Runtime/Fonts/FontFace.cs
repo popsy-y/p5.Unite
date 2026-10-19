@@ -72,6 +72,12 @@ namespace Unite.Text.Fonts
         /// <summary>GDEF / GSUB / GPOS / kern tables for shaping.</summary>
         internal Layout.OpenTypeLayout OpenType { get; private set; }
 
+        /// <summary>COLRv0 color glyphs (emoji), or null.</summary>
+        internal ColorGlyphs ColorLayers { get; private set; }
+
+        /// <summary>True when the font has COLR color glyphs (such as emoji), drawn in their palette colors.</summary>
+        public bool HasColorGlyphs => ColorLayers != null;
+
         /// <summary>
         /// Parses a font file: TrueType (.ttf), OpenType with TrueType or CFF outlines
         /// (.otf), WOFF and WOFF2. Returns false for anything else or for corrupt data.
@@ -198,7 +204,8 @@ namespace Unite.Text.Fonts
                 characters, advances, outlines, variations, unitsPerEm, ascender, descender
             )
             {
-                OpenType = new Layout.OpenTypeLayout(sfnt, directory)
+                OpenType = new Layout.OpenTypeLayout(sfnt, directory),
+                ColorLayers = ColorGlyphs.TryRead(sfnt, directory)
             };
         }
 

@@ -5,13 +5,15 @@ Usage: python GenerateShapingTestFont.py <output.cs>
 
 Glyphs are boxes; what matters is the OpenType layout: a liga ligature (f i), smcp small
 caps (a), Turkish locl (i -> i.TRK), Arabic beh with isol / init / medi / fina forms,
-pair kerning (A V -100) and an acute accent attached to A with mark-to-base anchors.
+pair kerning (A V -100), an acute accent attached to A with mark-to-base anchors, and a
+COLRv0 color glyph: V is drawn as layer A in red, then layer i in the foreground color.
 """
 
 import base64
 import io
 import sys
 
+from fontTools.colorLib.builder import buildCOLR, buildCPAL
 from fontTools.feaLib.builder import addOpenTypeFeaturesFromString
 from fontTools.fontBuilder import FontBuilder
 from fontTools.pens.ttGlyphPen import TTGlyphPen
@@ -96,6 +98,8 @@ def build():
     builder.setupNameTable({"familyName": "UniteShapingTest", "styleName": "Regular"})
     builder.setupPost()
     addOpenTypeFeaturesFromString(builder.font, FEATURES)
+    builder.font["CPAL"] = buildCPAL([[(1.0, 0.0, 0.0, 1.0), (0.0, 0.0, 1.0, 0.5)]])
+    builder.font["COLR"] = buildCOLR({"V": [("A", 0), ("i", 0xFFFF)]}, version=0)
 
     stream = io.BytesIO()
     builder.save(stream)

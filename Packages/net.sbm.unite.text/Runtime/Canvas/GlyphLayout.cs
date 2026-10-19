@@ -57,66 +57,118 @@ namespace Unite.Text
             slant.m01 = -settings.YSign * settings.Slant;
 
             int currentFace = -1;
-            FontInstance font = null;
-            GlyphAtlasSet atlas = null;
-            float glyphScale = 0f;
+            var context = new GlyphContext
+            {
+                Canvas = canvas,
+                Em = em,
+                UnitsPerPx = unitsPerPx,
+                Frame = frame,
+                Slant = slant,
+                YSign = settings.YSign,
+                Embolden = settings.Embolden,
+                StrokeColor = style.StrokeColor,
+                StrokeWeight = Mathf.Max(0f, style.StrokeWeight)
+            };
 
             foreach (var placed in layout.Glyphs)
             {
                 if (placed.Face != currentFace)
                 {
                     currentFace = placed.Face;
-                    font = fonts[currentFace];
-                    atlas = AtlasRegistry.GetOrCreate(font.Face);
-                    glyphScale = em / (float)font.UnitsPerEm;
+                    context.Font = fonts[currentFace];
+                    context.Atlas = AtlasRegistry.GetOrCreate(context.Font.Face);
+                    context.GlyphScale = em / (float)context.Font.UnitsPerEm;
+                }
+                var font = context.Font;
+
+                // COLR color glyphs: one glyph per layer in its palette color; a stroke
+                // follows the base glyph's own (monochrome) outline.
+                var color = font.Face.ColorLayers;
+                if (color != null && color.TryGetLayers(placed.GlyphId, out int firstLayer, out int layers))
+                {
+                    if (fillEnabled)
+                    {
+                        for (int layer = 0; layer < layers; layer++)
+                        {
+                            color.GetLayer(firstLayer + layer, out int layerGlyph, out int paletteIndex);
+                            EmitGlyph(context, placed, layerGlyph, color.LayerColor(paletteIndex, style.FillColor), fill: true, stroke: false);
+                        }
+                    }
+                    if (strokeEnabled)
+                        EmitGlyph(context, placed, placed.GlyphId, style.FillColor, fill: false, stroke: true);
+                    continue;
                 }
 
-                // Baked glyphs need no outline lookup; blank glyphs are never cached, so
-                // they fall through to the (cached, cheap) bake source check each time.
-                var key = new GlyphKey(atlas.FontId, placed.GlyphId, em, font.Id);
-                if (!atlas.TryGetCached(key, frame, out var glyph))
-                {
-                    if (!font.TryGetBakeSource(placed.GlyphId, out var source))
-                        continue;
-
-                    bool allocated;
-                    using (TextProfiling.Allocate.Auto())
-                        allocated = TryAllocateGlyph(atlas, key, frame, !font.IsDefault, source, em, glyphScale, out glyph);
-                    if (!allocated)
-                        continue;
-                }
-
-                // Sprite rect: pen-relative origin (OffsetX/Y, font orientation y-up) +
-                // size in baked pixels, mapped into drawing space around the pen.
-                var local = new Vector3(
-                    (glyph.OffsetX + glyph.W * 0.5f) * unitsPerPx,
-                    -settings.YSign * (glyph.OffsetY + glyph.H * 0.5f) * unitsPerPx,
-                    0f
-                );
-
-                // The quad's -y half must sample the sprite's top in y-down space and its
-                // bottom in y-up space.
-                bool yDown = settings.YSign > 0f;
-                using var enqueueScope = TextProfiling.Enqueue.Auto();
-                canvas.EnqueueRawCommand(new DrawCommand
-                {
-                    Transform = canvas.CurrentTransform
-                        * Matrix4x4.Translate(new Vector3(placed.PenX, placed.Baseline, 0f))
-                        * slant
-                        * Matrix4x4.Translate(local),
-                    Size = new Vector2(glyph.W * unitsPerPx, glyph.H * unitsPerPx),
-                    ShapeType = Shape.Text,
-                    Point2 = new Vector2(glyph.UvMin.x, yDown ? glyph.UvMax.y : glyph.UvMin.y),
-                    Point3 = new Vector2(glyph.UvMax.x, yDown ? glyph.UvMin.y : glyph.UvMax.y),
-                    Parameters0 = new Vector4(glyph.Range, glyph.W, settings.Embolden, 0f),
-                    GlyphAtlas = glyph.Texture,
-                    FillColor = style.FillColor,
-                    StrokeColor = style.StrokeColor,
-                    StrokeWeight = Mathf.Max(0f, style.StrokeWeight),
-                    FillEnabled = fillEnabled,
-                    StrokeEnabled = strokeEnabled
-                });
+                EmitGlyph(context, placed, placed.GlyphId, style.FillColor, fillEnabled, strokeEnabled);
             }
+        }
+
+        private struct GlyphContext
+        {
+            public UCanvas Canvas;
+            public FontInstance Font;
+            public GlyphAtlasSet Atlas;
+            public int Em;
+            public float GlyphScale;
+            public float UnitsPerPx;
+            public int Frame;
+            public Matrix4x4 Slant;
+            public float YSign;
+            public float Embolden;
+            public Color StrokeColor;
+            public float StrokeWeight;
+        }
+
+        // Bakes (or finds) one glyph and enqueues its quad at the placed glyph's pen.
+        private static void EmitGlyph(in GlyphContext context, in PlacedGlyph placed, int glyphId, Color fillColor, bool fill, bool stroke)
+        {
+            // Baked glyphs need no outline lookup; blank glyphs are never cached, so they
+            // fall through to the (cached, cheap) bake source check each time.
+            var font = context.Font;
+            var key = new GlyphKey(context.Atlas.FontId, glyphId, context.Em, font.Id);
+            if (!context.Atlas.TryGetCached(key, context.Frame, out var glyph))
+            {
+                if (!font.TryGetBakeSource(glyphId, out var source))
+                    return;
+
+                bool allocated;
+                using (TextProfiling.Allocate.Auto())
+                    allocated = TryAllocateGlyph(context.Atlas, key, context.Frame, !font.IsDefault, source, context.Em, context.GlyphScale, out glyph);
+                if (!allocated)
+                    return;
+            }
+
+            // Sprite rect: pen-relative origin (OffsetX/Y, font orientation y-up) + size in
+            // baked pixels, mapped into drawing space around the pen.
+            float unitsPerPx = context.UnitsPerPx;
+            var local = new Vector3(
+                (glyph.OffsetX + glyph.W * 0.5f) * unitsPerPx,
+                -context.YSign * (glyph.OffsetY + glyph.H * 0.5f) * unitsPerPx,
+                0f
+            );
+
+            // The quad's -y half must sample the sprite's top in y-down space and its
+            // bottom in y-up space.
+            bool yDown = context.YSign > 0f;
+            using var enqueueScope = TextProfiling.Enqueue.Auto();
+            context.Canvas.EnqueueRawCommand(new DrawCommand
+            {
+                Transform = context.Canvas.CurrentTransform
+                    * Matrix4x4.Translate(new Vector3(placed.PenX, placed.Baseline, 0f))
+                    * context.Slant
+                    * Matrix4x4.Translate(local),
+                Size = new Vector2(glyph.W * unitsPerPx, glyph.H * unitsPerPx),
+                ShapeType = Shape.Text,
+                Point2 = new Vector2(glyph.UvMin.x, yDown ? glyph.UvMax.y : glyph.UvMin.y),
+                Point3 = new Vector2(glyph.UvMax.x, yDown ? glyph.UvMin.y : glyph.UvMax.y),
+                Parameters0 = new Vector4(glyph.Range, glyph.W, context.Embolden, 0f),
+                GlyphAtlas = glyph.Texture,
+                FillColor = fillColor,
+                StrokeColor = context.StrokeColor,
+                StrokeWeight = context.StrokeWeight,
+                FillEnabled = fill,
+                StrokeEnabled = stroke
+            });
         }
 
         /// <summary>Layout settings for the canvas's current text state and drawing mode.</summary>
