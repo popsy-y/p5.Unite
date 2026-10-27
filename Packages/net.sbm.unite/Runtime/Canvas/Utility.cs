@@ -17,7 +17,7 @@ namespace Unite.Canvas
         /// <returns>Depth value</returns>
         public float WorldToLinearDepth(float worldDistance)
         {
-            return WorldToLinearDepth(worldDistance, _currentCamera);
+            return WorldToLinearDepth(worldDistance, ActiveCamera);
         }
 
         public float WorldToLinearDepth(float worldDistance, Camera cam)

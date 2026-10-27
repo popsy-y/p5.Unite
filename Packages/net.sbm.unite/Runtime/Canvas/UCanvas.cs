@@ -48,6 +48,7 @@ namespace Unite.Canvas
         public CanvasStyleState Style { get; }
     }
 
+    [ExecuteAlways]
     public partial class UCanvas : MonoBehaviour
     {
         [SerializeField][HideInInspector] private DrawingContext _drawingContext;
@@ -112,12 +113,18 @@ namespace Unite.Canvas
         /// <param name="enableDepth">
         /// Enables depth testing and depth writes. Overlay drawing modes ignore depth.
         /// </param>
+        /// <param name="targetCamera">
+        /// The camera to draw to (see <see cref="SetCamera"/>). Null follows <see cref="Camera.main"/>.
+        /// </param>
         public DrawingContext CreateCanvas(
             DrawingMode mode = DrawingMode.ScreenOverlay,
             DrawingExecutionMode executionMode = DrawingExecutionMode.Indirect,
-            bool enableDepth = false
+            bool enableDepth = false,
+            Camera targetCamera = null
         )
         {
+            SetCamera(targetCamera);
+
             _drawingContext?.Dispose();
             _drawingContext = new DrawingContext(
                 mode,
@@ -141,6 +148,12 @@ namespace Unite.Canvas
         private void OnEnable()
         {
             RenderPipelineManager.beginCameraRendering += OnCameraRendering;
+#if UNITY_EDITOR
+            // In Edit mode a domain reload drops the context without OnDestroy, which would
+            // leak its graphics buffers.
+            UnityEditor.AssemblyReloadEvents.beforeAssemblyReload -= DisposeDrawingContext;
+            UnityEditor.AssemblyReloadEvents.beforeAssemblyReload += DisposeDrawingContext;
+#endif
         }
 
         private void OnDisable()
@@ -154,8 +167,17 @@ namespace Unite.Canvas
         private void OnDestroy()
         {
             RenderPipelineManager.beginCameraRendering -= OnCameraRendering;
+#if UNITY_EDITOR
+            UnityEditor.AssemblyReloadEvents.beforeAssemblyReload -= DisposeDrawingContext;
+#endif
 
+            DisposeDrawingContext();
+        }
+
+        private void DisposeDrawingContext()
+        {
             _drawingContext?.Dispose();
+            _drawingContext = null;
         }
 
         /// <summary>
@@ -173,19 +195,14 @@ namespace Unite.Canvas
             if (_drawingContext?.ExecutionMode != DrawingExecutionMode.Sequential)
                 return;
 
-            foreach (var cam in Camera.allCameras)
-            {
-                if (cam && cam.isActiveAndEnabled)
-                    _drawingContext.Draw(cam);
-            }
+            var cam = ActiveCamera;
+            if (cam && cam.isActiveAndEnabled)
+                _drawingContext.Draw(cam);
         }
 
         private void OnCameraRendering(ScriptableRenderContext srpCtx, Camera cam)
         {
-            CheckCurrentCamera(cam);
-
-            if (!_currentCamera) return;
-            if (_drawingContext.ExecutionMode == DrawingExecutionMode.Indirect)
+            if (_drawingContext?.ExecutionMode == DrawingExecutionMode.Indirect && cam == ActiveCamera)
                 _drawingContext.Draw(cam);
 
             _transformStack.Reset();
@@ -221,24 +238,6 @@ namespace Unite.Canvas
             );
         }
 #endif
-
-        #endregion
-
-
-        #region Camera Management
-
-        private Camera _currentCamera;
-
-        /// <summary>The camera the canvas last rendered with, or the main camera before the first frame.</summary>
-        internal Camera ActiveCamera => _currentCamera ? _currentCamera : Camera.main;
-
-        private void CheckCurrentCamera(Camera cam)
-        {
-            if (!Equals(_currentCamera, cam))
-            {
-                _currentCamera = cam;
-            }
-        }
 
         #endregion
 
@@ -294,25 +293,17 @@ namespace Unite.Canvas
         {
             get
             {
-                if (!_currentCamera)
-                {
-                    var mainCam = Camera.main;
-                    if (mainCam)// for very first frame
-                    {
-                        return mainCam.pixelWidth;
-                    }
-
-                    return 1;// no active camera
-                }
-                ;
+                var cam = ActiveCamera;
+                if (!cam)
+                    return 1; // no camera to draw to
 
                 var m = _drawingContext.DrawingMode;
 
                 if (m is DrawingMode.NormalizedScreen or DrawingMode.NormalizedScreenOverlay)
-                    return _currentCamera.pixelWidth;
+                    return cam.pixelWidth;
 
                 if (m is DrawingMode.Screen or DrawingMode.ScreenOverlay)
-                    return _currentCamera.pixelWidth;
+                    return cam.pixelWidth;
 
                 if (m is DrawingMode.World or DrawingMode.CanvasLocal)
                     return -1; // there's no width in world or canvas-local coordinates
@@ -325,25 +316,17 @@ namespace Unite.Canvas
         {
             get
             {
-                if (!_currentCamera)
-                {
-                    var mainCam = Camera.main;
-                    if (mainCam)// for very first frame
-                    {
-                        return mainCam.pixelHeight;
-                    }
-
-                    return 1;// no active camera
-                }
-                ;
+                var cam = ActiveCamera;
+                if (!cam)
+                    return 1; // no camera to draw to
 
                 var m = _drawingContext.DrawingMode;
 
                 if (m is DrawingMode.NormalizedScreen or DrawingMode.NormalizedScreenOverlay)
-                    return _currentCamera.pixelHeight;
+                    return cam.pixelHeight;
 
                 if (m is DrawingMode.Screen or DrawingMode.ScreenOverlay)
-                    return _currentCamera.pixelHeight;
+                    return cam.pixelHeight;
 
                 if (m is DrawingMode.World or DrawingMode.CanvasLocal)
                     return -1; // there's no height in world or canvas-local coordinates
@@ -359,7 +342,7 @@ namespace Unite.Canvas
 
         private void OnDrawGizmos()
         {
-            // var camFront = _currentCamera.transform.TransformPoint(Vector3.forward);
+            // var camFront = ActiveCamera.transform.TransformPoint(Vector3.forward);
 
             // Gizmos.DrawWireCube(camFront, Vector3.one * .1f);
         }
