@@ -260,7 +260,7 @@
       "depth": 0,
       "source": "embedded",
       "dependencies": {
-        "net.sbm.unite": "0.1.0",
+        "net.sbm.unite": "0.2.0",
         "com.unity.burst": "1.8.19",
         "com.unity.mathematics": "1.3.2",
         "com.unity.modules.unitywebrequest": "1.0.0"

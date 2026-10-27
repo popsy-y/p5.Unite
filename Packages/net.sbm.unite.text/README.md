@@ -2,6 +2,17 @@
 
 Experimental text drawing for [p5.Unite](https://github.com/popsy-y/p5.Unite):
 
+## 0.2.0
+
+- First release of the optional text package, shipped with p5.Unite 0.2.0.
+- p5.js typography API: `Text`, `TextFont`, `TextSize`, `TextLeading`, `TextAlign`,
+  `TextWrap`, `TextDirection`, `TextStyle`, `TextWeight`, `TextProperty`, `TextWidth`,
+  `TextAscent` / `TextDescent`, `TextBounds`, and the p5.Font outline functions.
+- TTF/OTF/WOFF/WOFF2 and variable fonts, with Unicode 16 analysis, OpenType shaping
+  (including Arabic joining, GSUB/GPOS and language/feature settings), font stacks with
+  system-font fallback, and COLRv0 color glyphs.
+- On-demand SDF atlas cache with Burst-compiled, batched glyph baking and cached shaping.
+
 ```csharp
 // Load a .ttf / .otf / .woff / .woff2 file (StreamingAssets, an absolute path or a URL),
 // or parse bytes you already have with FontFace.LoadFont(byte[]):

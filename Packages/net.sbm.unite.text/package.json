@@ -1,6 +1,6 @@
 {
   "name": "net.sbm.unite.text",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "displayName": "p5.Unite Text",
   "description": "Optional text drawing for p5.Unite. Rasterizes glyphs from a font asset into an SDF atlas cache and draws them through the p5.Unite canvas pipeline.",
   "unity": "6000.2",
@@ -18,7 +18,7 @@
     "url": "https://github.com/popsy-y"
   },
   "dependencies": {
-    "net.sbm.unite": "0.1.0",
+    "net.sbm.unite": "0.2.0",
     "com.unity.burst": "1.8.19",
     "com.unity.mathematics": "1.3.2",
     "com.unity.modules.unitywebrequest": "1.0.0"
