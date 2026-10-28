@@ -1,6 +1,6 @@
 {
   "name": "net.sbm.unite",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "displayName": "p5.Unite",
   "description": "p5.js-style immediate-mode drawing for Unity. Draw shapes, curves and paths through a UCanvas API in screen, normalized screen, world and canvas-local coordinate spaces.",
   "unity": "6000.2",

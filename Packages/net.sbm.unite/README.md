@@ -15,7 +15,7 @@ p5.js風のクリエイティブコーディングをUnityで楽しむための�
 Package Managerの「Install package from git URL...」に次を入力します。
 
 ```
-https://github.com/popsy-y/p5.Unite.git?path=Packages/net.sbm.unite#v0.2.0
+https://github.com/popsy-y/p5.Unite.git?path=Packages/net.sbm.unite#v0.2.1
 ```
 
 `#` の後ろはタグです。最新のタグに置き換えてください。
