@@ -410,6 +410,8 @@ namespace Unite.Drawing
             {
                 worldBounds = new Bounds(cameraTransform.position + cameraTransform.forward * sortDistance, Vector3.one * 10000f),
                 camera = cam,
+                // Read every draw so that changing the GameObject's layer takes effect at once.
+                layer = _parentTransform != null ? _parentTransform.gameObject.layer : 0,
                 matProps = properties
             };
         }
