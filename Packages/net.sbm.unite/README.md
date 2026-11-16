@@ -80,4 +80,4 @@ Assets/Samples/p5.Unite/<バージョン>/BasicDrawing/BasicDrawing.unity
 - 開発用スクリプト: `Assets/Scripts/Dev`
 - サンプル（常時コンパイル）: `Assets/Scripts/Examples`
 
-パッケージ構成とリリース手順は、リポジトリのルートにある `PACKAGE_MIGRATION.md` を参照してください。
+パッケージ構成・開発フロー・リリース手順は、リポジトリのルートにある `AGENTS.md` を参照してください。
